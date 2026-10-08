@@ -422,7 +422,15 @@
           state.updatedAt = Math.max(state.updatedAt || 0, remote.updatedAt || 0);
         }
         ghSha = (meta && meta.sha) || ghSha;
-        var payload = JSON.stringify(state);
+        // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
+        var cleanGroups = state.groups.filter(function(g){
+          if (!g) return false;
+          var t = String(g.time || '');
+          if (t.indexOf('9-') === 0) return false;
+          if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
+          return true;
+        });
+        var payload = JSON.stringify(Object.assign({}, state, {groups: cleanGroups, groupNum: cleanGroups.length + 1}));
         return ghPut(payload, ghSha).then(function(m){ ghSha = m.content.sha; });
       }).catch(function(){});
     }, 600);
@@ -487,7 +495,7 @@
   if (!state.predictHistory) state.predictHistory = [];
   if (!state.currentMarks) state.currentMarks = []; // 当前组每手的AI预测对错：1对 0错 -1未预测
   // 首次打开：导入Excel数据
-  if (!localStorage.getItem(IMPORTED_FLAG) && !CLOUD){
+  if (!localStorage.getItem(IMPORTED_FLAG) && false){
     state.groups = INITIAL_GROUPS.slice();
     state.groupNum = INITIAL_GROUPS.length + 1;
     localStorage.setItem(IMPORTED_FLAG, '1');
@@ -496,7 +504,7 @@
   // 给旧数据补今天的日期
   state.groups.forEach(g => { if (!g.time) g.time = '9-29'; });
   // v2导入：森的5组
-  if (!localStorage.getItem('imported_v2') && !CLOUD){
+  if (!localStorage.getItem('imported_v2') && false){
     const SEN_GROUPS = [
       { name: '森', list: ['ru','long','chu','chu','chu','hu','hu','long','chu','chu','ru','hu'], time: '9-29' },
       { name: '森', list: ['ru','chu','hu','long','long','chu','hu','chu','hu','chu','hu'], time: '9-29' },
@@ -508,7 +516,7 @@
     localStorage.setItem('imported_v2', '1');
   }
   // v3导入：发哥的6组
-  if (!localStorage.getItem('imported_v3') && !CLOUD){
+  if (!localStorage.getItem('imported_v3') && false){
     const FA_GE = [
       { name: '发哥', list: ['chu','chu','long','hu','hu','hu','chu','ru','hu','ru'], time: '9-29' },
       { name: '发哥', list: ['chu','ru','long','long','ru','ru','ru','ru','ru','chu','chu','long'], time: '9-29' },
@@ -521,7 +529,7 @@
     localStorage.setItem('imported_v3', '1');
   }
   // v4导入：danhuoli的10组
-  if (!localStorage.getItem('imported_v4') && !CLOUD){
+  if (!localStorage.getItem('imported_v4') && false){
     const DAN = [
       { name: 'danhuoli', list: ['chu','ru','hu','chu','hu','hu','hu','ru','ru','long','ru'], time: '9-29' },
       { name: 'danhuoli', list: ['chu','hu','long','long','long','chu','ru','ru','chu','ru','long','ru'], time: '9-29' },
@@ -538,7 +546,7 @@
     localStorage.setItem('imported_v4', '1');
   }
   // v17导入：顺顺3
-  if (!localStorage.getItem('imported_v17') && !CLOUD){
+  if (!localStorage.getItem('imported_v17') && false){
     const BATCH = [
       { name: '顺顺', list: ['chu','chu','ru','hu','hu','chu','hu','chu','ru','long','chu'], time: '9-29' },
       { name: '顺顺', list: ['long','chu','hu','hu','chu','long','hu','hu','hu','hu','hu'], time: '9-29' },
@@ -548,7 +556,7 @@
     localStorage.setItem('imported_v17', '1');
   }
   // v16导入：葫芦十八1
-  if (!localStorage.getItem('imported_v16') && !CLOUD){
+  if (!localStorage.getItem('imported_v16') && false){
     const BATCH = [
       { name: '葫芦十八', list: ['long','hu','hu','chu','long','chu'], time: '9-29' },
     ];
@@ -556,7 +564,7 @@
     localStorage.setItem('imported_v16', '1');
   }
   // v15导入：有ai说a10 + 翀16 + 很酷贺贺15 + 话匣子11 + 行者20 + c14
-  if (!localStorage.getItem('imported_v15') && !CLOUD){
+  if (!localStorage.getItem('imported_v15') && false){
     const BATCH = [
       // 有ai说a
       { name: '有ai说a', list: ['ru','long','ru','long','chu','long','ru','hu','long','ru','chu','long'], time: '9-29' },
@@ -655,7 +663,7 @@
     localStorage.setItem('imported_v15', '1');
   }
   // v14导入：神圣10 + 霸天虎6 + 我本善良20 + 合兴14 + 秝14 + 必胜15 + 龙珠三代12 + 金刚功12 + 来看11 + 顺利5
-  if (!localStorage.getItem('imported_v14') && !CLOUD){
+  if (!localStorage.getItem('imported_v14') && false){
     const BATCH = [
       // 神圣
       { name: '神圣', list: ['long','ru','long','ru','hu','long','hu','long','ru','chu','hu'], time: '9-29' },
@@ -791,7 +799,7 @@
     localStorage.setItem('imported_v14', '1');
   }
   // v13导入：清花酒31 + 十挂九进宝9 + 燚6 + 顺利胜利百业兴财源进12 + 翁动10 + 义不容辞34 + 梦之岛8 + 老地方11 + 发展5 + 风景8
-  if (!localStorage.getItem('imported_v13') && !CLOUD){
+  if (!localStorage.getItem('imported_v13') && false){
     const BATCH = [
       // 清花酒
       { name: '清花酒', list: ['long','hu','hu','chu','hu','chu','chu','long','hu','long','long','long'], time: '9-29' },
@@ -942,7 +950,7 @@
     localStorage.setItem('imported_v13', '1');
   }
   // v12导入：温柔刀4 + 富丽13 + KPL4 + 慧星7 + 。。。4 + 林哨狂5 + 事事顺意25 + 888 9 + 上花轿4 + 财库25
-  if (!localStorage.getItem('imported_v12') && !CLOUD){
+  if (!localStorage.getItem('imported_v12') && false){
     const BATCH = [
       // 温柔刀
       { name: '温柔刀', list: ['long','ru','hu','ru','ru','ru','hu','chu','hu','long','chu','ru'], time: '9-29' },
@@ -1059,7 +1067,7 @@
     localStorage.setItem('imported_v12', '1');
   }
   // v11导入：上上签4 + 起大C7 + 拜关公11 + 赚大钱12 + 大人物10 + 娶雅某9 + 自由人8 + 指南针20 + 开豪车8 + 野心家7
-  if (!localStorage.getItem('imported_v11') && !CLOUD){
+  if (!localStorage.getItem('imported_v11') && false){
     const BATCH = [
       // 上上签
       { name: '上上签', list: ['ru','hu','long','ru','long','chu','ru','long','ru','chu','long','ru'], time: '9-29' },
@@ -1172,7 +1180,7 @@
     localStorage.setItem('imported_v11', '1');
   }
   // v10导入：都市情商7 + L8 + 暗夜杀7 + 同花顺9 + 六一新增14
-  if (!localStorage.getItem('imported_v10') && !CLOUD){
+  if (!localStorage.getItem('imported_v10') && false){
     const BATCH = [
       // 都市情商
       { name: '都市情商', list: ['long','hu','chu','long','chu','hu','chu','chu','chu','ru','ru','long'], time: '9-29' },
@@ -1229,7 +1237,7 @@
     localStorage.setItem('imported_v10', '1');
   }
   // v9导入：酷酷2 + abo4 + 安微5 + 好运12 + BAO3 + 555888222 18 + 耐克4 + 安踏6 + 789 9 + 班尼路11 + 特步7
-  if (!localStorage.getItem('imported_v9') && !CLOUD){
+  if (!localStorage.getItem('imported_v9') && false){
     const BATCH = [
       // 酷酷
       { name: '酷酷', list: ['chu','hu','hu','long','chu','ru','long','hu','hu','chu','chu','chu'], time: '9-29' },
@@ -1328,7 +1336,7 @@
     localStorage.setItem('imported_v9', '1');
   }
   // v8导入：财12 + 发10 + 瑞门9 + 吉星12 + 事事如意18 + 八方8 + 来财8 + 事事顺心3 + 肥肉厚酒6
-  if (!localStorage.getItem('imported_v8') && !CLOUD){
+  if (!localStorage.getItem('imported_v8') && false){
     const BATCH = [
       // 财
       { name: '财', list: ['hu','long','hu','long','hu','long','chu','chu','chu','hu','hu','ru'], time: '9-29' },
@@ -1430,7 +1438,7 @@
     localStorage.setItem('imported_v8', '1');
   }
   // v7导入：六一7 + 好5 + ch2 + 万利2 + 顺顺3 + 富兄4 + pinrn12
-  if (!localStorage.getItem('imported_v7') && !CLOUD){
+  if (!localStorage.getItem('imported_v7') && false){
     const BATCH = [
       // 六一
       { name: '六一', list: ['hu','ru','hu','long','ru','long','ru','long','long','long'], time: '9-29' },
@@ -1479,7 +1487,7 @@
     localStorage.setItem('imported_v7', '1');
   }
   // v6导入：和兴15组
-  if (!localStorage.getItem('imported_v6') && !CLOUD){
+  if (!localStorage.getItem('imported_v6') && false){
     const HE_XING = [
       { name: '和兴', list: ['long','chu','long','chu','ru','long','ru','ru','long','ru','ru'], time: '9-29' },
       { name: '和兴', list: ['ru','long','chu','ru','long','hu','hu','hu','ru','chu','ru','long'], time: '9-29' },
@@ -1501,7 +1509,7 @@
     localStorage.setItem('imported_v6', '1');
   }
   // v5导入：景点7组 + d7组 + b9组 + 航5组 + 领5组
-  if (!localStorage.getItem('imported_v5') && !CLOUD){
+  if (!localStorage.getItem('imported_v5') && false){
     const BATCH = [
       // 景点
       { name: '景点', list: ['long','chu','long','chu','chu','hu','long','ru','chu','ru','hu','ru'], time: '9-29' },
