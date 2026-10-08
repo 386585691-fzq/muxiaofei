@@ -451,10 +451,11 @@
   }
 
   let state = load();
-  // 清理早期自动导入的老批次（用户不需要）：
-  //  1) 所有标 9-29 的批次（顺顺/八方/森/发哥/danhuoli/六一/好/万利/富兄/清花酒/财库 等）
+  // 每次加载都过滤早期自动导入的老批次（不依赖一次性标记，防止浏览器缓存旧版导致清不掉）：
+  //  1) 所有标 9-29 的批次（顺顺/八方/森/发哥/danhuoli/六一/好/万利/富兄/清花酒/财库/555,888,222 等）
   //  2) Excel 导入批次：没标时间的 12 个名字（888/123/可乐/牡丹/必胜/合兴/@/义不容辞/依依/发发朋友圈/95公分/多彩多亿）
-  if (!localStorage.getItem('road_clean_old_v2')){
+  //  注：新记的组都有当天时间（如 10-9），不会被误删；近期记的 555 有 time，正常保留
+  {
     var OLD_NO_TIME = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
     var oldCount = state.groups.length;
     state.groups = state.groups.filter(function(g){
@@ -469,7 +470,6 @@
       save();
       render();
     }
-    localStorage.setItem('road_clean_old_v2', '1');
   }
   // 首次使用：提示配置 GitHub 同步钥匙（存在本浏览器里，安全）
   if (!GH_TOKEN && location.protocol !== 'file:'){
