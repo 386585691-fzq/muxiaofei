@@ -338,6 +338,17 @@
   ];
 
   // ===== GitHub 云同步（手机电脑任意网络共用一份数据，不再依赖本机服务） =====
+  // 配置链接自动填钥匙：手机打开 ?k=钥匙 的链接，自动保存后跳回干净地址
+  (function(){
+    try{
+      var m = location.search.match(/[?&]k=([^&]+)/);
+      if (m && m[1]){
+        localStorage.setItem('road_gh_token', decodeURIComponent(m[1]));
+        history.replaceState(null, '', location.pathname);
+        location.reload();
+      }
+    }catch(e){}
+  })();
   var GH_USER = '386585691-fzq';
   var GH_REPO = 'muxiaofei';
   var GH_FILE = 'road_groups_data.json';
