@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记牌数据总览</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:16px}
+header{max-width:1100px;margin:0 auto 14px}
+h1{font-size:22px;color:#facc15;margin-bottom:6px}
+#stat{color:#94a3b8;font-size:14px;margin-bottom:10px}
+#q{width:100%;max-width:320px;padding:8px 12px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none}
+#q:focus{border-color:#facc15}
+table{width:100%;max-width:1100px;margin:0 auto;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #334155;font-size:13px}
+th{background:#1a2332;color:#facc15;font-weight:600;position:sticky;top:0}
+td.nm{color:#fbbf24;font-weight:600;white-space:nowrap}
+.path{letter-spacing:2px;word-break:break-all}
+.tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:12px;margin-right:3px}
+.tag-hu{background:#dc2626;color:#fff}
+.tag-long{background:#2563eb;color:#fff}
+.tag-ru{background:#16a34a;color:#fff}
+.tag-chu{background:#64748b;color:#fff}
+.time{color:#94a3b8;white-space:nowrap;font-size:12px}
+#loadMsg{max-width:1100px;margin:20px auto;color:#f87171;font-size:14px}
+tr:hover{background:#243247}
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 记牌数据总览</h1>
+  <div id="stat">加载中...</div>
+  <input id="q" placeholder="🔍 搜人名，如：貂蝉 / 888 / 森">
+</header>
+<table id="tb"></table>
+<div id="loadMsg"></div>
+<script>
+const URL = 'https://raw.githubusercontent.com/386585691-fzq/muxiaofei/main/road_groups_data.json';
+const S = {hu:'虎', long:'龙', ru:'入', chu:'出'};
+let all = [];
+fetch(URL)
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(d){
+    all = (d && d.groups) || [];
+    document.getElementById('stat').textContent = '共 ' + all.length + ' 组路单 · 数据实时来自 GitHub 云端';
+    render();
+  })
+  .catch(function(e){
+    document.getElementById('stat').textContent = '加载失败';
+    document.getElementById('loadMsg').textContent = '拿不到云端数据：' + e.message;
+  });
+function render(){
+  const q = document.getElementById('q').value.trim();
+  const list = q ? all.filter(function(g){ return (g.name||'').indexOf(q) >= 0; }) : all;
+  document.getElementById('stat').textContent = '共 ' + all.length + ' 组路单' + (q ? '，筛选出 ' + list.length + ' 组' : '') + ' · 数据实时来自 GitHub 云端';
+  const rows = list.map(function(g,i){
+    const tags = (g.list||[]).map(function(x){ return '<span class="tag tag-'+x+'">'+(S[x]||x)+'</span>'; }).join('');
+    return '<tr><td>'+(i+1)+'</td><td class="nm">'+(g.name||'?')+'</td><td class="path">'+tags+'</td><td class="time">'+(g.time||'')+'</td></tr>';
+  }).join('');
+  document.getElementById('tb').innerHTML = '<thead><tr><th>#</th><th>人名</th><th>牌路（虎·龙·入·出）</th><th>时间</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" style="color:#94a3b8">没有匹配的数据</td></tr>') + '</tbody>';
+}
+document.getElementById('q').addEventListener('input', render);
+</script>
+</body>
+</html>
