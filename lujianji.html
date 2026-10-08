@@ -451,6 +451,21 @@
   }
 
   let state = load();
+  // 清理早期自动导入的 9-29 老批次（顺顺/森/发哥/danhuoli/六一/好/万利/富兄 等，用户不需要）
+  // 只在首次清理后保存，之后不再重复处理
+  if (!localStorage.getItem('road_clean_old_v1')){
+    var oldCount = state.groups.length;
+    state.groups = state.groups.filter(function(g){
+      var t = String(g.time || '');
+      return t.indexOf('9-') !== 0;
+    });
+    if (state.groups.length !== oldCount){
+      state.groupNum = state.groups.length + 1;
+      save();
+      render();
+    }
+    localStorage.setItem('road_clean_old_v1', '1');
+  }
   // 首次使用：提示配置 GitHub 同步钥匙（存在本浏览器里，安全）
   if (!GH_TOKEN && location.protocol !== 'file:'){
     setTimeout(function(){
