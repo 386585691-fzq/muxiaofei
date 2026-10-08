@@ -451,20 +451,25 @@
   }
 
   let state = load();
-  // 清理早期自动导入的 9-29 老批次（顺顺/森/发哥/danhuoli/六一/好/万利/富兄 等，用户不需要）
-  // 只在首次清理后保存，之后不再重复处理
-  if (!localStorage.getItem('road_clean_old_v1')){
+  // 清理早期自动导入的老批次（用户不需要）：
+  //  1) 所有标 9-29 的批次（顺顺/八方/森/发哥/danhuoli/六一/好/万利/富兄/清花酒/财库 等）
+  //  2) Excel 导入批次：没标时间的 12 个名字（888/123/可乐/牡丹/必胜/合兴/@/义不容辞/依依/发发朋友圈/95公分/多彩多亿）
+  if (!localStorage.getItem('road_clean_old_v2')){
+    var OLD_NO_TIME = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
     var oldCount = state.groups.length;
     state.groups = state.groups.filter(function(g){
+      if (!g) return false;
       var t = String(g.time || '');
-      return t.indexOf('9-') !== 0;
+      if (t.indexOf('9-') === 0) return false;      // 9月老批次
+      if (!t && OLD_NO_TIME.indexOf(g.name) >= 0) return false; // Excel老批次(无时间)
+      return true;
     });
     if (state.groups.length !== oldCount){
       state.groupNum = state.groups.length + 1;
       save();
       render();
     }
-    localStorage.setItem('road_clean_old_v1', '1');
+    localStorage.setItem('road_clean_old_v2', '1');
   }
   // 首次使用：提示配置 GitHub 同步钥匙（存在本浏览器里，安全）
   if (!GH_TOKEN && location.protocol !== 'file:'){
