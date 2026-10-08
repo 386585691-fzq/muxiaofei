@@ -1,0 +1,2456 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>路单记牌器</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="apple-touch-icon" href="./icon.png">
+<link rel="icon" type="image/png" href="./icon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: "STHeiti", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    background-attachment: fixed;
+    color: #e2e8f0;
+    min-height: 100vh; padding: 10px;
+    max-width: 600px; margin: 0 auto;
+  }
+
+  .now-time {
+    text-align: right; font-size: 14px; color: #fbbf24;
+    font-weight: 700; margin-bottom: 8px; font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 20px rgba(251,191,36,.3);
+  }
+
+  .section-title { font-size: 12px; color: #94a3b8; margin: 10px 0 6px; display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 600; letter-spacing: 1px; }
+  .section-title span:first-child { white-space: nowrap; }
+  #searchBox {
+    flex: 1; max-width: 180px; background: rgba(255,255,255,.08); border: 1px solid rgba(251,191,36,.3); color: #fbbf24;
+    padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; outline: none;
+    font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    backdrop-filter: blur(10px);
+  }
+  #searchBox::placeholder { color: #64748b; }
+
+  .current {
+    background: rgba(30, 41, 59, .6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(251,191,36,.15);
+    border-radius: 16px; padding: 12px 14px; margin-bottom: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .group-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .group-name-row label { font-size: 13px; color: #94a3b8; white-space: nowrap; font-weight: 600; }
+  #groupName {
+    flex: 1; background: rgba(250, 245, 224, .95); border: 2px solid #b8a87a; color: #1a1a1a;
+    padding: 8px 12px; border-radius: 10px; font-size: 17px; font-weight: 900; outline: none;
+    font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    box-shadow: 0 4px 15px rgba(184,168,122,.2);
+  }
+  #groupName::placeholder { color: #b8a87a; font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 10px; }
+  .cell {
+    background: linear-gradient(180deg, #fef9e7 0%, #f5e9c8 100%);
+    border: 1px solid #d4c59a;
+    border-radius: 8px;
+    box-shadow: 0 3px 0 #a89060, 0 6px 12px rgba(0,0,0,.2), inset 0 1px 0 #fff;
+    aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 900; color: #1a1a1a; cursor: pointer; user-select: none;
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
+    font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    transition: transform .1s;
+    position: relative;
+  }
+  .cell-mark {
+    position: absolute; top: 2px; right: 2px;
+    width: 17px; height: 17px; border-radius: 50%;
+    color: #fff; font-size: 12px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.45); line-height: 1;
+  }
+  .cell-mark.ok { background: #22c55e; }
+  .cell-mark.bad { background: #ef4444; }
+  .cell:active { transform: scale(.95); }
+  .cell.empty { color: #c5b98a; font-size: 14px; text-shadow: none; }
+  .cell.last { box-shadow: 0 3px 0 #a89060, 0 0 0 3px #fbbf24, 0 0 20px rgba(251,191,36,.5); }
+  .cell.hu   { color: #dc2626; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(220,38,38,.2); }
+  .cell.long { color: #2563eb; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(37,99,235,.2); }
+  .cell.ru   { color: #d97706; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(217,119,6,.2); }
+  .cell.chu  { color: #16a34a; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(22,163,74,.2); }
+
+  .pick-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+  .pbtn {
+    padding: 15px 0; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
+    font-size: 28px; font-weight: 900; cursor: pointer;
+    font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    transition: all .15s;
+    box-shadow: 0 4px 15px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .pbtn:active { transform: scale(0.95); }
+  .pbtn-hu   { background: linear-gradient(180deg, #991b1b, #7f1d1d); color: #fecaca; }
+  .pbtn-long { background: linear-gradient(180deg, #1e40af, #1e3a8a); color: #bfdbfe; }
+  .pbtn-ru   { background: linear-gradient(180deg, #b45309, #854d0e); color: #fef08a; }
+  .pbtn-chu  { background: linear-gradient(180deg, #15803d, #14532d); color: #bbf7d0; }
+
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .abtn {
+    padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .15s;
+    backdrop-filter: blur(10px);
+  }
+  .abtn:active { transform: scale(.97); }
+  .abtn-undo { background: rgba(100,116,139,.3); color: #e2e8f0; }
+  .abtn-done { background: linear-gradient(180deg, #059669, #047857); color: #d1fae5; }
+
+  .history-item {
+    background: rgba(30, 41, 59, .5);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 6px;
+    box-shadow: 0 4px 15px rgba(0,0,0,.2);
+  }
+  .history-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .history-name { font-size: 17px; font-weight: 900; color: #fef3c7; font-family: "STHeiti", "Microsoft YaHei", sans-serif; }
+  .history-count { font-size: 11px; color: #94a3b8; margin-left: 6px; font-weight: 400; }
+  .history-del { background: none; border: none; color: #f87171; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .history-del:hover { background: rgba(248,113,113,.1); }
+  .history-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+  .hcell {
+    background: linear-gradient(180deg, #fef9e7 0%, #f5e9c8 100%);
+    border: 1px solid #d4c59a;
+    border-radius: 5px;
+    box-shadow: 0 2px 0 #a89060;
+    aspect-ratio: 1/1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: #1a1a1a;
+    font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    position: relative;
+  }
+  .hcell-mark {
+    position: absolute; top: 0; right: 0;
+    width: 12px; height: 12px; border-radius: 50%;
+    color: #fff; font-size: 8px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .hcell-mark.ok { background: #22c55e; }
+  .hcell-mark.bad { background: #ef4444; }
+  .hcell.hu   { color: #dc2626; }
+  .hcell.long { color: #2563eb; }
+  .hcell.ru   { color: #d97706; }
+  .hcell.chu  { color: #16a34a; }
+
+  .empty-tip { color: #64748b; text-align: center; padding: 20px 0; font-size: 13px; }
+  .clear-all {
+    width: 100%; margin-top: 8px; padding: 10px;
+    background: linear-gradient(180deg, #991b1b, #7f1d1d); color: #fecaca;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 15px rgba(127,29,29,.3);
+  }
+
+  .tag {
+    padding: 3px 8px; border-radius: 10px;
+    background: #3a3a3a; color: #ccc;
+    font-size: 11px; cursor: pointer; border: 1px solid #555;
+    user-select: none;
+  }
+  .tag.active {
+    background: #fbbf24; color: #1a1a1a; border-color: #fbbf24; font-weight: 700;
+  }
+
+  .mini-btn {
+    padding: 3px 8px; border-radius: 10px; border: 1px solid #555;
+    background: #3a3a3a; color: #aaa; font-size: 11px; cursor: pointer;
+  }
+  .mini-btn.on { background: #fbbf24; color: #1a1a1a; border-color: #fbbf24; font-weight: 700; }
+
+  /* ===== 新增：每组画像徽章 & 胜率表 ===== */
+  .dist-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin: 3px 0; }
+  .dist-hu { background: #dc2626; } .dist-long { background: #2563eb; } .dist-ru { background: #d97706; } .dist-chu { background: #16a34a; }
+  .profile-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+  .profile-tag { background: rgba(168,85,247,.15); color: #d8b4fe; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+  .rate-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+  .rate-table th { background: rgba(251,191,36,.12); color: #fbbf24; padding: 5px 4px; font-weight: 700; text-align: left; }
+  .rate-table td { padding: 5px 4px; border-top: 1px solid rgba(255,255,255,.06); vertical-align: middle; }
+  .rate-table tr { cursor: pointer; }
+  .rate-table tr:hover td { background: rgba(251,191,36,.05); }
+  .rate-num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<!-- 密码锁 -->
+<div id="lockScreen" style="position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e1b4b);z-index:9999;display:none;align-items:center;justify-content:center;">
+  <div style="background:rgba(30,41,59,.8);backdrop-filter:blur(20px);border:1px solid rgba(251,191,36,.2);border-radius:16px;padding:30px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <div style="font-size:24px;font-weight:900;color:#fbbf24;margin-bottom:20px;">路单记牌器</div>
+    <input id="lockPwd" type="password" placeholder="请输入密码" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:18px;font-weight:700;text-align:center;outline:none;margin-bottom:12px;">
+    <div id="lockMsg" style="color:#ef4444;font-size:12px;margin-bottom:10px;min-height:16px;"></div>
+    <button id="lockBtn" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(180deg,#d97706,#b45309);color:#fef08a;font-size:16px;font-weight:900;cursor:pointer;">进 入</button>
+    <div style="font-size:11px;color:#64748b;margin-top:12px;" id="lockTip"></div>
+  </div>
+</div>
+<div class="current">
+  <div class="group-name-row">
+    <label>组名</label>
+    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <span style="font-size:11px;color:#888;">快捷选名</span>
+    <button id="toggleNameBar" style="padding:2px 8px;border-radius:8px;background:#3a3a3a;color:#aaa;font-size:11px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
+  </div>
+  <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:10px;max-height:150px;overflow-y:auto;"></div>
+  <div class="grid" id="grid"></div>
+  <div class="pick-btns">
+    <button class="pbtn pbtn-hu" data-s="hu">虎</button>
+    <button class="pbtn pbtn-long" data-s="long">龙</button>
+    <button class="pbtn pbtn-ru" data-s="ru">入</button>
+    <button class="pbtn pbtn-chu" data-s="chu">出</button>
+  </div>
+  <div class="action-row">
+    <button class="abtn abtn-undo" id="undoBtn">撤销</button>
+    <button class="abtn abtn-done" id="doneBtn">完成本组并开新组</button>
+  </div>
+  <div id="liveHint" style="margin-top:8px;"></div>
+</div>
+
+
+
+<div class="section-title">
+  <button id="toggleHistory" style="padding:2px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;border:1px solid rgba(251,191,36,.3);cursor:pointer;font-weight:700;">历史组 ▶</button>
+  <button id="toggleTags" style="padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.08);color:#94a3b8;font-size:11px;border:1px solid rgba(255,255,255,.1);cursor:pointer;">人名列表 ▶</button>
+  <input id="searchBox" type="text" placeholder="搜组名...">
+</div>
+<div id="historyContent" style="display:none;">
+<div id="tagBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
+<div id="rateSection" style="margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:12px;color:#fbbf24;font-weight:700;">各组画像 / 胜率表</span>
+    <button id="toggleRate" style="padding:2px 8px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:11px;border:1px solid rgba(251,191,36,.3);cursor:pointer;">展开 ▶</button>
+  </div>
+  <div id="rateContent" style="display:none;margin-top:4px;background:rgba(30,41,59,.5);border:1px solid rgba(168,85,247,.25);border-radius:10px;padding:8px;max-height:440px;overflow-y:auto;"></div>
+</div>
+<div id="historyList"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+  <button class="action-btn undo" id="exportBtn">导出备份</button>
+  <button class="action-btn undo" id="importBtn">导入恢复</button>
+</div>
+<button class="clear-all" id="clearAllBtn">清空全部历史</button>
+</div>
+
+<script>
+(function(){
+  const PWD_KEY = 'road_pwd_v1';
+  // 密码锁逻辑
+  function checkLock(){
+    var savedPwd = localStorage.getItem(PWD_KEY);
+    var lock = document.getElementById('lockScreen');
+    var pwdInput = document.getElementById('lockPwd');
+    var msg = document.getElementById('lockMsg');
+    var tip = document.getElementById('lockTip');
+    if (!savedPwd){
+      // 第一次使用，设置密码
+      tip.textContent = '首次使用，请设置密码';
+      document.getElementById('lockBtn').onclick = function(){
+        var p1 = pwdInput.value.trim();
+        if (p1.length < 4){ msg.textContent = '密码至少4位'; return; }
+        localStorage.setItem(PWD_KEY, p1);
+        lock.style.display = 'none';
+      };
+    } else {
+      tip.textContent = '';
+      document.getElementById('lockBtn').onclick = function(){
+        if (pwdInput.value === savedPwd){
+          lock.style.display = 'none';
+        } else {
+          msg.textContent = '密码错误';
+        }
+      };
+    }
+    pwdInput.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') document.getElementById('lockBtn').click();
+    });
+    lock.style.display = 'flex';
+  }
+  checkLock();
+
+  const STORE_KEY = 'road_groups_v2';
+  const IMPORTED_FLAG = 'imported_v1';
+  const SYMBOLS = { hu:'虎', long:'龙', ru:'入', chu:'出' };
+  const NEXT = { hu:'long', long:'ru', ru:'chu', chu:null };
+  const COLS = 6;
+
+  // 折叠当前记录区的人名列表
+  document.getElementById('toggleNameBar').addEventListener('click', function(){
+    const bar = document.getElementById('nameBar');
+    const show = bar.style.display === 'none';
+    bar.style.display = show ? 'flex' : 'none';
+    this.textContent = show ? '收起 ▼' : '展开 ▶';
+  });
+
+  // 折叠历史组的人名列表
+  document.getElementById('toggleHistory').addEventListener('click', function(){
+    var c = document.getElementById('historyContent');
+    var b = document.getElementById('toggleHistory');
+    if (c.style.display === 'none'){
+      c.style.display = 'block';
+      b.textContent = '历史组 ▼';
+    } else {
+      c.style.display = 'none';
+      b.textContent = '历史组 ▶';
+    }
+  });
+
+  document.getElementById('toggleTags').addEventListener('click', function(){
+    const bar = document.getElementById('tagBar');
+    const show = bar.style.display === 'none';
+    bar.style.display = show ? 'flex' : 'none';
+    this.textContent = show ? '人名列表 ▼' : '人名列表 ▶';
+  });
+
+  // ===== 从你Excel导入的历史数据 =====
+  const INITIAL_GROUPS = [
+    { name: '888', list: ['chu','ru','ru','long','chu','hu','hu','long','chu','chu','hu','chu'] },
+    { name: '合兴', list: ['chu','hu','long','ru','long','chu','ru','chu','hu','ru','long','chu'] },
+    { name: '牡丹', list: ['ru','hu','hu','ru','chu','hu','ru','chu','ru','ru','long','ru'] },
+    { name: '牡丹', list: ['hu','ru','long','long','hu','ru','hu','ru','long','long','long','chu'] },
+    { name: '牡丹', list: ['hu','hu','chu','long','ru','hu','long','long','hu','hu','hu','chu'] },
+    { name: '牡丹', list: ['hu','ru','chu','ru','chu','ru','hu','chu','chu','hu','chu','long'] },
+    { name: '义不容辞', list: ['long','chu','ru','ru','hu','hu','long','chu','hu','ru','chu','ru','hu'] },
+    { name: '义不容辞', list: ['long','ru','ru','ru','chu','ru','ru','hu','ru','hu','hu','long'] },
+    { name: '依依', list: ['hu','long','ru','ru','hu','chu','chu','chu','long','ru','long','hu'] },
+    { name: '依依', list: ['hu','chu','ru','ru','ru','long','hu','hu','chu','chu','ru','chu'] },
+    { name: '@', list: ['ru','long','ru','hu','long','long','long','ru','ru','long','hu','hu'] },
+    { name: '必胜', list: ['chu','hu','chu','ru','ru','long','hu','chu','chu','hu','hu','long'] },
+    { name: '发发朋友圈', list: ['hu','chu','hu','long','hu','hu','ru','long','long','long','ru','chu'] },
+    { name: '123', list: ['chu','hu','long','ru','long','chu','long','chu','hu','chu','hu','chu'] },
+    { name: '123', list: ['long','ru','hu','hu','hu','chu','ru','hu','long','chu','chu','chu'] },
+    { name: '123', list: ['ru','long','long','chu','long','hu','ru','chu','chu','long','ru','ru'] },
+    { name: '95公分', list: ['long','hu','chu','long','hu','chu','chu','ru','hu','chu','ru','chu'] },
+    { name: '95公分', list: ['ru','chu','ru','hu','hu','chu','long','chu','hu','hu','long','ru'] },
+    { name: '多彩多亿', list: ['ru','chu','ru','ru','chu','chu','chu','chu','ru','ru','long','ru'] },
+    { name: '可乐', list: ['hu','hu','chu','long','hu','chu','ru','long'] },
+    { name: '可乐', list: ['chu','chu','hu','chu','long','chu','ru','chu','long','long','chu','long'] },
+  ];
+
+  // ===== GitHub 云同步（手机电脑任意网络共用一份数据，不再依赖本机服务） =====
+  var GH_USER = '386585691-fzq';
+  var GH_REPO = 'muxiaofei';
+  var GH_FILE = 'road_groups_data.json';
+  var GH_TOKEN = localStorage.getItem('road_gh_token') || '';
+  var CLOUD = !!GH_TOKEN; // 配置了钥匙才云同步
+  var cloudTimer = null;
+  var ghSha = null; // 云端文件版本号
+
+  // UTF-8 <-> base64（GitHub contents API 需要）
+  function b64Encode(str){
+    try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(String.fromCharCode.apply(null, new TextEncoder().encode(str))); }
+  }
+  function b64Decode(b64){
+    try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return new TextDecoder().decode(Uint8Array.from(atob(b64), function(c){ return c.charCodeAt(0); })); }
+  }
+  // 合并去重：按 人名+牌路 合并两份数据，谁的数据都不丢
+  function mergeGroups(a, b){
+    var seen = {}; var out = [];
+    (a || []).concat(b || []).forEach(function(g){
+      if (!g) return;
+      var k = (g.name || '') + '|' + JSON.stringify(g.list || []);
+      if (!seen[k]) { seen[k] = 1; out.push(g); }
+    });
+    return out;
+  }
+  function ghGet(){
+    return fetch('https://api.github.com/repos/' + GH_USER + '/' + GH_REPO + '/contents/' + GH_FILE, {
+      headers: { 'Authorization': 'Bearer ' + GH_TOKEN, 'Accept': 'application/vnd.github.v3+json' }
+    }).then(function(r){
+      if (r.status === 404) return null; // 云端还没有文件
+      if (!r.ok) throw new Error('gh get ' + r.status);
+      return r.json();
+    });
+  }
+  function ghPut(content, sha){
+    return fetch('https://api.github.com/repos/' + GH_USER + '/' + GH_REPO + '/contents/' + GH_FILE, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + GH_TOKEN, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: '记牌器同步', content: b64Encode(content), sha: sha || undefined })
+    }).then(function(r){ if (!r.ok) throw new Error('gh put ' + r.status); return r.json(); });
+  }
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const o = JSON.parse(raw);
+        return {
+          groups: o.groups || [],
+          current: o.current || [],
+          gameName: o.gameName || '路单',
+          groupNum: o.groupNum || 1,
+          updatedAt: o.updatedAt || 0
+        };
+      }
+    } catch(e){}
+    return { groups: [], current: [], gameName: '路单', groupNum: 1, updatedAt: 0 };
+  }
+  function save(){
+    state.updatedAt = Date.now();
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+    pushCloud();
+  }
+  // 本地落盘（拉云端后使用，不触发推送）
+  function saveLocal(){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+  // 防抖推云端：连续点牌合并为一次上传
+  function pushCloud(){
+    if (!CLOUD) return;
+    if (cloudTimer) clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(function(){
+      // 先读云端最新（拿版本号+数据）→ 合并去重 → 写回，避免互相覆盖
+      ghGet().then(function(meta){
+        var remote = null;
+        if (meta && meta.content){
+          try { remote = JSON.parse(b64Decode(meta.content)); } catch(e){}
+        }
+        if (remote && remote.groups && remote.groups.length){
+          state.groups = mergeGroups(remote.groups, state.groups);
+          state.groupNum = state.groups.length + 1;
+          state.updatedAt = Math.max(state.updatedAt || 0, remote.updatedAt || 0);
+        }
+        ghSha = (meta && meta.sha) || ghSha;
+        var payload = JSON.stringify(state);
+        return ghPut(payload, ghSha).then(function(m){ ghSha = m.content.sha; });
+      }).catch(function(){});
+    }, 600);
+  }
+  // 启动拉云端：合并云端与本地，显示全量
+  function pullCloud(){
+    if (!CLOUD) return;
+    ghGet().then(function(meta){
+      if (!meta || !meta.content) return;
+      var d = null;
+      try { d = JSON.parse(b64Decode(meta.content)); } catch(e){}
+      if (!d || !d.groups) return;
+      state.groups = mergeGroups(d.groups, state.groups);
+      state.current = d.current || state.current || [];
+      if (d.gameName) state.gameName = d.gameName;
+      state.groupNum = d.groupNum || state.groupNum || 1;
+      if (d.accuracy) state.accuracy = d.accuracy;
+      if (d.learnAdj) state.learnAdj = d.learnAdj;
+      if (d.predictHistory) state.predictHistory = d.predictHistory;
+      if (d.currentMarks) state.currentMarks = d.currentMarks;
+      state.updatedAt = Math.max(d.updatedAt || 0, state.updatedAt || 0);
+      ghSha = meta.sha;
+      saveLocal();
+      render();
+    }).catch(function(){});
+  }
+
+  let state = load();
+  // 首次使用：提示配置 GitHub 同步钥匙（存在本浏览器里，安全）
+  if (!GH_TOKEN && location.protocol !== 'file:'){
+    setTimeout(function(){
+      var t = prompt('首次使用，请粘贴你的 GitHub 钥匙（ghp_ 开头的那串，从 GitHub Settings 复制）：');
+      if (t && t.trim()){
+        localStorage.setItem('road_gh_token', t.trim());
+        location.reload();
+      }
+    }, 600);
+  }
+  pullCloud(); // 联网时拉取云端最新数据（file:// 直开时自动跳过）
+  if (!state.accuracy) state.accuracy = {correct:0, total:0};
+  if (!state.learnAdj) state.learnAdj = 1.0; // 自学习系数，越用越准
+  if (!state.predictHistory) state.predictHistory = [];
+  if (!state.currentMarks) state.currentMarks = []; // 当前组每手的AI预测对错：1对 0错 -1未预测
+  // 首次打开：导入Excel数据
+  if (!localStorage.getItem(IMPORTED_FLAG) && !CLOUD){
+    state.groups = INITIAL_GROUPS.slice();
+    state.groupNum = INITIAL_GROUPS.length + 1;
+    localStorage.setItem(IMPORTED_FLAG, '1');
+    save();
+  }
+  // 给旧数据补今天的日期
+  state.groups.forEach(g => { if (!g.time) g.time = '9-29'; });
+  // v2导入：森的5组
+  if (!localStorage.getItem('imported_v2') && !CLOUD){
+    const SEN_GROUPS = [
+      { name: '森', list: ['ru','long','chu','chu','chu','hu','hu','long','chu','chu','ru','hu'], time: '9-29' },
+      { name: '森', list: ['ru','chu','hu','long','long','chu','hu','chu','hu','chu','hu'], time: '9-29' },
+      { name: '森', list: ['chu','chu','ru','hu','hu','chu','long','chu','long','ru','ru','long'], time: '9-29' },
+      { name: '森', list: ['long','ru','long','chu','chu','chu','chu','chu','ru','long','hu','chu'], time: '9-29' },
+      { name: '森', list: ['ru','chu','chu','chu','chu','chu','long','long','ru','long','long','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(SEN_GROUPS);
+    localStorage.setItem('imported_v2', '1');
+  }
+  // v3导入：发哥的6组
+  if (!localStorage.getItem('imported_v3') && !CLOUD){
+    const FA_GE = [
+      { name: '发哥', list: ['chu','chu','long','hu','hu','hu','chu','ru','hu','ru'], time: '9-29' },
+      { name: '发哥', list: ['chu','ru','long','long','ru','ru','ru','ru','ru','chu','chu','long'], time: '9-29' },
+      { name: '发哥', list: ['hu','ru','hu','ru','hu','long'], time: '9-29' },
+      { name: '发哥', list: ['long','long','ru','hu','hu','hu','hu','ru','hu','hu','long','long'], time: '9-29' },
+      { name: '发哥', list: ['hu','hu','hu','long','long','hu','long','chu','chu','ru','hu','chu'], time: '9-29' },
+      { name: '发哥', list: ['ru','ru','long','hu','chu','hu','ru','hu','ru','hu','ru','chu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(FA_GE);
+    localStorage.setItem('imported_v3', '1');
+  }
+  // v4导入：danhuoli的10组
+  if (!localStorage.getItem('imported_v4') && !CLOUD){
+    const DAN = [
+      { name: 'danhuoli', list: ['chu','ru','hu','chu','hu','hu','hu','ru','ru','long','ru'], time: '9-29' },
+      { name: 'danhuoli', list: ['chu','hu','long','long','long','chu','ru','ru','chu','ru','long','ru'], time: '9-29' },
+      { name: 'danhuoli', list: ['long','long','hu','ru','long','hu','chu','long','chu','chu','hu','hu'], time: '9-29' },
+      { name: 'danhuoli', list: ['chu','hu','long','hu','hu','ru','ru','hu','ru','chu','hu','long'], time: '9-29' },
+      { name: 'danhuoli', list: ['chu','ru','long','chu','long','chu','long','chu','hu','hu','long','ru'], time: '9-29' },
+      { name: 'danhuoli', list: ['chu','ru','long','long','ru','hu','long','chu','chu','long','long','long'], time: '9-29' },
+      { name: 'danhuoli', list: ['long','hu','long','long','ru','ru','ru','hu','ru','chu','long'], time: '9-29' },
+      { name: 'danhuoli', list: ['chu','hu','hu','hu','long','ru','hu','long','chu','hu','hu','long'], time: '9-29' },
+      { name: 'danhuoli', list: ['long','chu','chu','long','long','ru','long','chu','chu','ru','ru','chu'], time: '9-29' },
+      { name: 'danhuoli', list: ['long','ru','ru','chu','chu','ru','ru','chu','long','hu','hu','ru'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(DAN);
+    localStorage.setItem('imported_v4', '1');
+  }
+  // v17导入：顺顺3
+  if (!localStorage.getItem('imported_v17') && !CLOUD){
+    const BATCH = [
+      { name: '顺顺', list: ['chu','chu','ru','hu','hu','chu','hu','chu','ru','long','chu'], time: '9-29' },
+      { name: '顺顺', list: ['long','chu','hu','hu','chu','long','hu','hu','hu','hu','hu'], time: '9-29' },
+      { name: '顺顺', list: ['hu','ru','chu','long','ru','chu','hu','long','ru','hu','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v17', '1');
+  }
+  // v16导入：葫芦十八1
+  if (!localStorage.getItem('imported_v16') && !CLOUD){
+    const BATCH = [
+      { name: '葫芦十八', list: ['long','hu','hu','chu','long','chu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v16', '1');
+  }
+  // v15导入：有ai说a10 + 翀16 + 很酷贺贺15 + 话匣子11 + 行者20 + c14
+  if (!localStorage.getItem('imported_v15') && !CLOUD){
+    const BATCH = [
+      // 有ai说a
+      { name: '有ai说a', list: ['ru','long','ru','long','chu','long','ru','hu','long','ru','chu','long'], time: '9-29' },
+      { name: '有ai说a', list: ['chu','chu','ru','long','hu','long','hu','long','chu','chu','hu'], time: '9-29' },
+      { name: '有ai说a', list: ['chu','chu','chu','chu','ru','hu','long','chu','long','ru','long','ru'], time: '9-29' },
+      { name: '有ai说a', list: ['ru','chu','hu','ru','long','chu','chu','hu','long','ru','chu','long'], time: '9-29' },
+      { name: '有ai说a', list: ['ru','hu','ru','hu','ru','hu','ru','hu','long','hu','chu'], time: '9-29' },
+      { name: '有ai说a', list: ['ru','ru','hu','long','ru','ru','chu','ru','ru','ru','hu'], time: '9-29' },
+      { name: '有ai说a', list: ['chu','long','hu','long','long','hu','ru','hu','hu','hu','chu'], time: '9-29' },
+      { name: '有ai说a', list: ['ru','long','chu','hu','long','hu','hu','hu','chu','hu','hu'], time: '9-29' },
+      { name: '有ai说a', list: ['chu','hu','chu','chu','hu','hu','long','hu','chu','ru','ru'], time: '9-29' },
+      { name: '有ai说a', list: ['long','hu','chu','long','chu','chu','hu','hu','hu','chu'], time: '9-29' },
+      // 翀
+      { name: '翀', list: ['hu','ru','chu','long','ru','hu','ru','long','hu','long','chu'], time: '9-29' },
+      { name: '翀', list: ['ru','hu','hu','hu','ru','ru','chu','hu','hu','long','long'], time: '9-29' },
+      { name: '翀', list: ['hu','chu','chu','chu','hu','ru','chu','long','long','hu','hu','long'], time: '9-29' },
+      { name: '翀', list: ['ru','hu','ru','long','chu','long','chu','long','ru'], time: '9-29' },
+      { name: '翀', list: ['chu','hu','ru','long','hu','long','ru','hu','hu'], time: '9-29' },
+      { name: '翀', list: ['hu','hu','ru','ru','long','ru','chu','chu','long','chu'], time: '9-29' },
+      { name: '翀', list: ['long','hu','ru','chu','chu','long','long','chu','hu','ru'], time: '9-29' },
+      { name: '翀', list: ['chu','ru','ru','chu','long','ru','chu','hu'], time: '9-29' },
+      { name: '翀', list: ['long','chu','ru','hu','long','hu','hu','long','hu','chu'], time: '9-29' },
+      { name: '翀', list: ['chu','chu','hu','hu','long','ru','long','chu','chu'], time: '9-29' },
+      { name: '翀', list: ['ru','long','chu','chu','long','long','hu','ru','chu'], time: '9-29' },
+      { name: '翀', list: ['ru','chu','long','chu','hu','long','hu','chu','ru','chu'], time: '9-29' },
+      { name: '翀', list: ['ru','hu','long','chu','hu','long','chu','ru','hu'], time: '9-29' },
+      { name: '翀', list: ['ru','long','long','chu','long','hu','ru','long','chu','ru','chu'], time: '9-29' },
+      { name: '翀', list: ['long','ru','hu','chu','chu','long','chu','long','long','long'], time: '9-29' },
+      { name: '翀', list: ['long','long','chu','hu','chu','chu','hu','chu','ru','chu'], time: '9-29' },
+      // 很酷贺贺
+      { name: '很酷贺贺', list: ['long','hu','hu','chu','chu','ru','chu','hu','chu','hu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','long','hu','chu','hu','chu','hu','chu','ru','hu','chu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','hu','hu','ru','long','chu','hu','chu','long','ru'], time: '9-29' },
+      { name: '很酷贺贺', list: ['chu','hu','ru','long','ru','chu','long','ru','long'], time: '9-29' },
+      { name: '很酷贺贺', list: ['long','hu','hu','chu','chu','ru','chu','hu','chu','hu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['ru','chu','chu','chu','hu','ru','chu','ru','long','ru','hu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','hu','ru','hu','ru','ru','long','hu','chu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','chu','ru','hu','hu','ru','chu','ru','ru'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','hu','long','ru','ru','hu','hu','ru','long','chu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['long','chu','ru','ru','long','long','chu','chu','ru'], time: '9-29' },
+      { name: '很酷贺贺', list: ['chu','hu','long','chu','ru','ru','ru','chu','hu'], time: '9-29' },
+      { name: '很酷贺贺', list: ['ru','chu','hu','chu','long','ru','hu','hu','ru','long'], time: '9-29' },
+      { name: '很酷贺贺', list: ['chu','hu','hu','chu','long','hu','long','chu','ru','long'], time: '9-29' },
+      { name: '很酷贺贺', list: ['hu','ru','hu','hu','chu','ru','long','ru','ru'], time: '9-29' },
+      { name: '很酷贺贺', list: ['ru','chu','long','ru','long','long','hu','hu','chu'], time: '9-29' },
+      // 话匣子
+      { name: '话匣子', list: ['ru','long','chu','ru','long','hu','ru','chu','ru'], time: '9-29' },
+      { name: '话匣子', list: ['long','hu','chu','hu','ru','hu','chu','hu','long','hu'], time: '9-29' },
+      { name: '话匣子', list: ['long','ru','chu','long','ru','hu','long','chu','long'], time: '9-29' },
+      { name: '话匣子', list: ['ru','long','chu','chu','hu','ru','long','chu','long','hu'], time: '9-29' },
+      { name: '话匣子', list: ['hu','long','long','ru','chu','chu','chu','long','ru'], time: '9-29' },
+      { name: '话匣子', list: ['long','chu','long','ru','hu','hu','chu','ru','chu','hu'], time: '9-29' },
+      { name: '话匣子', list: ['chu','hu','chu','ru','hu','hu','chu','ru','chu','hu'], time: '9-29' },
+      { name: '话匣子', list: ['hu','chu','ru','hu','chu','long','chu','hu','ru'], time: '9-29' },
+      { name: '话匣子', list: ['hu','chu','chu','long','long','ru','chu','long','ru'], time: '9-29' },
+      { name: '话匣子', list: ['chu','hu','ru','long','chu','hu','hu','long','chu'], time: '9-29' },
+      { name: '话匣子', list: ['chu','chu','long','long','hu','long','hu','ru','hu'], time: '9-29' },
+      // 行者
+      { name: '行者', list: ['hu','ru','hu','long','hu','ru','hu','hu','ru'], time: '9-29' },
+      { name: '行者', list: ['hu','long','long','chu','hu','ru','hu','hu','ru','long'], time: '9-29' },
+      { name: '行者', list: ['ru','long','chu','hu','ru','chu','hu','hu','chu','hu'], time: '9-29' },
+      { name: '行者', list: ['ru','long','ru','long','ru','ru','chu','chu','ru','long'], time: '9-29' },
+      { name: '行者', list: ['long','long','ru','chu','long','chu','chu','chu','long','hu'], time: '9-29' },
+      { name: '行者', list: ['long','long','ru','chu','long','chu','chu','chu','long','hu'], time: '9-29' },
+      { name: '行者', list: ['chu','hu','hu','long','ru','long','chu','hu','ru','chu'], time: '9-29' },
+      { name: '行者', list: ['chu','ru','hu','ru','hu','chu','ru','hu','ru'], time: '9-29' },
+      { name: '行者', list: ['hu','ru','chu','hu','long','ru','chu','long'], time: '9-29' },
+      { name: '行者', list: ['hu','ru','long','chu','chu','chu','long','ru'], time: '9-29' },
+      { name: '行者', list: ['hu','chu','long','chu','hu','long','chu','long'], time: '9-29' },
+      { name: '行者', list: ['chu','ru','ru','chu','hu','hu','ru','long','chu'], time: '9-29' },
+      { name: '行者', list: ['ru','chu','chu','chu','long','chu','ru','hu','chu'], time: '9-29' },
+      { name: '行者', list: ['hu','chu','long','chu','ru','ru','long','ru'], time: '9-29' },
+      { name: '行者', list: ['long','hu','hu','chu','chu','chu','hu','ru'], time: '9-29' },
+      { name: '行者', list: ['long','long','ru','chu','ru','ru','ru','hu'], time: '9-29' },
+      { name: '行者', list: ['chu','long','ru','long','chu','hu','hu','chu'], time: '9-29' },
+      { name: '行者', list: ['long','long','ru','hu','hu','ru','long'], time: '9-29' },
+      { name: '行者', list: ['ru','long','chu','hu','ru','chu','long'], time: '9-29' },
+      { name: '行者', list: ['hu','chu','chu','hu','hu','long','chu'], time: '9-29' },
+      // c
+      { name: 'c', list: ['long','ru','long','hu','chu','ru','hu','hu','ru','long','hu'], time: '9-29' },
+      { name: 'c', list: ['long','hu','long','chu','hu','chu','long','ru','long','hu'], time: '9-29' },
+      { name: 'c', list: ['chu','chu','chu','hu','ru','long','ru','long','hu','chu'], time: '9-29' },
+      { name: 'c', list: ['chu','hu','long','chu','long','chu','long','hu','hu'], time: '9-29' },
+      { name: 'c', list: ['hu','chu','ru','ru','long','hu','long','ru'], time: '9-29' },
+      { name: 'c', list: ['ru','hu','long','chu','long','chu','long','ru'], time: '9-29' },
+      { name: 'c', list: ['chu','long','hu','ru','hu','chu','long','chu'], time: '9-29' },
+      { name: 'c', list: ['ru','chu','hu','ru','long','hu','chu','chu'], time: '9-29' },
+      { name: 'c', list: ['chu','ru','hu','chu','hu','hu'], time: '9-29' },
+      { name: 'c', list: ['ru','hu','hu','long','hu','ru','chu','long'], time: '9-29' },
+      { name: 'c', list: ['hu','ru','hu','long','chu','chu','chu','long'], time: '9-29' },
+      { name: 'c', list: ['hu','ru','hu','hu','hu','long','hu','ru'], time: '9-29' },
+      { name: 'c', list: ['hu','chu','chu','ru','long','ru','hu','chu'], time: '9-29' },
+      { name: 'c', list: ['chu','long','chu','chu','ru','chu','long','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v15', '1');
+  }
+  // v14导入：神圣10 + 霸天虎6 + 我本善良20 + 合兴14 + 秝14 + 必胜15 + 龙珠三代12 + 金刚功12 + 来看11 + 顺利5
+  if (!localStorage.getItem('imported_v14') && !CLOUD){
+    const BATCH = [
+      // 神圣
+      { name: '神圣', list: ['long','ru','long','ru','hu','long','hu','long','ru','chu','hu'], time: '9-29' },
+      { name: '神圣', list: ['hu','chu','ru','hu','chu','chu','long','chu','hu','hu','chu','chu'], time: '9-29' },
+      { name: '神圣', list: ['chu','chu','long','ru','chu','ru','long','ru','ru','chu','long','ru'], time: '9-29' },
+      { name: '神圣', list: ['chu','chu','hu','ru','hu','hu','long','ru','chu','hu','hu','ru'], time: '9-29' },
+      { name: '神圣', list: ['hu','chu','long','ru','chu','hu','ru','hu','ru','hu','long'], time: '9-29' },
+      { name: '神圣', list: ['long','ru','chu','chu','hu','hu','chu','long','ru','long','chu','hu'], time: '9-29' },
+      { name: '神圣', list: ['chu','long','hu','hu','hu','long','chu','chu','long','long'], time: '9-29' },
+      { name: '神圣', list: ['hu','ru','chu','hu','chu','ru','chu','chu','ru','hu','long','long'], time: '9-29' },
+      { name: '神圣', list: ['long','long','long','chu','ru','ru','hu','ru','chu','hu','chu','hu'], time: '9-29' },
+      { name: '神圣', list: ['ru','long','ru','chu','hu','chu','long','hu','chu'], time: '9-29' },
+      // 霸天虎
+      { name: '霸天虎', list: ['long','ru','ru','hu','hu','long','chu','chu','chu','hu','hu','hu'], time: '9-29' },
+      { name: '霸天虎', list: ['chu','long','ru','ru','hu','hu','long','hu','ru','ru','chu','long'], time: '9-29' },
+      { name: '霸天虎', list: ['long','chu','ru','chu','chu','chu','long','hu','hu','hu','chu','ru'], time: '9-29' },
+      { name: '霸天虎', list: ['ru','long','ru','ru','chu','long','chu','hu','chu','chu','long'], time: '9-29' },
+      { name: '霸天虎', list: ['ru','chu','hu','chu','ru','ru','long','ru','ru','hu'], time: '9-29' },
+      { name: '霸天虎', list: ['long','long','chu','long','hu','chu','chu','ru','long','chu','hu'], time: '9-29' },
+      // 我本善良
+      { name: '我本善良', list: ['long','ru','long','hu','ru','chu','long','hu','long','hu','hu','ru'], time: '9-29' },
+      { name: '我本善良', list: ['long','hu','chu','ru','chu','long','ru','chu','chu','ru','chu','hu'], time: '9-29' },
+      { name: '我本善良', list: ['chu','ru','chu','chu','long','chu','chu','chu','ru','hu','hu','long'], time: '9-29' },
+      { name: '我本善良', list: ['long','ru','long','chu','ru','hu','hu','long','chu','chu','ru'], time: '9-29' },
+      { name: '我本善良', list: ['ru','chu','chu','chu','hu','hu','long','long','hu','chu','long'], time: '9-29' },
+      { name: '我本善良', list: ['ru','long','long','hu','ru','hu','chu','ru','chu','long','chu'], time: '9-29' },
+      { name: '我本善良', list: ['ru','hu','long','ru','long','chu','long','ru','hu','chu'], time: '9-29' },
+      { name: '我本善良', list: ['hu','long','ru','chu','chu','chu','long','ru','chu','hu'], time: '9-29' },
+      { name: '我本善良', list: ['ru','chu','chu','chu','long','chu','long','chu','long','hu','ru'], time: '9-29' },
+      { name: '我本善良', list: ['chu','long','hu','hu','chu','chu','chu','chu','ru','hu','ru'], time: '9-29' },
+      { name: '我本善良', list: ['chu','ru','ru','ru','long','chu','chu','hu','chu','hu','long'], time: '9-29' },
+      { name: '我本善良', list: ['hu','ru','ru','ru','hu','hu','chu','ru','hu','long'], time: '9-29' },
+      { name: '我本善良', list: ['ru','hu','chu','chu','chu','hu','hu','long','hu','chu'], time: '9-29' },
+      { name: '我本善良', list: ['chu','chu','chu','ru','ru','ru','ru','hu','hu','long'], time: '9-29' },
+      { name: '我本善良', list: ['hu','hu','long','ru','hu','hu','hu','long','chu','ru'], time: '9-29' },
+      { name: '我本善良', list: ['ru','ru','ru','chu','long','chu','long','ru','chu'], time: '9-29' },
+      { name: '我本善良', list: ['long','long','hu','ru','chu','ru','ru','hu','long','long'], time: '9-29' },
+      { name: '我本善良', list: ['ru','chu','ru','hu','long','ru','ru','chu','long','hu','long'], time: '9-29' },
+      { name: '我本善良', list: ['hu','long','long','hu','ru','ru','chu','chu','ru','chu'], time: '9-29' },
+      { name: '我本善良', list: ['hu','hu','hu','hu','ru','hu','long','hu','ru','ru'], time: '9-29' },
+      // 合兴
+      { name: '合兴', list: ['ru','hu','chu','long','ru','chu','hu','hu','hu','ru','hu','ru'], time: '9-29' },
+      { name: '合兴', list: ['chu','chu','hu','chu','hu','hu','hu','ru','chu','ru','chu','long'], time: '9-29' },
+      { name: '合兴', list: ['chu','long','ru','chu','long','chu','long','long','chu','ru','hu','hu'], time: '9-29' },
+      { name: '合兴', list: ['long','long','chu','chu','chu','long','hu','long','long','hu','ru','hu'], time: '9-29' },
+      { name: '合兴', list: ['long','hu','hu','hu','long','ru','long','hu','long','chu','long'], time: '9-29' },
+      { name: '合兴', list: ['long','chu','long','chu','chu','chu','long','ru','ru','hu','chu'], time: '9-29' },
+      { name: '合兴', list: ['chu','chu','ru','long','chu','hu','chu','ru','hu','hu','ru'], time: '9-29' },
+      { name: '合兴', list: ['ru','chu','long','hu','ru','hu','hu','long','ru','hu','hu','ru'], time: '9-29' },
+      { name: '合兴', list: ['chu','chu','ru','hu','chu','ru','ru','chu','long','chu','chu','chu'], time: '9-29' },
+      { name: '合兴', list: ['hu','hu','long','long','long','chu','hu','ru','ru','chu','ru'], time: '9-29' },
+      { name: '合兴', list: ['hu','hu','long','chu','hu','long','hu','long','chu','long','chu'], time: '9-29' },
+      { name: '合兴', list: ['hu','long','chu','hu','hu','hu','long','long','long','ru'], time: '9-29' },
+      { name: '合兴', list: ['hu','long','chu','hu','hu','long','chu','hu','chu','long','ru'], time: '9-29' },
+      { name: '合兴', list: ['ru','long','long','chu','hu','long','ru','chu','hu','hu','long','long'], time: '9-29' },
+      // 秝
+      { name: '秝', list: ['long','ru','chu','long','long','ru','hu','long','chu','chu','hu','hu'], time: '9-29' },
+      { name: '秝', list: ['ru','ru','chu','ru','hu','hu','ru','chu','long','chu','long','hu'], time: '9-29' },
+      { name: '秝', list: ['long','long','ru','long','ru','chu','chu','chu','long','ru','chu'], time: '9-29' },
+      { name: '秝', list: ['ru','long','chu','long','long','ru','chu','hu','ru','long','chu'], time: '9-29' },
+      { name: '秝', list: ['long','hu','chu','chu','long','chu','hu','ru','chu','chu','hu','long'], time: '9-29' },
+      { name: '秝', list: ['long','ru','chu','long','long','ru','hu','long','chu','chu','hu','hu'], time: '9-29' },
+      { name: '秝', list: ['hu','hu','hu','chu','chu','ru','chu','long','chu','long','hu','hu'], time: '9-29' },
+      { name: '秝', list: ['long','ru','hu','hu','hu','chu','chu','hu','hu','chu','ru','hu'], time: '9-29' },
+      { name: '秝', list: ['long','hu','long','ru','hu','long','hu','long','long','chu','chu','chu'], time: '9-29' },
+      { name: '秝', list: ['chu','ru','long','hu','long','ru','ru','chu','ru','ru','hu'], time: '9-29' },
+      { name: '秝', list: ['long','chu','long','chu','chu','hu','hu','ru','chu','hu'], time: '9-29' },
+      { name: '秝', list: ['ru','chu','chu','chu','hu','long','chu','ru','long','ru','hu'], time: '9-29' },
+      { name: '秝', list: ['ru','hu','chu','hu','hu','chu','long','chu','ru','ru','chu','chu'], time: '9-29' },
+      { name: '秝', list: ['hu','ru','ru','hu','chu','ru','long','ru','hu','long','chu'], time: '9-29' },
+      // 必胜
+      { name: '必胜', list: ['hu','ru','hu','hu','ru','long','long','long','hu','chu'], time: '9-29' },
+      { name: '必胜', list: ['ru','chu','hu','hu','chu','chu','hu','long','chu','hu'], time: '9-29' },
+      { name: '必胜', list: ['ru','chu','chu','hu','chu','long','long','ru','chu','long','hu'], time: '9-29' },
+      { name: '必胜', list: ['hu','ru','long','ru','long','hu','ru','hu','long','ru'], time: '9-29' },
+      { name: '必胜', list: ['ru','hu','ru','hu','chu','ru','long','long','long'], time: '9-29' },
+      { name: '必胜', list: ['long','hu','ru','hu','hu','ru','long','chu','hu','chu'], time: '9-29' },
+      { name: '必胜', list: ['hu','long','hu','ru','ru','ru','hu','chu','hu','hu','ru'], time: '9-29' },
+      { name: '必胜', list: ['long','chu','hu','chu','hu','chu','long','ru','ru','chu','ru'], time: '9-29' },
+      { name: '必胜', list: ['long','ru','chu','hu','hu','ru','hu','long','hu','ru','long'], time: '9-29' },
+      { name: '必胜', list: ['ru','chu','long','chu','ru','ru','hu','long','long','long','ru'], time: '9-29' },
+      { name: '必胜', list: ['hu','hu','hu','long','long','ru','hu','hu','long','long'], time: '9-29' },
+      { name: '必胜', list: ['hu','hu','chu','ru','hu','ru','ru','ru','chu','hu','chu'], time: '9-29' },
+      { name: '必胜', list: ['ru','chu','hu','long','long','chu','chu','hu','long','chu'], time: '9-29' },
+      { name: '必胜', list: ['ru','hu','ru','long','ru','hu','hu','ru','long','long'], time: '9-29' },
+      { name: '必胜', list: ['chu','hu','hu','long','long','hu','chu','hu','ru'], time: '9-29' },
+      // 龙珠三代
+      { name: '龙珠三代', list: ['long','chu','long','chu','ru','chu','ru','hu','long','hu','ru','long'], time: '9-29' },
+      { name: '龙珠三代', list: ['chu','ru','hu','hu','hu','hu','chu','hu','ru','hu','hu'], time: '9-29' },
+      { name: '龙珠三代', list: ['long','hu','chu','chu','ru','long','ru','chu','hu','ru','hu','ru'], time: '9-29' },
+      { name: '龙珠三代', list: ['long','long','long','long','long','ru','ru','chu','hu','ru','chu'], time: '9-29' },
+      { name: '龙珠三代', list: ['chu','ru','long','long','hu','ru','chu','long','ru','hu','chu'], time: '9-29' },
+      { name: '龙珠三代', list: ['hu','long','hu','long','ru','hu','hu','long','hu','chu','long','ru'], time: '9-29' },
+      { name: '龙珠三代', list: ['long','chu','long','ru','long','hu','long','ru','ru','hu','hu'], time: '9-29' },
+      { name: '龙珠三代', list: ['hu','long','chu','hu','hu','hu','chu','hu','ru','chu'], time: '9-29' },
+      { name: '龙珠三代', list: ['long','long','hu','hu','chu','long','chu','chu','long','chu','hu','chu'], time: '9-29' },
+      { name: '龙珠三代', list: ['ru','hu','long','ru','ru','hu','ru','long','ru','ru','ru'], time: '9-29' },
+      { name: '龙珠三代', list: ['hu','hu','chu','ru','chu','chu','long','chu','long','long','ru'], time: '9-29' },
+      { name: '龙珠三代', list: ['hu','long','chu','chu','ru','hu','chu','hu','ru','long','hu'], time: '9-29' },
+      // 金刚功
+      { name: '金刚功', list: ['ru','long','long','long','ru','chu','chu','ru','long','chu'], time: '9-29' },
+      { name: '金刚功', list: ['ru','ru','hu','chu','chu','ru','hu','chu','chu','ru','hu','long'], time: '9-29' },
+      { name: '金刚功', list: ['ru','long','chu','chu','long','chu','long','ru','hu','hu','chu'], time: '9-29' },
+      { name: '金刚功', list: ['ru','hu','hu','chu','long','ru','hu','ru','chu','long'], time: '9-29' },
+      { name: '金刚功', list: ['chu','hu','ru','long','hu','ru','hu','chu','chu','long'], time: '9-29' },
+      { name: '金刚功', list: ['ru','ru','long','ru','long','chu','chu','long','chu','ru','long'], time: '9-29' },
+      { name: '金刚功', list: ['long','hu','chu','long','hu','chu','long','chu','ru','hu','ru'], time: '9-29' },
+      { name: '金刚功', list: ['ru','hu','long','hu','ru','hu','hu','hu','long','ru'], time: '9-29' },
+      { name: '金刚功', list: ['long','ru','ru','hu','chu','chu','ru','ru','long','ru','chu'], time: '9-29' },
+      { name: '金刚功', list: ['long','ru','hu','long','ru','ru','long','hu','hu','ru'], time: '9-29' },
+      { name: '金刚功', list: ['hu','chu','hu','hu','long','chu','ru','hu','long','ru','long','hu'], time: '9-29' },
+      { name: '金刚功', list: ['chu','chu','chu','hu','chu','chu','ru','hu','long','long','ru'], time: '9-29' },
+      // 来看
+      { name: '来看', list: ['long','ru','hu','long','hu','chu','ru','ru','hu','hu','long','long'], time: '9-29' },
+      { name: '来看', list: ['ru','ru','hu','hu','chu','long','hu','ru','hu','chu'], time: '9-29' },
+      { name: '来看', list: ['hu','hu','chu','chu','long','ru','long','chu','long','chu','ru','long'], time: '9-29' },
+      { name: '来看', list: ['chu','long','ru','chu','long','chu','long','hu','chu','ru','ru','long'], time: '9-29' },
+      { name: '来看', list: ['hu','long','hu','chu','hu','long','long','chu','ru','hu'], time: '9-29' },
+      { name: '来看', list: ['long','long','chu','hu','ru','chu','hu','chu','long','ru','hu','chu'], time: '9-29' },
+      { name: '来看', list: ['ru','long','ru','hu','ru','hu','hu','long','long','chu','long','long'], time: '9-29' },
+      { name: '来看', list: ['chu','chu','hu','ru','long','ru','long','chu','chu','chu'], time: '9-29' },
+      { name: '来看', list: ['ru','long','long','chu','chu','long','chu','hu','long','chu'], time: '9-29' },
+      { name: '来看', list: ['long','long','hu','hu','ru','hu','ru','hu','hu','ru'], time: '9-29' },
+      { name: '来看', list: ['hu','chu','ru','hu','chu','hu','long','hu','long','chu'], time: '9-29' },
+      // 顺利
+      { name: '顺利', list: ['chu','long','hu','ru','long','long','long','chu','hu','ru','hu'], time: '9-29' },
+      { name: '顺利', list: ['ru','chu','ru','hu','hu','chu','hu','chu','long','chu','long','chu'], time: '9-29' },
+      { name: '顺利', list: ['hu','chu','ru','ru','long','chu','ru','long','ru','ru','long'], time: '9-29' },
+      { name: '顺利', list: ['ru','ru','long','chu','hu','ru','ru','long','long','chu'], time: '9-29' },
+      { name: '顺利', list: ['long','long','long','ru','hu','hu','ru','long','ru','long','chu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v14', '1');
+  }
+  // v13导入：清花酒31 + 十挂九进宝9 + 燚6 + 顺利胜利百业兴财源进12 + 翁动10 + 义不容辞34 + 梦之岛8 + 老地方11 + 发展5 + 风景8
+  if (!localStorage.getItem('imported_v13') && !CLOUD){
+    const BATCH = [
+      // 清花酒
+      { name: '清花酒', list: ['long','hu','hu','chu','hu','chu','chu','long','hu','long','long','long'], time: '9-29' },
+      { name: '清花酒', list: ['chu','long','hu','ru','chu','hu','hu','chu','hu','ru','chu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','hu','chu','long','hu','hu','hu','ru','long','ru','chu'], time: '9-29' },
+      { name: '清花酒', list: ['hu','long','chu','long','ru','chu','chu','hu','long','long','hu'], time: '9-29' },
+      { name: '清花酒', list: ['long','ru','hu','hu','ru','ru','ru','chu','ru','long','long'], time: '9-29' },
+      { name: '清花酒', list: ['long','hu','chu','hu','hu','long','ru','long','chu','hu','long'], time: '9-29' },
+      { name: '清花酒', list: ['long','chu','hu','long','long','chu','chu','hu','chu','chu','chu','chu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','hu','long','ru','long','long','chu','ru','long','hu','hu'], time: '9-29' },
+      { name: '清花酒', list: ['long','hu','hu','chu','ru','hu','chu','chu','hu','ru','long','ru'], time: '9-29' },
+      { name: '清花酒', list: ['ru','ru','ru','ru','hu','hu','ru','long','long','long'], time: '9-29' },
+      { name: '清花酒', list: ['hu','chu','long','chu','hu','long','long','hu','ru','chu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['chu','ru','hu','chu','long','hu','hu','ru','long','hu','hu'], time: '9-29' },
+      { name: '清花酒', list: ['hu','ru','long','hu','hu','long','long','long','long','chu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','long','long','hu','chu','hu','hu','long','chu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['chu','long','chu','chu','chu','chu','ru','ru','hu','chu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['ru','hu','chu','hu','ru','chu','chu','hu','ru','long','long'], time: '9-29' },
+      { name: '清花酒', list: ['long','ru','hu','chu','ru','ru','long','hu','long','chu','chu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','long','hu','chu','chu','chu','hu','ru','hu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','long','long','hu','hu','long','ru','hu','chu','hu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['ru'], time: '9-29' },
+      { name: '清花酒', list: ['chu','chu','hu','ru','chu','ru','long','chu','hu','hu','ru','hu'], time: '9-29' },
+      { name: '清花酒', list: ['long','ru','chu','hu','ru','chu','long','long','long','hu','chu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['long','long','chu','long','long','hu','chu','long','ru','hu'], time: '9-29' },
+      { name: '清花酒', list: ['long','ru','long','chu','long','chu','long','long','long','hu','chu','hu'], time: '9-29' },
+      { name: '清花酒', list: ['chu','long','hu','ru','hu','hu','hu','hu','chu','ru','hu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','hu','hu','hu','hu','ru','long','hu','hu','chu','hu'], time: '9-29' },
+      { name: '清花酒', list: ['chu','long','hu','chu','hu','long','hu','long','long','chu'], time: '9-29' },
+      { name: '清花酒', list: ['long','ru','hu','chu','hu','ru','ru','hu','long','chu','ru'], time: '9-29' },
+      { name: '清花酒', list: ['chu','chu','long','chu','long','ru','chu','ru','ru','long','chu','hu'], time: '9-29' },
+      { name: '清花酒', list: ['ru','ru','long','hu','ru','ru','ru','ru','hu','hu','long','ru'], time: '9-29' },
+      { name: '清花酒', list: ['ru','chu','hu','hu','chu','ru','chu','long','chu','hu','hu'], time: '9-29' },
+      // 十挂九进宝
+      { name: '十挂九进宝', list: ['chu','ru','ru','long','chu','hu','hu','chu','long','hu','chu','hu'], time: '9-29' },
+      { name: '十挂九进宝', list: ['long','long','ru','long','long','long','long','hu','long','ru','chu','ru'], time: '9-29' },
+      { name: '十挂九进宝', list: ['hu','long','hu','ru','ru','hu','chu','long','ru','hu','chu'], time: '9-29' },
+      { name: '十挂九进宝', list: ['chu','chu','chu','long','long','ru','long','ru','chu','long'], time: '9-29' },
+      { name: '十挂九进宝', list: ['hu','chu','long','hu','hu','hu','chu','ru','long','long','ru'], time: '9-29' },
+      { name: '十挂九进宝', list: ['chu','chu','chu','ru','chu','chu','ru','hu','ru','long','chu'], time: '9-29' },
+      { name: '十挂九进宝', list: ['long','long','chu','chu','long','ru','ru','ru','ru','long','chu','ru'], time: '9-29' },
+      { name: '十挂九进宝', list: ['ru','hu','ru','hu','chu','long','hu','ru','long','ru','chu'], time: '9-29' },
+      { name: '十挂九进宝', list: ['ru','hu','ru','long','ru','chu','ru','ru','long','ru','ru'], time: '9-29' },
+      // 燚
+      { name: '燚', list: ['hu','long','hu','hu','chu','ru','long','chu','hu','ru','ru','chu'], time: '9-29' },
+      { name: '燚', list: ['long','hu','chu','ru','long','long','chu','chu','chu','ru'], time: '9-29' },
+      { name: '燚', list: ['ru','long','long','chu','hu','long','chu','hu','hu','chu','long'], time: '9-29' },
+      { name: '燚', list: ['hu','hu','chu','chu','chu','hu','hu','ru','hu','long','chu','long'], time: '9-29' },
+      { name: '燚', list: ['ru','chu','long','chu','hu','long','long','hu','hu','ru','ru'], time: '9-29' },
+      { name: '燚', list: ['long','ru','long','chu','hu','long','ru','chu','ru','hu'], time: '9-29' },
+      // 顺利 胜利 百业兴 财源进
+      { name: '顺利胜利百业兴财源进', list: ['long','chu','ru','chu','ru','hu','hu','long','hu','hu','hu','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['long','hu','ru','long','hu','chu','hu','long','ru','chu','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['ru','long','ru','chu','hu','ru','hu','long','chu','ru','long'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['chu','long','long','hu','chu','long','ru','long','hu','chu','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['long','chu','chu','chu','ru','chu','hu','long','long','ru','ru','long'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['hu','chu','long','hu','long','ru','ru','long','hu','ru','chu','long'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['ru','hu','chu','chu','chu','chu','ru','hu','long','hu','chu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['long','ru','chu','long','chu','chu','chu','hu','hu','long','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['long','hu','hu','chu','chu','long','long','long','long','ru','long'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['ru','hu','chu','chu','chu','long','hu','hu','ru','hu','chu','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['hu','ru','chu','chu','ru','chu','long','ru','long','hu','chu','hu'], time: '9-29' },
+      { name: '顺利胜利百业兴财源进', list: ['chu','chu','chu','long','ru','chu','hu','chu','hu','hu','long'], time: '9-29' },
+      // 翁动
+      { name: '翁动', list: ['long','ru','chu','hu','hu','chu','long','hu','long','hu','hu'], time: '9-29' },
+      { name: '翁动', list: ['chu','chu','chu','ru','hu','chu','long','ru','long','chu','hu'], time: '9-29' },
+      { name: '翁动', list: ['ru','long','chu','long','hu','chu','hu','chu','ru','hu','long'], time: '9-29' },
+      { name: '翁动', list: ['ru','long','hu','ru','hu','long','hu','hu','ru','chu'], time: '9-29' },
+      { name: '翁动', list: ['ru','hu','hu','hu','hu','ru','long','chu','ru','chu','chu'], time: '9-29' },
+      { name: '翁动', list: ['chu','long','chu','chu','hu','chu','chu','chu','ru','long','ru'], time: '9-29' },
+      { name: '翁动', list: ['ru','hu','hu','ru','chu','chu','hu','ru','chu','chu'], time: '9-29' },
+      { name: '翁动', list: ['ru','chu','chu','hu','chu','chu','chu','long','chu','ru','long'], time: '9-29' },
+      { name: '翁动', list: ['chu','hu','hu','chu','long','chu','ru','long','chu','hu','long'], time: '9-29' },
+      { name: '翁动', list: ['long','hu','hu','ru','long','chu','hu','hu','chu','hu','hu'], time: '9-29' },
+      // 义不容辞
+      { name: '义不容辞', list: ['hu','long','hu','ru','chu','hu','chu','long','hu','long','ru','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','long','long','long','hu','ru','long','hu','chu','long','ru','long'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','chu','long','chu','long','hu','chu','chu','long','hu','long','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','ru','chu','hu','hu','hu','hu','hu','hu','chu','ru','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','hu','ru','long','hu','long','ru','chu','ru','ru','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','hu','long','long','long','hu','hu','ru','hu','hu','long','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['long','ru','ru','long','chu','ru','chu','hu','chu','hu','long','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','long','ru','ru','long','ru','long','long','hu','long','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','ru','chu','long','ru','chu','hu','hu','hu','chu','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['long','hu','hu','hu','ru','hu','chu','ru','long','hu','long'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','chu','chu','chu','long','ru','ru','chu','ru','ru','long'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','ru','long','hu','long','long','chu','chu','long','hu','hu','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['long','hu','hu','chu','ru','chu','hu','chu','hu','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['long','long','ru','hu','hu','chu','long','hu','hu','hu','long'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','chu','ru','ru','long','long','long','hu','hu','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','hu','hu','ru','long','chu','chu','chu','hu','ru','long','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','long','hu','chu','ru','hu','hu','long','chu','long'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','hu','hu','hu','ru','hu','chu','ru','long','hu'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','long','long','chu','ru','chu','ru','chu','ru','ru','long'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','ru','chu','long','long','ru','ru','ru','chu','hu','long','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','long','long','hu','chu','long','ru','hu','hu','hu','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['long','long','ru','long','long','chu','hu','hu','hu','long','chu','long'], time: '9-29' },
+      { name: '义不容辞', list: ['long','hu','chu','hu','long','long','hu','hu','chu','hu'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','hu','ru','hu','ru','chu','ru','chu','long','hu','long'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','hu','ru','hu','chu','hu','long','hu','ru','long'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','long','ru','chu','ru','hu','hu','ru','hu','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','ru','long','hu','chu','hu','chu','hu','long','long','hu'], time: '9-29' },
+      { name: '义不容辞', list: ['hu','ru','chu','hu','chu','hu','ru','long'], time: '9-29' },
+      { name: '义不容辞', list: ['ru','ru','ru','chu','hu','ru','ru','hu','long','long'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','chu','chu','chu','hu','chu','hu','hu','hu','chu'], time: '9-29' },
+      { name: '义不容辞', list: ['long','chu','long','hu','hu','chu','hu','hu','ru','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['long','ru','hu','hu','long','chu','hu','hu','hu','long','long'], time: '9-29' },
+      { name: '义不容辞', list: ['chu','long','ru','hu','hu','hu','chu','long','ru','ru'], time: '9-29' },
+      { name: '义不容辞', list: ['long','chu','long','hu','chu','ru','ru','chu','long','chu','long'], time: '9-29' },
+      // 梦之岛
+      { name: '梦之岛', list: ['chu','ru','long','hu','long','chu','hu','hu','long','ru','chu','ru'], time: '9-29' },
+      { name: '梦之岛', list: ['chu','hu','hu','chu','chu','ru','long','ru','long','ru','long'], time: '9-29' },
+      { name: '梦之岛', list: ['ru','long','chu','long','ru','long','hu','chu','hu','hu'], time: '9-29' },
+      { name: '梦之岛', list: ['chu','chu','ru','ru','chu','chu','ru','long','long','hu','ru','long'], time: '9-29' },
+      { name: '梦之岛', list: ['hu','hu','hu','chu','chu','long','hu','long','chu','long','chu'], time: '9-29' },
+      { name: '梦之岛', list: ['long','long','hu','hu','chu','hu','chu','hu','ru','long'], time: '9-29' },
+      { name: '梦之岛', list: ['long','long','ru','long','hu','ru','chu','hu','chu','hu'], time: '9-29' },
+      { name: '梦之岛', list: ['chu','ru','long','hu','chu','chu','long','chu','long','chu'], time: '9-29' },
+      // 老地方
+      { name: '老地方', list: ['hu','ru','hu','chu','chu','hu','ru','ru','hu','hu'], time: '9-29' },
+      { name: '老地方', list: ['long','ru','chu','chu','chu','hu','chu','hu','ru','ru'], time: '9-29' },
+      { name: '老地方', list: ['long','chu','long','hu','chu','chu','ru','chu','ru','ru','chu','ru'], time: '9-29' },
+      { name: '老地方', list: ['ru','ru','chu','ru','chu','hu','hu','long','chu','chu','hu'], time: '9-29' },
+      { name: '老地方', list: ['long','long','long','hu','long','hu','hu','hu','ru','chu','long'], time: '9-29' },
+      { name: '老地方', list: ['long','chu','ru','ru','hu','chu','hu','chu','hu','chu','ru'], time: '9-29' },
+      { name: '老地方', list: ['chu','hu','chu','ru','chu','chu','long','hu','hu','ru'], time: '9-29' },
+      { name: '老地方', list: ['hu','long','hu','ru','ru','chu','long','ru','long','hu'], time: '9-29' },
+      { name: '老地方', list: ['chu','long','ru','long','ru','ru','ru','long','ru','hu','hu'], time: '9-29' },
+      { name: '老地方', list: ['hu','chu','long','hu','chu','chu','ru','chu','ru','ru','chu','ru'], time: '9-29' },
+      { name: '老地方', list: ['ru','ru','long','ru','chu','ru','chu','chu','hu','hu','long'], time: '9-29' },
+      // 发展
+      { name: '发展', list: ['long','chu','chu','long','ru','chu','hu','long','long','hu','hu','chu'], time: '9-29' },
+      { name: '发展', list: ['ru','hu','chu','ru','chu','chu','long','hu','hu','long'], time: '9-29' },
+      { name: '发展', list: ['chu','long','hu','hu','chu','chu','chu','chu','chu','hu','long','long'], time: '9-29' },
+      { name: '发展', list: ['ru','hu','hu','chu','hu','chu','long','long','ru','long'], time: '9-29' },
+      { name: '发展', list: ['hu','chu','long','hu','chu','ru','chu','long','chu','ru','ru'], time: '9-29' },
+      // 风景
+      { name: '风景', list: ['long','chu','hu','long','ru','ru','hu','chu','hu','hu','ru'], time: '9-29' },
+      { name: '风景', list: ['long','chu','long','hu','long','chu','chu','ru','hu','long','hu'], time: '9-29' },
+      { name: '风景', list: ['chu','chu','long','chu','chu','hu','hu','chu','long','ru','long'], time: '9-29' },
+      { name: '风景', list: ['ru','hu','chu','chu','long','hu','hu','hu','hu','chu'], time: '9-29' },
+      { name: '风景', list: ['hu','hu','ru','hu','chu','chu','chu','chu','long','hu'], time: '9-29' },
+      { name: '风景', list: ['ru','hu','chu','chu','long','ru','chu','long','ru'], time: '9-29' },
+      { name: '风景', list: ['ru','hu','chu','hu','hu','hu','chu','hu','long'], time: '9-29' },
+      { name: '风景', list: ['long','long','hu','hu','chu','hu','ru','ru','ru','hu','ru'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v13', '1');
+  }
+  // v12导入：温柔刀4 + 富丽13 + KPL4 + 慧星7 + 。。。4 + 林哨狂5 + 事事顺意25 + 888 9 + 上花轿4 + 财库25
+  if (!localStorage.getItem('imported_v12') && !CLOUD){
+    const BATCH = [
+      // 温柔刀
+      { name: '温柔刀', list: ['long','ru','hu','ru','ru','ru','hu','chu','hu','long','chu','ru'], time: '9-29' },
+      { name: '温柔刀', list: ['ru','hu','chu','hu','ru','long','long','hu','chu','ru','chu'], time: '9-29' },
+      { name: '温柔刀', list: ['ru','chu','hu','ru','ru','chu','hu','long','hu','long','chu','hu'], time: '9-29' },
+      { name: '温柔刀', list: ['hu','hu','long','hu','ru','ru','chu','chu','ru','hu','ru'], time: '9-29' },
+      // 富丽
+      { name: '富丽', list: ['long','long','long','hu','ru','ru','hu','chu','long','chu','chu','hu'], time: '9-29' },
+      { name: '富丽', list: ['hu','chu','long','ru','hu','ru','hu','ru','chu','ru','ru'], time: '9-29' },
+      { name: '富丽', list: ['ru','chu','hu','hu','hu','ru','long','ru','hu','long','long'], time: '9-29' },
+      { name: '富丽', list: ['long','ru','hu','ru','chu','chu','hu','ru','long','long','chu','hu'], time: '9-29' },
+      { name: '富丽', list: ['ru','ru','ru','ru','hu','ru','chu','long','long','ru','ru'], time: '9-29' },
+      { name: '富丽', list: ['hu','ru','ru','chu','chu','hu','hu','hu','long','chu','ru'], time: '9-29' },
+      { name: '富丽', list: ['long','long','chu','long','long','chu','ru','hu','long','hu','hu','long'], time: '9-29' },
+      { name: '富丽', list: ['chu','hu','chu','ru','ru','chu','ru','hu'], time: '9-29' },
+      { name: '富丽', list: ['ru','hu','hu','ru','long','chu','hu','ru','ru','ru'], time: '9-29' },
+      { name: '富丽', list: ['chu','hu','ru','hu','hu','long','ru','hu','hu','long','ru'], time: '9-29' },
+      { name: '富丽', list: ['chu','ru','chu','ru','hu','ru','ru','chu','hu','chu','hu'], time: '9-29' },
+      { name: '富丽', list: ['hu','ru','long','chu','hu','chu','long','hu','hu','hu','long'], time: '9-29' },
+      { name: '富丽', list: ['long','ru','hu','chu','long','long','chu','chu','long','ru','hu','long'], time: '9-29' },
+      // KPL
+      { name: 'KPL', list: ['ru','chu','hu','hu','ru','ru','long','chu','hu','hu','ru','chu'], time: '9-29' },
+      { name: 'KPL', list: ['long','long','long','chu','long','ru','long','hu','hu','chu','hu'], time: '9-29' },
+      { name: 'KPL', list: ['chu','chu','ru','long','chu','hu','hu','hu','chu','long','chu','chu'], time: '9-29' },
+      { name: 'KPL', list: ['long','chu','long','hu','chu','ru','long','ru','hu','long'], time: '9-29' },
+      // 慧星
+      { name: '慧星', list: ['long','ru','chu','hu','hu','long','ru','long','long','chu','hu'], time: '9-29' },
+      { name: '慧星', list: ['ru','ru','long','chu','ru','hu','ru','chu','long','long','hu'], time: '9-29' },
+      { name: '慧星', list: ['ru','long','ru','long','ru','long','hu','chu','hu','ru','hu'], time: '9-29' },
+      { name: '慧星', list: ['hu','ru','hu','chu','long','hu','chu','long','hu','chu','hu','chu'], time: '9-29' },
+      { name: '慧星', list: ['hu','long','hu','ru','ru','chu','hu','hu','ru','hu','ru','hu'], time: '9-29' },
+      { name: '慧星', list: ['chu','chu','ru','ru','long','chu','ru','ru','long','long','ru'], time: '9-29' },
+      { name: '慧星', list: ['chu','hu','chu','hu','ru','hu','ru','ru','chu','chu','hu'], time: '9-29' },
+      // 。。。
+      { name: '。。。', list: ['long','chu','hu','hu','hu','hu','long','chu','ru','chu','hu'], time: '9-29' },
+      { name: '。。。', list: ['long','long','chu','chu','hu','chu','hu','chu','hu','long','long','ru'], time: '9-29' },
+      { name: '。。。', list: ['chu','hu','chu','hu','chu','hu','chu','ru','ru'], time: '9-29' },
+      { name: '。。。', list: ['long','hu','hu','hu','ru','hu','ru','ru','long','long','long'], time: '9-29' },
+      // 林哨狂
+      { name: '林哨狂', list: ['long','ru','chu','chu','long','ru','ru','ru','hu','hu','hu','long'], time: '9-29' },
+      { name: '林哨狂', list: ['long','long','ru','chu','chu','hu','chu','chu','chu','ru','hu'], time: '9-29' },
+      { name: '林哨狂', list: ['ru','long','chu','long','ru','long','long','chu','long','ru','long','hu'], time: '9-29' },
+      { name: '林哨狂', list: ['hu','hu','long','chu','hu','hu','ru','ru','long','chu'], time: '9-29' },
+      { name: '林哨狂', list: ['long','ru','hu','chu','ru','hu','chu','ru','hu'], time: '9-29' },
+      // 事事顺意
+      { name: '事事顺意', list: ['ru','hu','long','ru','ru','chu','ru','chu','hu','long','ru','hu'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','ru','chu','hu','hu','hu','long','ru','ru','long','ru','chu'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','hu','chu','chu','long','chu','long','hu','chu','long','hu','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','long','long','long','hu','ru','ru','long','chu','hu','chu','chu'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','ru','long','ru','ru','hu','hu','hu','long','hu','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['long','chu','chu','chu','chu','ru','hu','hu','chu','ru','long','hu'], time: '9-29' },
+      { name: '事事顺意', list: ['ru','chu','chu','long','hu','ru','hu','long','ru','hu','chu'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','chu','chu','long','ru','chu','ru','long'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','ru','hu','chu','long','long','long','hu','hu','ru','hu','long'], time: '9-29' },
+      { name: '事事顺意', list: ['long','hu','hu','chu','chu','hu','ru','ru','hu'], time: '9-29' },
+      { name: '事事顺意', list: ['long','hu','ru','hu','ru','ru','ru','ru','ru','long','hu'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','chu','hu','long','hu','hu','long','chu','hu','hu','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['ru','long','ru','chu','hu','chu','hu','hu','hu','long','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['long','chu','long','ru','long','ru','long','hu','ru','long','long','long'], time: '9-29' },
+      { name: '事事顺意', list: ['long','long','hu','ru','hu','hu','ru','chu','hu','long'], time: '9-29' },
+      { name: '事事顺意', list: ['ru','long','ru','long','long','hu','chu','ru','chu','long','hu','long'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','hu','chu','ru','hu','hu','ru','long','chu','chu','hu','long'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','chu','hu','chu','hu','chu','hu','chu','chu','hu','chu'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','ru','long','long','chu','hu','long','chu','chu','long','ru','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['long','ru','chu','long','chu','hu','chu','chu','hu','long','chu','ru'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','ru','long','hu','long','long','hu','long','ru','hu','hu'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','hu','ru','chu','hu','ru','ru','ru','long','hu','ru','long'], time: '9-29' },
+      { name: '事事顺意', list: ['hu','hu','long','ru','hu','ru','hu','hu','chu','chu'], time: '9-29' },
+      { name: '事事顺意', list: ['chu','hu','chu','hu','long','ru','ru','long','chu','ru','long','long'], time: '9-29' },
+      { name: '事事顺意', list: ['long','ru','chu','long','long','chu','chu','hu','hu','chu'], time: '9-29' },
+      // 888
+      { name: '888', list: ['hu','hu','hu','chu','chu','hu','ru','long','hu','hu','ru','hu'], time: '9-29' },
+      { name: '888', list: ['ru','hu','chu','hu','ru','hu','hu','ru','long','hu','chu','hu'], time: '9-29' },
+      { name: '888', list: ['long','ru','chu','hu','long','long','long','hu','ru','long','long'], time: '9-29' },
+      { name: '888', list: ['chu','hu','hu','hu','long','ru','long','hu','hu','chu','long','long'], time: '9-29' },
+      { name: '888', list: ['hu','chu','ru','ru','long','ru'], time: '9-29' },
+      { name: '888', list: ['long','long','ru','hu','long','ru','ru','hu','chu','ru','long','hu'], time: '9-29' },
+      { name: '888', list: ['ru','ru','long','chu','hu','hu','ru','ru','ru','long','long','chu'], time: '9-29' },
+      { name: '888', list: ['hu','ru','hu','chu','long','hu','hu','long','hu','ru','hu'], time: '9-29' },
+      { name: '888', list: ['hu','hu','ru','long','chu','hu','ru','ru','long','chu','ru'], time: '9-29' },
+      // 上花轿
+      { name: '上花轿', list: ['ru','chu','ru','chu','ru','long','ru','hu','ru','long','long','hu'], time: '9-29' },
+      { name: '上花轿', list: ['chu','ru','ru','ru','hu','chu','long','ru','chu','chu','long','ru'], time: '9-29' },
+      { name: '上花轿', list: ['hu','chu','hu','hu','hu','chu','chu','long','chu','chu','ru','long'], time: '9-29' },
+      { name: '上花轿', list: ['hu','hu','hu','hu','ru','chu','chu'], time: '9-29' },
+      // 财库
+      { name: '财库', list: ['long','ru','ru','long','hu','long','long','chu','ru','chu','chu','chu'], time: '9-29' },
+      { name: '财库', list: ['long','ru','chu','ru','chu','hu','long','ru','long','hu','chu','chu'], time: '9-29' },
+      { name: '财库', list: ['hu','hu','chu','hu','long','chu','long','hu','hu','chu','hu','chu'], time: '9-29' },
+      { name: '财库', list: ['chu','chu','ru','ru','ru','ru','ru','chu','long','long','hu'], time: '9-29' },
+      { name: '财库', list: ['long','hu','ru','long','hu','chu','chu','long','ru','hu','chu'], time: '9-29' },
+      { name: '财库', list: ['chu','long','chu','hu','hu','long','hu','long','ru','ru','long'], time: '9-29' },
+      { name: '财库', list: ['long','ru','hu','chu','chu','ru','hu','ru','long','long','long','hu'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','chu','long','ru','long','hu','hu','hu','chu'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','chu','chu','long','ru','hu','chu','chu','ru','chu','long'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','long','hu','hu','hu','long','chu','long','ru','ru'], time: '9-29' },
+      { name: '财库', list: ['hu','long','long','ru','chu','chu','hu','long','chu','long','chu','chu'], time: '9-29' },
+      { name: '财库', list: ['hu','hu','ru','long','long','long','long','hu','ru','hu','hu'], time: '9-29' },
+      { name: '财库', list: ['ru','ru','ru','ru','hu','ru','chu','hu','ru','hu','hu'], time: '9-29' },
+      { name: '财库', list: ['chu','long','chu','ru','chu','chu','long','long','chu','hu','chu','chu'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','chu','hu','long','chu','long','chu','ru','long','hu'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','long','chu','long','hu','chu','long','ru','hu','ru'], time: '9-29' },
+      { name: '财库', list: ['hu','ru','hu','long','chu','chu','long','chu','hu','hu','long','chu'], time: '9-29' },
+      { name: '财库', list: ['ru','hu','chu','hu','long','chu','hu','ru','chu','chu'], time: '9-29' },
+      { name: '财库', list: ['chu','ru','ru','long','long','long','ru','long','chu','long','ru','ru'], time: '9-29' },
+      { name: '财库', list: ['hu','long','ru','hu','ru','ru','hu','ru','hu','ru','long','hu'], time: '9-29' },
+      { name: '财库', list: ['long','long','ru','long','hu','ru','long','ru','ru','hu','ru'], time: '9-29' },
+      { name: '财库', list: ['hu','hu','chu','chu','long','ru','hu','ru','chu','hu'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','hu','ru','hu','hu','hu','long','long','ru','chu','long'], time: '9-29' },
+      { name: '财库', list: ['ru','hu','hu','chu','long','ru','chu','chu','hu','long','hu','long'], time: '9-29' },
+      { name: '财库', list: ['chu','hu','chu','long','ru','chu','ru','hu','chu','ru','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v12', '1');
+  }
+  // v11导入：上上签4 + 起大C7 + 拜关公11 + 赚大钱12 + 大人物10 + 娶雅某9 + 自由人8 + 指南针20 + 开豪车8 + 野心家7
+  if (!localStorage.getItem('imported_v11') && !CLOUD){
+    const BATCH = [
+      // 上上签
+      { name: '上上签', list: ['ru','hu','long','ru','long','chu','ru','long','ru','chu','long','ru'], time: '9-29' },
+      { name: '上上签', list: ['chu','ru','long','long','long','hu','ru','ru','chu','chu','long','long'], time: '9-29' },
+      { name: '上上签', list: ['chu','chu','chu','hu','long','hu','ru','long','ru','ru','hu','chu'], time: '9-29' },
+      { name: '上上签', list: ['chu','hu','ru','chu','chu','long','long','chu','chu','long','hu','hu'], time: '9-29' },
+      // 起大C
+      { name: '起大C', list: ['hu','ru','long','ru','hu','hu','hu','long','chu','hu','chu','ru'], time: '9-29' },
+      { name: '起大C', list: ['ru','long','hu','ru','chu','long','hu','hu','chu','long','ru','chu'], time: '9-29' },
+      { name: '起大C', list: ['long','long','long','hu','long','chu','ru','ru','hu','hu','hu'], time: '9-29' },
+      { name: '起大C', list: ['ru','long','ru','ru','chu','long','ru','hu','long','ru','ru','hu'], time: '9-29' },
+      { name: '起大C', list: ['ru','hu','hu','hu','chu','long','ru','hu','chu','long','long','chu'], time: '9-29' },
+      { name: '起大C', list: ['hu','chu','hu','hu','chu','chu','chu','hu','ru','ru','ru'], time: '9-29' },
+      { name: '起大C', list: ['ru','hu','long','long','long','ru','hu','hu','long','ru','hu','hu'], time: '9-29' },
+      // 拜关公
+      { name: '拜关公', list: ['long','long','chu','ru','long','chu','chu','chu','long','ru','ru','chu'], time: '9-29' },
+      { name: '拜关公', list: ['hu','long','hu','chu','long','chu','hu','hu','long','ru','long','long'], time: '9-29' },
+      { name: '拜关公', list: ['ru','chu','chu','chu','ru','long','ru','hu','long','chu','hu','ru'], time: '9-29' },
+      { name: '拜关公', list: ['hu','ru','long','chu','chu','ru','chu','long','ru','long','ru','long'], time: '9-29' },
+      { name: '拜关公', list: ['chu','chu','chu','hu','long','hu','hu','chu','long','long','hu'], time: '9-29' },
+      { name: '拜关公', list: ['hu','chu','long','long','long','ru','long','long','ru','chu'], time: '9-29' },
+      { name: '拜关公', list: ['chu','chu','ru','ru','hu','ru','long','hu','chu','hu','chu'], time: '9-29' },
+      { name: '拜关公', list: ['long','chu','long','long','hu','long','hu','hu','ru','ru','long','chu'], time: '9-29' },
+      { name: '拜关公', list: ['chu','hu','chu','chu','long','chu','long','ru','chu','long','chu','hu'], time: '9-29' },
+      { name: '拜关公', list: ['hu','hu','chu','hu','hu','hu','ru','chu','chu','ru','ru'], time: '9-29' },
+      { name: '拜关公', list: ['chu','ru','chu','hu','chu','hu','chu','long','hu','chu','hu','hu'], time: '9-29' },
+      // 赚大钱
+      { name: '赚大钱', list: ['chu','long','ru','chu','ru','ru','ru','hu','chu','long','ru','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['chu','long','ru','chu','chu','hu','hu','ru','chu','hu','chu'], time: '9-29' },
+      { name: '赚大钱', list: ['chu','long','ru','hu','ru','chu','long','chu','hu','long','chu'], time: '9-29' },
+      { name: '赚大钱', list: ['long','chu','hu','chu','hu','chu','hu','chu','long','hu','ru','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['hu','long','chu','chu','hu','long','chu','long','hu','hu','chu','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['long','chu','hu','chu','chu','long','long','hu','hu','ru','long','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['ru','chu','hu','chu','ru','hu','ru','long','chu','chu','long','ru'], time: '9-29' },
+      { name: '赚大钱', list: ['hu','ru','long','hu','ru','hu','long','ru','hu','ru','long'], time: '9-29' },
+      { name: '赚大钱', list: ['hu','chu','long','ru','long','chu','long','chu','hu','chu','long','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['ru','long','hu','chu','hu','hu','hu','ru','hu','ru','hu'], time: '9-29' },
+      { name: '赚大钱', list: ['ru','chu','long','ru','hu','hu','long','chu','hu','chu','chu','chu'], time: '9-29' },
+      { name: '赚大钱', list: ['hu','ru','chu','hu','ru','hu','chu','chu','hu','hu','chu'], time: '9-29' },
+      // 大人物
+      { name: '大人物', list: ['hu','hu','long','hu','hu','chu','ru','hu','ru','chu','ru','long'], time: '9-29' },
+      { name: '大人物', list: ['long','hu','ru','long','hu','ru','hu','hu','chu','hu','hu'], time: '9-29' },
+      { name: '大人物', list: ['ru','chu','chu','chu','chu','long','ru','chu','ru','hu','long','long'], time: '9-29' },
+      { name: '大人物', list: ['chu','ru','ru','chu','chu','chu','hu','ru','hu','long','long','hu'], time: '9-29' },
+      { name: '大人物', list: ['ru','hu','long','hu','chu','long','hu','chu','chu','long','chu'], time: '9-29' },
+      { name: '大人物', list: ['chu','long','ru','hu','hu','long','hu','hu','long','hu'], time: '9-29' },
+      { name: '大人物', list: ['hu','chu','long','hu','chu','ru','chu','ru','hu','chu'], time: '9-29' },
+      { name: '大人物', list: ['ru','ru','ru','long','ru','ru','long','ru','hu','chu','chu'], time: '9-29' },
+      { name: '大人物', list: ['long','hu','long','hu','ru','hu','hu','chu','hu','hu','chu'], time: '9-29' },
+      { name: '大人物', list: ['hu','ru','hu','long','long','hu','long','hu','chu','hu','hu'], time: '9-29' },
+      // 娶雅某
+      { name: '娶雅某', list: ['ru','ru','chu','long','ru','chu','hu','ru','chu','chu','ru'], time: '9-29' },
+      { name: '娶雅某', list: ['hu','ru','hu','ru','long','long','ru','hu','long','chu','long'], time: '9-29' },
+      { name: '娶雅某', list: ['hu','chu','long','ru','ru','long','hu','chu','ru','long','ru'], time: '9-29' },
+      { name: '娶雅某', list: ['hu','long','long','hu','long','ru','chu','long','chu','long','hu','ru'], time: '9-29' },
+      { name: '娶雅某', list: ['chu','chu','ru','ru','chu','hu','ru','hu','ru','ru','hu'], time: '9-29' },
+      { name: '娶雅某', list: ['long','chu','chu','long','ru','hu','ru','long','ru','chu','chu','ru'], time: '9-29' },
+      { name: '娶雅某', list: ['chu','long','chu','hu','chu','chu','chu','hu','ru','long','long','hu'], time: '9-29' },
+      { name: '娶雅某', list: ['long','hu','chu','ru','ru','ru','chu','long','long','ru','long'], time: '9-29' },
+      { name: '娶雅某', list: ['hu','chu','chu','chu','hu','ru','chu','ru','chu','chu','hu','chu'], time: '9-29' },
+      // 自由人
+      { name: '自由人', list: ['ru','ru','chu','ru','hu','hu','ru','ru','long','ru','long','ru'], time: '9-29' },
+      { name: '自由人', list: ['chu','ru','ru','hu','hu','hu'], time: '9-29' },
+      { name: '自由人', list: ['chu','hu','long','hu','chu','long','hu','hu','long','long','hu'], time: '9-29' },
+      { name: '自由人', list: ['hu','chu','hu','hu','hu','long','ru','chu','chu','ru','ru'], time: '9-29' },
+      { name: '自由人', list: ['hu','long','long','ru','long'], time: '9-29' },
+      { name: '自由人', list: ['hu','hu','chu','chu','chu','long','chu','long','long','long'], time: '9-29' },
+      { name: '自由人', list: ['hu','long','hu','hu','long','chu','long','hu','chu','ru','chu','hu'], time: '9-29' },
+      { name: '自由人', list: ['long','long','ru','hu','chu','chu','ru','hu','chu','hu','chu'], time: '9-29' },
+      // 指南针
+      { name: '指南针', list: ['chu','hu','hu','long','ru','hu','chu','ru','long','hu','hu','chu'], time: '9-29' },
+      { name: '指南针', list: ['long','long','chu','ru','chu','chu','hu','hu','long','long','long'], time: '9-29' },
+      { name: '指南针', list: ['long','long','ru','hu','chu','ru','chu','hu','chu','ru','ru','ru'], time: '9-29' },
+      { name: '指南针', list: ['long','chu','chu','chu','chu','long','ru','hu','hu','long','long','hu'], time: '9-29' },
+      { name: '指南针', list: ['long','chu','chu','chu','hu','ru','ru','ru','hu','hu','chu','chu'], time: '9-29' },
+      { name: '指南针', list: ['long','hu','chu','hu','ru','ru','hu','chu','hu','hu','chu','chu'], time: '9-29' },
+      { name: '指南针', list: ['chu','chu','chu','ru','hu','hu','long','ru','hu','chu','chu','ru'], time: '9-29' },
+      { name: '指南针', list: ['ru','long','ru','ru','hu','hu','hu','hu','hu','hu','hu'], time: '9-29' },
+      { name: '指南针', list: ['ru','hu','long','hu','chu','long','long','hu','hu','long','hu','hu'], time: '9-29' },
+      { name: '指南针', list: ['long','long','hu','ru','chu','ru','chu','chu','chu','chu','hu','hu'], time: '9-29' },
+      { name: '指南针', list: ['hu','ru','hu','long','chu','chu','ru','hu','chu','long','hu','chu'], time: '9-29' },
+      { name: '指南针', list: ['ru','ru','long','ru','chu','ru','chu','ru','chu','ru','chu'], time: '9-29' },
+      { name: '指南针', list: ['long','ru','chu','hu','long','ru','long','hu','hu','chu','long','chu'], time: '9-29' },
+      { name: '指南针', list: ['chu','long','hu','chu','chu','hu','ru','ru','chu','long','hu','chu'], time: '9-29' },
+      { name: '指南针', list: ['hu','long','ru','ru','chu','chu','chu','chu','long','long','chu'], time: '9-29' },
+      { name: '指南针', list: ['chu','ru','chu','hu','long','hu','ru','hu','long','hu'], time: '9-29' },
+      { name: '指南针', list: ['hu','chu','long','ru','chu','chu','hu','ru','chu','ru','chu','ru','chu'], time: '9-29' },
+      { name: '指南针', list: ['long','ru','hu','ru','chu','hu','hu','chu','hu','ru','long','hu'], time: '9-29' },
+      { name: '指南针', list: ['long','long','ru','hu','ru','hu','ru','chu','chu','ru','hu'], time: '9-29' },
+      { name: '指南针', list: ['hu','chu','ru','long','hu','ru','hu','ru','ru','long'], time: '9-29' },
+      // 开豪车
+      { name: '开豪车', list: ['hu','long','long','hu','hu','long','ru','ru','chu','long','chu','hu'], time: '9-29' },
+      { name: '开豪车', list: ['hu','long','ru','hu','ru','hu','ru','hu','ru','chu','long','long'], time: '9-29' },
+      { name: '开豪车', list: ['ru','long','hu','chu','chu'], time: '9-29' },
+      { name: '开豪车', list: ['chu','hu','long','hu','chu','chu','hu','ru','hu','long','long','ru'], time: '9-29' },
+      { name: '开豪车', list: ['ru','chu','long','ru','long','hu','long','chu','hu','ru','ru','long'], time: '9-29' },
+      { name: '开豪车', list: ['chu','hu','ru','hu','ru','hu','long','ru','hu','ru','ru','long'], time: '9-29' },
+      { name: '开豪车', list: ['hu','hu','ru','long','long','chu','long','hu','chu','chu'], time: '9-29' },
+      { name: '开豪车', list: ['ru','long','long','ru','chu','chu','long','ru','chu','hu','chu'], time: '9-29' },
+      // 野心家
+      { name: '野心家', list: ['ru','chu','chu','hu','chu','chu','ru','chu','long','ru','ru'], time: '9-29' },
+      { name: '野心家', list: ['chu','hu','chu','ru','ru','long','long','hu','long','chu','chu','chu'], time: '9-29' },
+      { name: '野心家', list: ['chu','chu','ru','ru','hu','chu','hu','chu','long','hu','ru'], time: '9-29' },
+      { name: '野心家', list: ['long','chu','hu','long','ru','ru','ru','ru','chu','chu','ru'], time: '9-29' },
+      { name: '野心家', list: ['chu','long','chu','hu','hu','chu','hu','ru','ru','ru'], time: '9-29' },
+      { name: '野心家', list: ['hu','chu','ru','ru','long','ru','long','hu','chu','hu'], time: '9-29' },
+      { name: '野心家', list: ['ru','hu','chu','long','long','ru','chu','long','chu','long','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v11', '1');
+  }
+  // v10导入：都市情商7 + L8 + 暗夜杀7 + 同花顺9 + 六一新增14
+  if (!localStorage.getItem('imported_v10') && !CLOUD){
+    const BATCH = [
+      // 都市情商
+      { name: '都市情商', list: ['long','hu','chu','long','chu','hu','chu','chu','chu','ru','ru','long'], time: '9-29' },
+      { name: '都市情商', list: ['chu','long','hu','long','ru','long','ru','chu','long','long','ru','ru'], time: '9-29' },
+      { name: '都市情商', list: ['chu','chu','ru','long','ru','hu','ru','chu','long','hu','ru','long'], time: '9-29' },
+      { name: '都市情商', list: ['ru','hu','ru','long','long','chu','chu','ru','long','ru','long','hu'], time: '9-29' },
+      { name: '都市情商', list: ['ru','hu','ru','chu','long','hu','long','ru','long','chu','hu','chu'], time: '9-29' },
+      { name: '都市情商', list: ['long','ru','ru','hu','long','chu','long','chu','hu','ru','chu'], time: '9-29' },
+      { name: '都市情商', list: ['chu','ru','hu','hu','chu','long','chu','hu','hu','ru'], time: '9-29' },
+      // L
+      { name: 'L', list: ['hu','ru','hu','chu','ru','ru','chu','hu','long','ru','chu','long'], time: '9-29' },
+      { name: 'L', list: ['ru','hu','hu','long','chu','hu','hu','chu','hu','hu','long','chu'], time: '9-29' },
+      { name: 'L', list: ['ru','ru','ru','long','ru','chu','long','long','ru','chu','long'], time: '9-29' },
+      { name: 'L', list: ['hu','hu','long','ru','chu','chu','long','long','long','ru','chu','long'], time: '9-29' },
+      { name: 'L', list: ['long','ru','chu','hu','chu','long','ru','long','chu','hu','chu','hu'], time: '9-29' },
+      { name: 'L', list: ['ru','long','chu','hu','chu','chu','chu','chu','chu','ru','ru','long'], time: '9-29' },
+      { name: 'L', list: ['long','hu','chu','long','chu','long','ru','ru','long','ru','hu','ru'], time: '9-29' },
+      { name: 'L', list: ['hu','chu','long','ru','ru','long','long','ru','ru','long','ru'], time: '9-29' },
+      // 暗夜杀
+      { name: '暗夜杀', list: ['chu','hu','ru','ru','long','ru','ru','long','long','chu','ru','ru'], time: '9-29' },
+      { name: '暗夜杀', list: ['hu','ru','hu','chu','ru','ru','hu','long','chu','chu','chu'], time: '9-29' },
+      { name: '暗夜杀', list: ['chu','chu','long','chu','long','ru','hu','chu','ru','hu','hu','long'], time: '9-29' },
+      { name: '暗夜杀', list: ['long','hu','ru','long','ru','ru','hu','chu','chu','chu','chu','long'], time: '9-29' },
+      { name: '暗夜杀', list: ['ru','ru','ru','ru','hu','ru','ru','ru','hu','hu','hu','long'], time: '9-29' },
+      { name: '暗夜杀', list: ['chu','ru','long','chu','long','long','hu','long','hu','chu','ru','hu'], time: '9-29' },
+      { name: '暗夜杀', list: ['ru','chu','long','chu','long','chu','long','hu','long','long','hu','ru'], time: '9-29' },
+      // 同花顺
+      { name: '同花顺', list: ['long','ru','hu','hu','hu','chu','chu','hu','ru','long','ru','hu'], time: '9-29' },
+      { name: '同花顺', list: ['long','ru','chu','hu','long','ru','hu','long','hu','chu','ru','long'], time: '9-29' },
+      { name: '同花顺', list: ['ru','hu','chu','hu','chu','chu','ru','chu','hu','long','ru','hu'], time: '9-29' },
+      { name: '同花顺', list: ['long','hu','long','ru','ru','chu','hu','ru','hu','chu','hu','ru'], time: '9-29' },
+      { name: '同花顺', list: ['long','chu','long','hu','hu','ru','hu','chu','ru','long','hu'], time: '9-29' },
+      { name: '同花顺', list: ['hu','hu','ru','long','long','long','long','chu','hu','ru','hu','ru'], time: '9-29' },
+      { name: '同花顺', list: ['hu','ru','ru','ru','chu','chu','long','hu','hu','ru'], time: '9-29' },
+      { name: '同花顺', list: ['ru','hu','ru','chu','long','ru','long','chu','hu','hu'], time: '9-29' },
+      { name: '同花顺', list: ['ru','ru','long','long','long','hu','long','ru','long','chu','hu'], time: '9-29' },
+      // 六一新增
+      { name: '六一', list: ['ru','chu','long','long','chu','long','chu','long','hu','ru','chu','long'], time: '9-29' },
+      { name: '六一', list: ['hu','long','chu','hu','ru','chu','chu','hu','long','hu','hu','ru'], time: '9-29' },
+      { name: '六一', list: ['long','long','long','ru','ru','chu','chu','ru','ru','hu','ru','ru'], time: '9-29' },
+      { name: '六一', list: ['hu','hu','hu','ru','long','chu','chu','long','long'], time: '9-29' },
+      { name: '六一', list: ['ru','chu','hu','ru','ru','ru','ru'], time: '9-29' },
+      { name: '六一', list: ['hu','ru','ru','long','hu','long','hu','chu','long','long'], time: '9-29' },
+      { name: '六一', list: ['hu','hu','hu','hu','ru','ru','chu','chu','hu','chu','ru','chu'], time: '9-29' },
+      { name: '六一', list: ['hu','long','hu','hu','chu','hu','chu','hu','hu','ru','ru'], time: '9-29' },
+      { name: '六一', list: ['hu','hu','hu','ru','long','chu','long','long','chu','chu','hu'], time: '9-29' },
+      { name: '六一', list: ['chu','chu','long','hu','chu','long','hu','chu','ru','chu','ru','chu'], time: '9-29' },
+      { name: '六一', list: ['chu','hu','ru','long','chu','long','chu','long','chu','chu','chu','ru'], time: '9-29' },
+      { name: '六一', list: ['chu','hu','chu','hu','ru','hu','ru','long','chu','hu'], time: '9-29' },
+      { name: '六一', list: ['chu','ru','chu','hu','hu','long','long'], time: '9-29' },
+      { name: '六一', list: ['ru','long','hu','hu','long','long','chu','hu','long'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v10', '1');
+  }
+  // v9导入：酷酷2 + abo4 + 安微5 + 好运12 + BAO3 + 555888222 18 + 耐克4 + 安踏6 + 789 9 + 班尼路11 + 特步7
+  if (!localStorage.getItem('imported_v9') && !CLOUD){
+    const BATCH = [
+      // 酷酷
+      { name: '酷酷', list: ['chu','hu','hu','long','chu','ru','long','hu','hu','chu','chu','chu'], time: '9-29' },
+      { name: '酷酷', list: ['long','long','long','long','long','ru','long','hu','long','long','chu'], time: '9-29' },
+      // abo
+      { name: 'abo', list: ['chu','long','hu','ru','chu','ru','ru','long','chu','hu','ru','long'], time: '9-29' },
+      { name: 'abo', list: ['chu','hu','chu','long','chu','ru','long','hu','chu','chu','hu','chu'], time: '9-29' },
+      { name: 'abo', list: ['long','ru','hu','ru','chu','hu','long','hu','long','chu','long'], time: '9-29' },
+      { name: 'abo', list: ['long','hu','chu','ru','ru','ru','chu','ru','ru','hu','hu','hu'], time: '9-29' },
+      // 安微
+      { name: '安微', list: ['long','chu','hu','chu','long','hu','chu','chu','ru','hu','chu','long'], time: '9-29' },
+      { name: '安微', list: ['chu','hu','long','ru','long','ru','long','hu','ru','hu','ru','chu'], time: '9-29' },
+      { name: '安微', list: ['hu','ru','hu','ru','hu','hu','chu','hu','long','long','ru','chu'], time: '9-29' },
+      { name: '安微', list: ['chu','chu','ru','chu','ru','ru','hu','chu','hu','hu','hu','chu'], time: '9-29' },
+      { name: '安微', list: ['hu','chu','long','hu','chu','ru','ru','long','ru','chu','long','chu'], time: '9-29' },
+      // 好运
+      { name: '好运', list: ['ru','long','chu','chu','chu','long','chu','long','hu','hu','hu','chu','ru'], time: '9-29' },
+      { name: '好运', list: ['ru','ru','chu','hu','hu','chu','long','long','ru','hu','long','long'], time: '9-29' },
+      { name: '好运', list: ['chu','hu','hu','hu','ru','ru','chu','hu','hu','ru','chu','hu'], time: '9-29' },
+      { name: '好运', list: ['chu','chu','hu','chu','chu','chu','hu','long','hu','hu','long'], time: '9-29' },
+      { name: '好运', list: ['ru','hu','ru','hu','chu','hu','chu','ru','ru','long','hu','hu'], time: '9-29' },
+      { name: '好运', list: ['chu','long','chu','long','ru','hu'], time: '9-29' },
+      { name: '好运', list: ['chu','hu','hu','chu','ru','chu','chu','chu','chu','ru'], time: '9-29' },
+      { name: '好运', list: ['hu','long','long','hu','long','ru','hu','long','hu','hu','hu','hu'], time: '9-29' },
+      { name: '好运', list: ['ru','chu','ru','hu','hu','ru','hu','chu','hu','hu','ru','long'], time: '9-29' },
+      { name: '好运', list: ['chu','hu','long','ru','hu','long','ru','hu','long','long','long','ru'], time: '9-29' },
+      { name: '好运', list: ['long','ru','hu','long','ru','ru','hu','hu','ru','hu','long','long'], time: '9-29' },
+      { name: '好运', list: ['chu','ru','ru','long','hu','long','long','chu','chu','ru','chu'], time: '9-29' },
+      // BAO
+      { name: 'BAO', list: ['ru','ru','chu','chu','long','long','chu','hu','long','hu','ru','ru'], time: '9-29' },
+      { name: 'BAO', list: ['hu','long','ru','hu','long','hu','long','ru','chu','long','chu','chu'], time: '9-29' },
+      { name: 'BAO', list: ['long','ru','hu','hu','hu','chu','chu','chu','chu','long','long','long'], time: '9-29' },
+      // 555,888,222
+      { name: '555,888,222', list: ['ru','long','ru','ru','ru','ru','chu','hu','hu','ru','chu','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','ru','long','hu','hu','hu','ru','long','chu','long','ru','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['hu','long','ru','hu','ru','ru','chu','hu','chu','hu','hu','long'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','chu','chu','chu','hu','chu','ru','chu','chu','ru','ru','hu'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','long','chu','hu','hu','ru','ru','long','hu','chu'], time: '9-29' },
+      { name: '555,888,222', list: ['long','ru','long','chu','chu','chu','chu','chu','chu','long','hu','chu'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','chu','chu','chu','chu','chu','long','long','ru','long','long','hu'], time: '9-29' },
+      { name: '555,888,222', list: ['long','ru','long','long','chu','chu','hu','chu','ru','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['hu','hu','ru','hu','chu','chu','ru','chu','long','chu','chu','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['chu','long','hu','long','long','ru','chu','ru','ru','ru','chu','chu','hu'], time: '9-29' },
+      { name: '555,888,222', list: ['hu','chu','ru','ru','chu','hu','hu','long','chu','chu','ru','long'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','long','ru','ru','chu','chu','hu','hu','long','long','long','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','long','chu','long','ru','hu','long','ru','long','chu'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','ru','chu','chu','chu','long'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','hu','ru','ru','chu','hu','hu','hu','chu','long','ru'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','chu','long','long','ru','chu','ru','chu','hu','chu','chu','long'], time: '9-29' },
+      { name: '555,888,222', list: ['hu','chu','hu','chu','ru','ru','long','ru','long','ru','long','chu'], time: '9-29' },
+      { name: '555,888,222', list: ['ru','hu','hu','hu','chu','chu','ru','chu','long','ru','hu'], time: '9-29' },
+      // 耐克
+      { name: '耐克', list: ['ru','ru','hu','long','long','chu','ru','ru','long','hu','ru','hu'], time: '9-29' },
+      { name: '耐克', list: ['hu','ru','long','long','chu','ru','chu','long','long','ru','hu','hu'], time: '9-29' },
+      { name: '耐克', list: ['long','chu','ru','ru','hu','chu','long','chu','long','ru','long','chu'], time: '9-29' },
+      { name: '耐克', list: ['hu','hu','long','hu','long','hu','hu','chu','hu','hu','chu'], time: '9-29' },
+      // 安踏
+      { name: '安踏', list: ['hu','chu','hu','long','long','chu','hu','long','chu','hu','ru','ru'], time: '9-29' },
+      { name: '安踏', list: ['ru','long','chu','ru','long','ru','hu','long','chu','long','long','chu'], time: '9-29' },
+      { name: '安踏', list: ['hu','long','chu','ru','ru','long','long','hu','ru','hu','long','hu'], time: '9-29' },
+      { name: '安踏', list: ['chu','chu','hu','hu','hu','chu','chu','ru','hu','hu','long'], time: '9-29' },
+      { name: '安踏', list: ['chu','hu','hu','chu','ru','chu','ru','chu','chu','hu','ru','hu'], time: '9-29' },
+      { name: '安踏', list: ['long','hu','hu','hu','ru','chu','chu','ru','ru','ru','ru','chu'], time: '9-29' },
+      // 789
+      { name: '789', list: ['ru','ru','ru','long','long','chu','hu','ru'], time: '9-29' },
+      { name: '789', list: ['chu','long','hu','long','long','long','hu','ru','chu','long','ru','hu'], time: '9-29' },
+      { name: '789', list: ['long','chu','ru','ru','long','hu','hu','long','ru','chu','hu','long'], time: '9-29' },
+      { name: '789', list: ['chu','hu','ru','long','long','hu','ru','long','ru','ru','chu'], time: '9-29' },
+      { name: '789', list: ['chu','long','long','long','chu','long','long','long','chu','chu','ru','long'], time: '9-29' },
+      { name: '789', list: ['long','ru','hu','chu','hu','ru','long','chu','hu','hu','hu'], time: '9-29' },
+      { name: '789', list: ['hu','ru','ru','hu','hu','ru','chu','ru','long','long','ru'], time: '9-29' },
+      { name: '789', list: ['long','long','ru','chu','long','hu','chu','hu','hu','chu','ru'], time: '9-29' },
+      { name: '789', list: ['ru','ru','long','long','long','hu','chu','hu','hu','long','long'], time: '9-29' },
+      // 班尼路
+      { name: '班尼路', list: ['hu','chu','chu','long','long','chu','hu','chu','ru','long','chu','hu'], time: '9-29' },
+      { name: '班尼路', list: ['ru','ru','hu','chu','chu','long','ru','chu','long','ru','chu','long'], time: '9-29' },
+      { name: '班尼路', list: ['long','long','hu','hu','ru','hu','ru','hu','ru','hu','ru','ru'], time: '9-29' },
+      { name: '班尼路', list: ['ru','chu','ru','chu','chu','hu','long','chu'], time: '9-29' },
+      { name: '班尼路', list: ['ru','hu','chu','ru','hu','ru','long','chu','ru','chu','hu','hu'], time: '9-29' },
+      { name: '班尼路', list: ['hu','chu','hu','hu','hu','chu','long','ru','hu','ru','hu'], time: '9-29' },
+      { name: '班尼路', list: ['chu','chu','ru','long','chu','chu','chu','hu','chu','long','chu'], time: '9-29' },
+      { name: '班尼路', list: ['ru','chu','hu','hu','long','chu','hu','hu','ru','chu'], time: '9-29' },
+      { name: '班尼路', list: ['chu','hu','chu','hu','hu','ru','chu','hu','hu','chu','chu','ru'], time: '9-29' },
+      { name: '班尼路', list: ['long','hu','chu','long','chu','long','hu','ru','ru','chu','chu','long'], time: '9-29' },
+      { name: '班尼路', list: ['long','long','hu','chu','hu','long','long','ru','hu','hu','hu','hu'], time: '9-29' },
+      // 特步
+      { name: '特步', list: ['chu','chu','long','ru','long','hu','ru','chu','long','ru','long','chu'], time: '9-29' },
+      { name: '特步', list: ['hu','long','hu','chu','chu','hu','long','hu','chu','ru','long'], time: '9-29' },
+      { name: '特步', list: ['ru','hu','hu','chu','long','ru','hu','chu','hu','hu','long'], time: '9-29' },
+      { name: '特步', list: ['long','ru','chu','long','hu','hu','hu','long','hu','hu','chu','hu'], time: '9-29' },
+      { name: '特步', list: ['long','ru','ru','chu','hu','ru','ru','long','chu','chu','hu','chu'], time: '9-29' },
+      { name: '特步', list: ['chu','chu','hu','ru','long','long','long','ru','long','chu','hu','ru'], time: '9-29' },
+      { name: '特步', list: ['hu','chu','chu','chu','chu','chu','long','hu','chu','long','long','chu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v9', '1');
+  }
+  // v8导入：财12 + 发10 + 瑞门9 + 吉星12 + 事事如意18 + 八方8 + 来财8 + 事事顺心3 + 肥肉厚酒6
+  if (!localStorage.getItem('imported_v8') && !CLOUD){
+    const BATCH = [
+      // 财
+      { name: '财', list: ['hu','long','hu','long','hu','long','chu','chu','chu','hu','hu','ru'], time: '9-29' },
+      { name: '财', list: ['ru','long','long','chu','long','hu','chu','hu','ru','chu','long'], time: '9-29' },
+      { name: '财', list: ['long','ru','hu','hu','ru','ru','long','long','ru','hu','long','hu'], time: '9-29' },
+      { name: '财', list: ['hu','chu','hu','ru','chu','hu','hu','hu','long','ru','ru','long'], time: '9-29' },
+      { name: '财', list: ['hu','ru','hu','ru','long','ru','ru','hu','ru','long','ru'], time: '9-29' },
+      { name: '财', list: ['chu','long','long','chu','long','long','chu','hu','ru','long','long'], time: '9-29' },
+      { name: '财', list: ['ru','hu','long','ru','chu','hu','chu','ru','ru','hu','ru','long'], time: '9-29' },
+      { name: '财', list: ['ru','ru','hu','ru','hu','long','chu','chu','ru','ru','chu','chu'], time: '9-29' },
+      { name: '财', list: ['chu','chu','chu','chu','hu','ru','hu','long','chu','long','ru','chu'], time: '9-29' },
+      { name: '财', list: ['hu','chu','ru','hu','chu','ru','long','long','ru','chu','long','chu'], time: '9-29' },
+      { name: '财', list: ['long','chu','hu','long','long','long','chu','chu','ru','chu','chu','chu'], time: '9-29' },
+      { name: '财', list: ['ru','ru','long','ru','ru','hu','hu','ru','hu','chu','chu','chu'], time: '9-29' },
+      // 发
+      { name: '发', list: ['ru','chu','hu','ru','chu','hu','ru','ru','ru','long','ru','long'], time: '9-29' },
+      { name: '发', list: ['ru','long','long','ru','long','hu','hu','ru','chu','chu','chu'], time: '9-29' },
+      { name: '发', list: ['ru','long','hu','chu','chu','hu','chu','chu','ru','long','ru','chu'], time: '9-29' },
+      { name: '发', list: ['ru','long','ru','hu','chu','long','ru','long','ru','hu','hu','long'], time: '9-29' },
+      { name: '发', list: ['ru','hu','chu','hu','hu','hu','chu','chu','chu','hu','hu'], time: '9-29' },
+      { name: '发', list: ['hu','long','hu','hu','long','hu','ru','long','hu','hu','long'], time: '9-29' },
+      { name: '发', list: ['long','chu','chu','ru','ru','ru','chu','chu','hu','hu','hu','chu'], time: '9-29' },
+      { name: '发', list: ['long','ru','ru','long','ru','chu','chu','chu','ru','ru','chu','chu'], time: '9-29' },
+      { name: '发', list: ['ru','hu','long','ru','hu','long','hu','long','chu','long','long'], time: '9-29' },
+      { name: '发', list: ['ru','hu','hu','chu','hu','chu','hu','hu','long','ru'], time: '9-29' },
+      // 瑞门
+      { name: '瑞门', list: ['hu','long','hu','long','long','chu','chu','long','long','chu','long','hu'], time: '9-29' },
+      { name: '瑞门', list: ['ru','hu','hu','chu','long','chu','long','ru','chu','long'], time: '9-29' },
+      { name: '瑞门', list: ['hu','long','ru','hu','chu','ru','ru','hu','ru','long','long'], time: '9-29' },
+      { name: '瑞门', list: ['hu','chu','hu','hu','ru','ru','chu','chu','hu','chu','long','chu'], time: '9-29' },
+      { name: '瑞门', list: ['hu','ru','ru','hu','chu','long','long','ru','chu','long','ru','hu'], time: '9-29' },
+      { name: '瑞门', list: ['chu','chu','chu','ru','hu','hu','long','hu','chu','long','ru','chu'], time: '9-29' },
+      { name: '瑞门', list: ['ru','chu','ru','ru','long','chu','chu','chu','long','chu','ru','ru'], time: '9-29' },
+      { name: '瑞门', list: ['ru','hu','chu','chu','long','hu','hu','chu','hu','hu','chu','chu'], time: '9-29' },
+      { name: '瑞门', list: ['chu','long','chu','chu','long','ru','hu','chu','ru','ru','hu','hu'], time: '9-29' },
+      // 吉星
+      { name: '吉星', list: ['chu','chu','ru','ru','long','hu','ru','hu','hu','ru','chu','hu'], time: '9-29' },
+      { name: '吉星', list: ['hu','long','chu','ru','hu','hu','chu','ru','long','chu','chu','hu'], time: '9-29' },
+      { name: '吉星', list: ['chu','hu','chu','long','ru','chu','ru','hu','chu','ru','hu','long'], time: '9-29' },
+      { name: '吉星', list: ['ru','hu','long','ru','hu','ru','hu','chu','chu','ru','chu','long'], time: '9-29' },
+      { name: '吉星', list: ['long','long','long','chu','chu','chu','long','long','long','chu','ru','hu'], time: '9-29' },
+      { name: '吉星', list: ['ru','ru','ru','ru','ru','chu','chu','chu','hu','long','ru'], time: '9-29' },
+      { name: '吉星', list: ['ru','long','hu','hu','chu','chu','hu','hu','ru','chu','chu'], time: '9-29' },
+      { name: '吉星', list: ['ru','ru','chu','ru','chu','long','chu','hu','hu','ru','hu','ru'], time: '9-29' },
+      { name: '吉星', list: ['chu','long','long','chu','ru','long','hu','chu','ru','long','chu','chu'], time: '9-29' },
+      { name: '吉星', list: ['hu','hu','hu','long','long','chu','long','chu','long','ru','long','chu'], time: '9-29' },
+      { name: '吉星', list: ['long','hu','ru','ru','ru','chu','chu','hu','long','ru','long','chu'], time: '9-29' },
+      { name: '吉星', list: ['chu','ru','long','chu','chu','long','hu','long','hu','chu','long','chu'], time: '9-29' },
+      // 事事如意
+      { name: '事事如意', list: ['long','chu','chu','chu','chu','ru','hu','long','hu','hu','long','hu'], time: '9-29' },
+      { name: '事事如意', list: ['hu','ru','long','ru','ru','hu','long','hu','ru','long','ru','chu'], time: '9-29' },
+      { name: '事事如意', list: ['hu','hu','chu','chu','ru','hu','ru','hu','chu','chu','hu','long'], time: '9-29' },
+      { name: '事事如意', list: ['hu','hu','hu','chu','long','hu','long','ru','hu','hu','chu','chu'], time: '9-29' },
+      { name: '事事如意', list: ['hu','chu','ru','long','ru','chu','chu','long','chu','long','long','hu'], time: '9-29' },
+      { name: '事事如意', list: ['hu','chu','ru','long','chu','ru','ru','ru','chu','chu','chu','long'], time: '9-29' },
+      { name: '事事如意', list: ['chu','hu','hu','ru','ru','hu','ru','hu','long','chu'], time: '9-29' },
+      { name: '事事如意', list: ['chu','ru','hu','hu','long','ru','long','long','long','hu'], time: '9-29' },
+      { name: '事事如意', list: ['ru','long','hu','chu','chu','long','hu','long','ru','ru','hu','ru'], time: '9-29' },
+      { name: '事事如意', list: ['long','chu','hu','hu','long','ru','hu','ru','hu','long','chu'], time: '9-29' },
+      { name: '事事如意', list: ['chu','chu','hu','chu','ru','long','hu','chu','chu','long','long','long'], time: '9-29' },
+      { name: '事事如意', list: ['ru','ru','ru','chu','hu','ru','hu','hu','chu','ru','hu','ru'], time: '9-29' },
+      { name: '事事如意', list: ['chu','chu','chu','long','hu','chu','long','chu','hu','chu','chu','chu'], time: '9-29' },
+      { name: '事事如意', list: ['hu','hu','ru','chu','long','ru','chu','hu','chu','ru','chu','chu'], time: '9-29' },
+      { name: '事事如意', list: ['ru','long','chu','chu','chu','chu','long','long','long','hu','chu','ru'], time: '9-29' },
+      { name: '事事如意', list: ['hu','long','ru','hu','ru','ru','hu','hu','chu','ru','chu'], time: '9-29' },
+      { name: '事事如意', list: ['ru','hu','hu','hu','hu','long','long','hu','ru','hu','ru','long'], time: '9-29' },
+      { name: '事事如意', list: ['hu','ru','chu','long','long','long','chu','long','hu','hu','chu','hu'], time: '9-29' },
+      // 八方
+      { name: '八方', list: ['hu','long','hu','chu','hu','long','chu','ru','ru','ru','chu','chu'], time: '9-29' },
+      { name: '八方', list: ['long','long','chu','ru','ru','ru','chu','chu','ru','chu','chu','hu','ru'], time: '9-29' },
+      { name: '八方', list: ['ru','chu','chu','hu','chu','hu','chu','hu','ru','ru','chu'], time: '9-29' },
+      { name: '八方', list: ['ru','ru','chu','long','ru','long','chu','long','ru','chu','hu','chu'], time: '9-29' },
+      { name: '八方', list: ['ru','hu','chu','hu','hu','chu','long','ru','hu','long','hu','hu'], time: '9-29' },
+      { name: '八方', list: ['hu','hu','chu','ru','chu','hu','ru','hu','long','ru','long','ru'], time: '9-29' },
+      { name: '八方', list: ['hu','chu','hu','hu','ru','ru','ru','hu','hu','ru','long','chu'], time: '9-29' },
+      { name: '八方', list: ['long','hu','ru','hu','hu','long','ru','chu','ru','ru','long'], time: '9-29' },
+      // 来财
+      { name: '来财', list: ['chu','hu','long','long','chu','chu','chu','chu','hu','chu','chu','chu'], time: '9-29' },
+      { name: '来财', list: ['hu','ru','chu','ru','chu','long','long','ru','ru','ru','long','hu'], time: '9-29' },
+      { name: '来财', list: ['chu','ru','ru','ru','ru','long','chu','chu','long','hu','ru','hu'], time: '9-29' },
+      { name: '来财', list: ['hu','ru','long','long','long','long','long','ru','hu','ru','ru'], time: '9-29' },
+      { name: '来财', list: ['hu','hu','hu','ru','hu','chu','long','ru','chu','chu','hu','hu'], time: '9-29' },
+      { name: '来财', list: ['long','ru','ru','hu','chu','ru','hu','chu','ru','ru','hu','chu'], time: '9-29' },
+      { name: '来财', list: ['hu','ru','hu','long','long','hu'], time: '9-29' },
+      { name: '来财', list: ['hu','long','long','chu','ru','chu','ru','ru','chu','hu','ru'], time: '9-29' },
+      // 事事顺心
+      { name: '事事顺心', list: ['long','ru','chu','chu','chu','hu','long','ru','ru','hu','long','long'], time: '9-29' },
+      { name: '事事顺心', list: ['chu','hu','long','hu','long','ru','long','long','hu','long','chu','long'], time: '9-29' },
+      { name: '事事顺心', list: ['ru','hu','ru','hu','ru','ru','hu','hu','hu','ru','long','ru'], time: '9-29' },
+      // 肥肉厚酒
+      { name: '肥肉厚酒', list: ['ru','ru','chu','hu','hu','ru','long','long','hu','hu','long','ru'], time: '9-29' },
+      { name: '肥肉厚酒', list: ['long','ru','ru','hu','ru','hu','ru','chu','chu','ru','long','ru'], time: '9-29' },
+      { name: '肥肉厚酒', list: ['long','chu','long','long','hu','long','long','long','hu','chu','chu','ru'], time: '9-29' },
+      { name: '肥肉厚酒', list: ['long','chu','ru','long','ru','chu','ru','long','chu','long','ru','long'], time: '9-29' },
+      { name: '肥肉厚酒', list: ['ru','hu','chu','hu','ru','ru','long','chu','hu','ru','ru','ru'], time: '9-29' },
+      { name: '肥肉厚酒', list: ['hu','chu','chu','ru','ru','hu','ru','chu','ru','ru','chu','ru'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v8', '1');
+  }
+  // v7导入：六一7 + 好5 + ch2 + 万利2 + 顺顺3 + 富兄4 + pinrn12
+  if (!localStorage.getItem('imported_v7') && !CLOUD){
+    const BATCH = [
+      // 六一
+      { name: '六一', list: ['hu','ru','hu','long','ru','long','ru','long','long','long'], time: '9-29' },
+      { name: '六一', list: ['long','ru','long','chu','ru','ru','hu','ru','long','long','chu','chu'], time: '9-29' },
+      { name: '六一', list: ['ru','ru','long','ru','ru','ru','hu','chu','ru','long','chu','ru'], time: '9-29' },
+      { name: '六一', list: ['hu','long','ru','long','ru','long','ru','chu','ru','hu','long'], time: '9-29' },
+      { name: '六一', list: ['hu','hu','ru','long','long','chu','chu','chu','chu','hu','hu','hu'], time: '9-29' },
+      { name: '六一', list: ['hu','hu','hu','hu','ru','long','hu','long','chu','hu','ru','long'], time: '9-29' },
+      { name: '六一', list: ['long','long','long','long','chu','long','long','hu','long','long','hu','ru'], time: '9-29' },
+      // 好
+      { name: '好', list: ['hu','ru','hu','long','long','hu','long','long','ru','ru','ru'], time: '9-29' },
+      { name: '好', list: ['ru','ru','hu','hu','long','hu','ru','hu','chu'], time: '9-29' },
+      { name: '好', list: ['chu','hu','ru','ru','chu','long','long','ru','hu','hu','hu','hu'], time: '9-29' },
+      { name: '好', list: ['long','hu','ru','ru','chu','chu','long','ru','hu','ru','chu','hu'], time: '9-29' },
+      { name: '好', list: ['long','ru','long','ru','hu','chu','ru','ru','hu','long','ru'], time: '9-29' },
+      // ch
+      { name: 'ch', list: ['hu','ru','hu','chu','chu','long','ru','long','hu','hu','hu','long'], time: '9-29' },
+      { name: 'ch', list: ['hu','chu','ru','long','ru','hu','chu','hu','hu','hu','chu','chu'], time: '9-29' },
+      // 万利
+      { name: '万利', list: ['chu','hu','hu','chu','ru','long','ru','hu','hu','long','long','chu','chu'], time: '9-29' },
+      { name: '万利', list: ['ru','long','hu','ru','chu','ru','long','long','chu','ru','long','chu'], time: '9-29' },
+      // 顺顺
+      { name: '顺顺', list: ['chu','chu','ru','hu','hu','chu','hu','chu','ru','long','chu'], time: '9-29' },
+      { name: '顺顺', list: ['long','chu','hu','hu','chu','long','hu','hu','hu','hu','hu','hu'], time: '9-29' },
+      { name: '顺顺', list: ['hu','ru','chu','hu','long','ru','chu','hu','long','ru','hu','hu'], time: '9-29' },
+      // 富兄
+      { name: '富兄', list: ['chu','ru','ru','ru','ru','chu','hu','ru','hu','hu','chu','hu'], time: '9-29' },
+      { name: '富兄', list: ['ru','ru','ru','ru','chu','chu','long','chu','chu','chu','ru'], time: '9-29' },
+      { name: '富兄', list: ['long','chu','hu','chu','hu','ru','hu','long','long','ru','chu','hu'], time: '9-29' },
+      { name: '富兄', list: ['long','chu','hu','chu','ru','ru','hu','long','long','chu','hu','chu'], time: '9-29' },
+      // pinrn
+      { name: 'pinrn', list: ['ru','hu','long','ru','long','long','hu','hu','long','long','long','long'], time: '9-29' },
+      { name: 'pinrn', list: ['chu','long','hu','ru','long','chu','ru','ru','chu','ru','hu','long'], time: '9-29' },
+      { name: 'pinrn', list: ['long','hu','ru','long','chu','chu','ru','long','hu','hu','hu','long'], time: '9-29' },
+      { name: 'pinrn', list: ['long','long','long','chu','chu','long','hu','ru','hu','chu','long','ru'], time: '9-29' },
+      { name: 'pinrn', list: ['chu','hu','hu','long','chu','chu','chu','hu'], time: '9-29' },
+      { name: 'pinrn', list: ['long','chu','chu','hu','ru','chu','hu','long','ru','ru','long','ru'], time: '9-29' },
+      { name: 'pinrn', list: ['chu','chu','hu','chu','ru','hu','long','chu','ru','ru','long','ru'], time: '9-29' },
+      { name: 'pinrn', list: ['chu','long','long','long','ru','chu','chu','ru','long','chu','hu','hu'], time: '9-29' },
+      { name: 'pinrn', list: ['hu','ru','hu','hu','hu','hu','chu','long','ru'], time: '9-29' },
+      { name: 'pinrn', list: ['ru','ru','long','chu','long','ru','chu','hu','hu','long','chu','chu'], time: '9-29' },
+      { name: 'pinrn', list: ['hu','chu','hu','chu','ru','hu','ru','hu','hu','chu','chu','hu'], time: '9-29' },
+      { name: 'pinrn', list: ['hu','long','chu','long','ru','hu','ru','long','chu','chu','long','ru'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v7', '1');
+  }
+  // v6导入：和兴15组
+  if (!localStorage.getItem('imported_v6') && !CLOUD){
+    const HE_XING = [
+      { name: '和兴', list: ['long','chu','long','chu','ru','long','ru','ru','long','ru','ru'], time: '9-29' },
+      { name: '和兴', list: ['ru','long','chu','ru','long','hu','hu','hu','ru','chu','ru','long'], time: '9-29' },
+      { name: '和兴', list: ['long','hu','chu','chu','long','chu','chu','long','chu','ru','ru','hu'], time: '9-29' },
+      { name: '和兴', list: ['ru','long','long','chu','ru','ru','long','chu','hu','chu','ru','long'], time: '9-29' },
+      { name: '和兴', list: ['hu','chu','chu','long','long','ru','chu','chu','long','long','hu'], time: '9-29' },
+      { name: '和兴', list: ['chu','chu','hu','chu','ru','hu','chu','ru','hu','hu','chu','ru'], time: '9-29' },
+      { name: '和兴', list: ['hu','long','chu','ru','chu','chu','hu','ru','chu','chu','chu','chu'], time: '9-29' },
+      { name: '和兴', list: ['long','ru','chu','chu','chu','chu','long','long','chu','chu','chu'], time: '9-29' },
+      { name: '和兴', list: ['hu','ru','hu','hu','hu','ru','hu','chu','hu','chu','chu'], time: '9-29' },
+      { name: '和兴', list: ['hu','chu','long','long','long','chu','hu','long','long','long','ru','ru'], time: '9-29' },
+      { name: '和兴', list: ['ru','ru','ru','chu','ru','ru','ru','ru','chu','chu','hu','ru'], time: '9-29' },
+      { name: '和兴', list: ['hu','hu','ru','long','long','long','hu','long','long','long','long','hu'], time: '9-29' },
+      { name: '和兴', list: ['chu','chu','chu','hu','chu','chu','long','hu','chu','chu','ru','ru'], time: '9-29' },
+      { name: '和兴', list: ['long','hu','chu','chu','long','chu','chu','long','chu','ru','ru','hu'], time: '9-29' },
+      { name: '和兴', list: ['ru','ru','long','ru','ru','ru','chu','chu','long','chu','long'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(HE_XING);
+    localStorage.setItem('imported_v6', '1');
+  }
+  // v5导入：景点7组 + d7组 + b9组 + 航5组 + 领5组
+  if (!localStorage.getItem('imported_v5') && !CLOUD){
+    const BATCH = [
+      // 景点
+      { name: '景点', list: ['long','chu','long','chu','chu','hu','long','ru','chu','ru','hu','ru'], time: '9-29' },
+      { name: '景点', list: ['hu','long','long','chu','long','long','ru','chu','ru','ru','long','chu'], time: '9-29' },
+      { name: '景点', list: ['ru','hu','hu','long','long','ru','hu','ru','hu','ru','hu','long'], time: '9-29' },
+      { name: '景点', list: ['hu','hu','ru','long','ru','hu','chu','long','chu','hu'], time: '9-29' },
+      { name: '景点', list: ['chu','hu','ru','long','hu','ru','long','chu','chu','ru','chu','chu'], time: '9-29' },
+      { name: '景点', list: ['long','ru','chu','long','hu','ru','hu','long','hu','chu','hu','chu'], time: '9-29' },
+      { name: '景点', list: ['chu','chu','long','ru','hu','ru','long','hu','hu','long','chu','hu'], time: '9-29' },
+      // d
+      { name: 'd', list: ['ru','long','hu','ru','long','hu','hu','long','long','hu','long','ru'], time: '9-29' },
+      { name: 'd', list: ['long','ru','long','long','hu','chu','hu','ru','hu','hu','hu','chu'], time: '9-29' },
+      { name: 'd', list: ['ru','chu','hu','hu','hu','hu','ru','hu','long','long','hu','hu'], time: '9-29' },
+      { name: 'd', list: ['hu','chu','chu','long','hu','chu','hu','ru','hu','hu','ru','long'], time: '9-29' },
+      { name: 'd', list: ['ru','long','hu','chu','ru','chu','long','ru','long','chu','hu','long'], time: '9-29' },
+      { name: 'd', list: ['chu','ru','long','chu','chu','long','long','chu','ru','ru','ru'], time: '9-29' },
+      { name: 'd', list: ['long','ru','long','long','hu','chu','long','ru','long','hu','ru'], time: '9-29' },
+      // b
+      { name: 'b', list: ['hu','hu','long','chu','long','ru','chu','long','chu','hu','hu'], time: '9-29' },
+      { name: 'b', list: ['chu','hu','long','chu','hu','hu','chu','chu','ru','ru','hu','long'], time: '9-29' },
+      { name: 'b', list: ['ru','ru','ru','chu','long','ru','ru','ru','hu','hu','chu','long','chu','ru','hu'], time: '9-29' },
+      { name: 'b', list: ['hu','ru','long','chu','long','long','chu','ru','chu','long','ru','long'], time: '9-29' },
+      { name: 'b', list: ['hu','chu','ru','ru','chu','long','chu','ru','hu','hu','chu','ru'], time: '9-29' },
+      { name: 'b', list: ['ru','chu','long','long','ru','long','ru','hu','chu','hu','hu','ru'], time: '9-29' },
+      { name: 'b', list: ['ru','long','hu','long','long','chu','chu','ru','long','hu','hu','ru'], time: '9-29' },
+      { name: 'b', list: ['long','ru','long','long','chu','ru','hu','ru','long','chu','chu','hu'], time: '9-29' },
+      { name: 'b', list: ['ru','long','ru','long','chu','chu','hu','ru','long','chu','chu','chu'], time: '9-29' },
+      // 航
+      { name: '航', list: ['chu','chu','long','chu','ru','ru','chu','chu','ru','hu','long','chu'], time: '9-29' },
+      { name: '航', list: ['chu','ru','long','chu','hu','long','hu','long','long','hu','hu','hu'], time: '9-29' },
+      { name: '航', list: ['ru','chu','chu','hu','chu','long','hu','hu','hu','chu','ru','long'], time: '9-29' },
+      { name: '航', list: ['chu','ru','long','ru','ru','hu','chu','ru','chu','long','ru','long'], time: '9-29' },
+      { name: '航', list: ['ru','chu','long','chu','hu','hu','hu','long','long','hu','hu'], time: '9-29' },
+      // 领
+      { name: '领', list: ['ru','hu','ru','chu','hu','long','chu','ru','ru','long','long','hu'], time: '9-29' },
+      { name: '领', list: ['long','chu','chu','long','ru','chu','hu','hu','ru','chu','chu','long'], time: '9-29' },
+      { name: '领', list: ['ru','hu','chu','long','chu','chu','hu','long','ru','long','hu','long'], time: '9-29' },
+      { name: '领', list: ['hu','long','chu','long','ru','ru','long','long','ru','hu','chu'], time: '9-29' },
+      { name: '领', list: ['hu','ru','chu','ru','hu','chu','hu','chu','hu','chu','hu'], time: '9-29' },
+    ];
+    state.groups = state.groups.concat(BATCH);
+    localStorage.setItem('imported_v5', '1');
+  }
+  save();
+  let searchQuery = '';
+  let activeTag = '';
+  let timeFilter = 'all';  // all / today / yesterday
+  let matchMode = 'prefix'; // prefix / contains
+
+  const $ = id => document.getElementById(id);
+
+  function currentName(){
+    const n = $('groupName').value.trim();
+    return n || ('第' + state.groupNum + '组');
+  }
+
+  function renderGrid(){
+    const g = $('grid');
+    const cur = state.current;
+    const marks = state.currentMarks || [];
+    let html = '';
+    for (let i=0; i<cur.length; i++){
+      const s = cur[i];
+      const isLast = i === cur.length - 1;
+      const m = marks[i];
+      const markHtml = (m === 1 || m === 0) ? `<span class="cell-mark ${m?'ok':'bad'}">${m?'✓':'×'}</span>` : '';
+      html += `<div class="cell ${s}${isLast?' last':''}" data-idx="${i}">${SYMBOLS[s]}${markHtml}</div>`;
+    }
+    // 补几个空槽（显示下一个编号提示）
+    for (let i=cur.length; i<cur.length+COLS; i++){
+      html += `<div class="cell empty" data-idx="${i}">${i+1}</div>`;
+    }
+    g.innerHTML = html;
+    g.querySelectorAll('.cell').forEach(c => {
+      c.addEventListener('click', () => {
+        const idx = parseInt(c.dataset.idx);
+        if (idx >= cur.length) return;
+        const s = cur[idx];
+        const nxt = NEXT[s];
+        if (nxt) cur[idx] = nxt;
+        else cur.splice(idx, 1);
+        save(); render();
+      });
+    });
+  }
+
+  function renderStats(){
+    let hu=0, long=0, ru=0, chu=0;
+    const count = arr => arr.forEach(s => {
+      if (s==='hu') hu++; else if (s==='long') long++;
+      else if (s==='ru') ru++; else if (s==='chu') chu++;
+    });
+    count(state.current);
+    let groups = state.groups;
+    if (activeTag) groups = groups.filter(g => g.name === activeTag);
+    const topQ = $('topSearch').value.trim();
+    if (topQ) groups = groups.filter(g => g.name.includes(topQ));
+    groups.forEach(g => count(g.list));
+    $('stHu').textContent = hu;
+    $('stLong').textContent = long;
+    $('stRu').textContent = ru;
+    $('stChu').textContent = chu;
+    // 标题
+    const titleEl = document.querySelector('.header .stat-title');
+    if (titleEl){
+      const label = activeTag || topQ;
+      titleEl.textContent = label ? (label + ' 的路数') : '全部路数';
+    }
+  }
+
+  function renderHistory(){
+    const box = $('historyList');
+    let groups = state.groups;
+    if (activeTag) groups = groups.filter(g => g.name === activeTag);
+    const q = searchQuery.trim();
+    if (q) groups = groups.filter(g => g.name.includes(q));
+    if (!groups.length){
+      box.innerHTML = '<div class="empty-tip">' + (state.groups.length ? '没找到匹配的组' : '还没有完成的组') + '</div>';
+      return;
+    }
+    let html = '';
+    for (let i = groups.length-1; i >= 0; i--){
+      const g = groups[i];
+      const realIdx = state.groups.indexOf(g);
+      html += `<div class="history-item">
+        <div class="history-head">
+          <span class="history-name">${escapeHtml(g.name)}<span class="history-count">${g.list.length}个${g.time?' · '+g.time:''}</span></span>
+          <button class="history-del" data-i="${realIdx}">删除</button>
+        </div>
+        <div class="history-grid">`;
+      g.list.forEach((s, gi) => {
+        const gm = (g.marks || [])[gi];
+        const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}">${gm?'✓':'×'}</span>` : '';
+        html += `<div class="hcell ${s}">${SYMBOLS[s]}${gmHtml}</div>`;
+      });
+      html += `</div>`;
+      // 每组画像：四路占比条 + 特征标签
+      const prof = groupProfile(g);
+      const pct = k => prof.total ? Math.round(prof.c[k]/prof.total*100) : 0;
+      html += `<div class="dist-bar"><span class="dist-hu" style="width:${pct('hu')}%"></span><span class="dist-long" style="width:${pct('long')}%"></span><span class="dist-ru" style="width:${pct('ru')}%"></span><span class="dist-chu" style="width:${pct('chu')}%"></span></div>`;
+      html += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
+      html += `</div>`;
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.history-del').forEach(b => {
+      b.addEventListener('click', () => {
+        if (!confirm('删除这一组？')) return;
+        state.groups.splice(parseInt(b.dataset.i), 1);
+        save(); render();
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderTags(){
+    const bar = $('tagBar');
+    const names = [];
+    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    let html = '';
+    names.forEach(n => {
+      const active = activeTag === n ? ' active' : '';
+      html += `<span class="tag${active}" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
+    });
+    bar.innerHTML = html;
+    bar.querySelectorAll('.tag').forEach(t => {
+      t.addEventListener('click', () => {
+        const n = t.dataset.name;
+        activeTag = activeTag === n ? '' : n;
+        searchQuery = '';
+        $('searchBox').value = '';
+        render();
+      });
+    });
+  }
+
+  function renderNameBar(){
+    const bar = $('nameBar');
+    const names = [];
+    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    let html = '';
+    names.forEach(n => {
+      html += `<span class="tag" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
+    });
+    bar.innerHTML = html;
+    bar.querySelectorAll('.tag').forEach(t => {
+      t.addEventListener('click', () => {
+        $('groupName').value = t.dataset.name;
+        renderLiveHint();
+      });
+    });
+  }
+
+  function renderTopTags(){
+    const bar = $('topTagBar');
+    const names = [];
+    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    let html = '';
+    names.forEach(n => {
+      const active = activeTag === n ? ' active' : '';
+      html += `<span class="tag${active}" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
+    });
+    bar.innerHTML = html;
+    bar.querySelectorAll('.tag').forEach(t => {
+      t.addEventListener('click', () => {
+        const n = t.dataset.name;
+        activeTag = activeTag === n ? '' : n;
+        $('topSearch').value = '';
+        render();
+      });
+    });
+  }
+
+  function renderPosStats(){
+    const box = $('posContent');
+    let groups = state.groups;
+    if (activeTag) groups = groups.filter(g => g.name === activeTag);
+    const topQ = $('topSearch').value.trim();
+    if (topQ) groups = groups.filter(g => g.name.includes(topQ));
+    if (!groups.length){ box.innerHTML = ''; return; }
+
+    let maxLen = 0;
+    groups.forEach(g => { if (g.list.length > maxLen) maxLen = g.list.length; });
+    if (maxLen === 0){ box.innerHTML = ''; return; }
+
+    const posCounts = [];
+    for (let i=0; i<maxLen; i++) posCounts.push({hu:0,long:0,ru:0,chu:0});
+    groups.forEach(g => {
+      g.list.forEach((s, i) => {
+        if (posCounts[i]) posCounts[i][s]++;
+      });
+    });
+
+    let html = '';
+    for (let i=0; i<maxLen; i++){
+      const c = posCounts[i];
+      let maxKey = 'hu', maxVal = c.hu;
+      if (c.long > maxVal){ maxKey = 'long'; maxVal = c.long; }
+      if (c.ru > maxVal){ maxKey = 'ru'; maxVal = c.ru; }
+      if (c.chu > maxVal){ maxKey = 'chu'; maxVal = c.chu; }
+      html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:12px;">
+        <span style="width:32px;color:#888;font-weight:700;">第${i+1}手</span>
+        <span style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;">
+          <span style="background:${maxKey==='hu'?'#7f1d1d':'#2b2b2b'};color:${maxKey==='hu'?'#fecaca':'#999'};text-align:center;padding:3px 0;border-radius:3px;font-weight:${maxKey==='hu'?'700':'400'};">虎${c.hu}</span>
+          <span style="background:${maxKey==='long'?'#1e3a8a':'#2b2b2b'};color:${maxKey==='long'?'#bfdbfe':'#999'};text-align:center;padding:3px 0;border-radius:3px;font-weight:${maxKey==='long'?'700':'400'};">龙${c.long}</span>
+          <span style="background:${maxKey==='ru'?'#854d0e':'#2b2b2b'};color:${maxKey==='ru'?'#fef08a':'#999'};text-align:center;padding:3px 0;border-radius:3px;font-weight:${maxKey==='ru'?'700':'400'};">入${c.ru}</span>
+          <span style="background:${maxKey==='chu'?'#14532d':'#2b2b2b'};color:${maxKey==='chu'?'#bbf7d0':'#999'};text-align:center;padding:3px 0;border-radius:3px;font-weight:${maxKey==='chu'?'700':'400'};">出${c.chu}</span>
+        </span>
+      </div>`;
+    }
+    box.innerHTML = html;
+  }
+
+  function parseNames(str){
+    // 支持逗号/空格/顿号分隔多个名字
+    return str.split(/[,，\s、]+/).map(n => n.trim()).filter(Boolean);
+  }
+  function getFiltered(){
+    const name = $('groupName').value.trim();
+    if (!name) return [];
+    const names = parseNames(name);
+    const now = new Date();
+    const pad = x => String(x).padStart(2,'0');
+    const todayStr = (now.getMonth()+1) + '-' + pad(now.getDate());
+    const yest = new Date(); yest.setDate(yest.getDate()-1);
+    const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
+    let all = state.groups.filter(g => names.indexOf(g.name) >= 0);
+    if (timeFilter === 'today') return all.filter(g => g.time && g.time.startsWith(todayStr));
+    if (timeFilter === 'yesterday') return all.filter(g => g.time && g.time.startsWith(yestStr));
+    return all;
+  }
+
+  // ===== 统计学习AI大脑（第二信号源）：马尔可夫转移 + 条件概率 + 位置分布 =====
+  function statBrain(curArr, filtered){
+    var KEYS = ['hu','long','ru','chu'];
+    var s = {hu:0,long:0,ru:0,chu:0};
+    if (!filtered.length) return s;
+    // 全局字符频率（用作平滑先验，避免样本少时零概率）
+    var prior = {hu:0,long:0,ru:0,chu:0}, priorT = 0;
+    filtered.forEach(function(g){ g.list.forEach(function(x){ prior[x]++; priorT++; }); });
+    // 一阶马尔可夫：P(下一手 | 当前最后一手)，拉普拉斯平滑 + 先验混合
+    if (curArr.length >= 1){
+      var last = curArr[curArr.length-1];
+      var tr = {hu:0,long:0,ru:0,chu:0}, trT = 0;
+      filtered.forEach(function(g){
+        for (var i=0;i<g.list.length-1;i++){
+          if (g.list[i] === last){ tr[g.list[i+1]]++; trT++; }
+        }
+      });
+      var a1 = 2;
+      KEYS.forEach(function(k){
+        s[k] += (tr[k] + a1*(prior[k]+1)/(priorT+4)) / (trT + a1);
+      });
+    }
+    // 二阶马尔可夫：P(下一手 | 最近两手)，权重加倍
+    if (curArr.length >= 2){
+      var last2 = curArr.slice(-2);
+      var tr2 = {hu:0,long:0,ru:0,chu:0}, tr2T = 0;
+      filtered.forEach(function(g){
+        for (var i=0;i<g.list.length-2;i++){
+          if (g.list[i]===last2[0] && g.list[i+1]===last2[1]){ tr2[g.list[i+2]]++; tr2T++; }
+        }
+      });
+      var a2 = 1.5;
+      KEYS.forEach(function(k){
+        s[k] += 2 * (tr2[k] + a2*(prior[k]+1)/(priorT+4)) / (tr2T + a2);
+      });
+    }
+    // 位置分布：当前第 N 手位置上，历史上各符号出现频率
+    var pos = curArr.length;
+    var pc = {hu:0,long:0,ru:0,chu:0}, pcT = 0;
+    filtered.forEach(function(g){ if (g.list.length > pos){ pc[g.list[pos]]++; pcT++; } });
+    if (pcT > 0){
+      KEYS.forEach(function(k){ s[k] += (pc[k] + 0.5) / (pcT + 2); });
+    }
+    return s;
+  }
+
+  function predictTop2(curArr, filtered){
+    if (!filtered.length) return []; // 只学这个人，没数据不瞎猜
+    var score = {hu:0, long:0, ru:0, chu:0};
+    var now = new Date().getTime();
+    function parseT(g){
+      if (!g.time) return now - 7*24*3600*1000;
+      var parts = g.time.split(' ');
+      var d = parts[0].split('-');
+      var y = 2026, mo = parseInt(d[0])-1, da = parseInt(d[1]);
+      var h=0, mi=0;
+      if (parts[1]){ var hm=parts[1].split(':'); h=parseInt(hm[0]); mi=parseInt(hm[1]); }
+      return new Date(y,mo,da,h,mi).getTime();
+    }
+    var times = filtered.map(parseT);
+    var maxT = Math.max.apply(null, times);
+    // 时间加权（增强版）：越新的组权重越高；老数据快速衰减，避免淹没新习惯
+    function w(i){
+      var diffH = (maxT - times[i]) / 3600000;
+      if (diffH <= 12) return 2.4 - (diffH/12)*0.8;      // 12小时内 2.4 → 1.6
+      if (diffH <= 48) return 1.6 - (diffH-12)/60;        // 12-48小时 1.6 → 1.0
+      return Math.max(0.12, 1.0 - (diffH-48)/100);        // 48小时后快速衰减，下限0.12
+    }
+    // 组内位置加权：同一条路单里越靠后的手数（越接近当前状态）权重越高
+    function posW(g, pos){
+      var L = g.list.length;
+      if (L <= 1 || pos <= 0) return 1;
+      if (pos >= L-1) return 1.5;
+      return 1 + 0.5 * pos / (L-1);
+    }
+    function wg(g, gi, pos){ return w(gi) * posW(g, pos); }
+    // 前缀匹配
+    var pC = {hu:0,long:0,ru:0,chu:0};
+    filtered.forEach(function(g, gi){
+      var ok = true;
+      for (var i=0;i<curArr.length;i++){ if(g.list[i]!==curArr[i]){ok=false;break;} }
+      if (ok && g.list.length>curArr.length) pC[g.list[curArr.length]] += wg(g, gi, curArr.length);
+    });
+    var pT = pC.hu+pC.long+pC.ru+pC.chu;
+    if (pT>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=pC[k]*3; });
+    // 上一手（1-gram）
+    if (curArr.length>=1){
+      var last1 = curArr[curArr.length-1];
+      var c1 = {hu:0,long:0,ru:0,chu:0};
+      filtered.forEach(function(g, gi){ for(var i=0;i<g.list.length-1;i++){ if(g.list[i]===last1) c1[g.list[i+1]] += wg(g, gi, i+1); } });
+      ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c1[k]*1.5; });
+    }
+    // 位置统计
+    var pos = curArr.length;
+    filtered.forEach(function(g, gi){ if(g.list.length>pos) score[g.list[pos]] += wg(g, gi, pos); });
+    // 连出2个后规律
+    if (curArr.length>=2 && curArr[curArr.length-1]===curArr[curArr.length-2]){
+      var last = curArr[curArr.length-1];
+      var cont = 0, rev = {hu:0,long:0,ru:0,chu:0}, revT = 0;
+      filtered.forEach(function(g, gi){
+        for (var i=1;i<g.list.length-1;i++){
+          if (g.list[i]===last && g.list[i-1]===last){
+            if (g.list[i+1]===last) cont += wg(g, gi, i+1);
+            else { rev[g.list[i+1]] += wg(g, gi, i+1); revT += wg(g, gi, i+1); }
+          }
+        }
+      });
+      if (cont + revT > 0){
+        if (cont >= revT) score[last] += cont * 2;
+        else ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k] += rev[k] * 2; });
+      } else {
+        ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k]+=0.5; });
+      }
+    }
+    // 2-gram
+    if (curArr.length>=2){
+      var last2 = curArr.slice(-2);
+      var c2 = {hu:0,long:0,ru:0,chu:0};
+      filtered.forEach(function(g, gi){
+        for(var i=0;i<g.list.length-2;i++){
+          if(g.list[i]===last2[0] && g.list[i+1]===last2[1]) c2[g.list[i+2]] += wg(g, gi, i+2);
+        }
+      });
+      var t2 = c2.hu+c2.long+c2.ru+c2.chu;
+      if (t2>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c2[k]*4; });
+    }
+    // 3-gram
+    if (curArr.length>=3){
+      var last3 = curArr.slice(-3);
+      var c3 = {hu:0,long:0,ru:0,chu:0};
+      filtered.forEach(function(g, gi){
+        for(var i=0;i<g.list.length-3;i++){
+          if(g.list[i]===last3[0] && g.list[i+1]===last3[1] && g.list[i+2]===last3[2]) c3[g.list[i+3]] += wg(g, gi, i+3);
+        }
+      });
+      var t3 = c3.hu+c3.long+c3.ru+c3.chu;
+      if (t3>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c3[k]*6; });
+    }
+    // 4-gram
+    if (curArr.length>=4){
+      var last4 = curArr.slice(-4);
+      var c4 = {hu:0,long:0,ru:0,chu:0};
+      filtered.forEach(function(g, gi){
+        for(var i=0;i<g.list.length-4;i++){
+          if(g.list[i]===last4[0] && g.list[i+1]===last4[1] && g.list[i+2]===last4[2] && g.list[i+3]===last4[3]) c4[g.list[i+4]] += wg(g, gi, i+4);
+        }
+      });
+      var t4 = c4.hu+c4.long+c4.ru+c4.chu;
+      if (t4>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c4[k]*8; });
+    }
+    // 冷热指数
+    ['hu','long','ru','chu'].forEach(function(k){
+      var lastIdx = -1;
+      for(var i=curArr.length-1;i>=0;i--){ if(curArr[i]===k){ lastIdx=i; break; } }
+      var gap = lastIdx === -1 ? curArr.length : (curArr.length - 1 - lastIdx);
+      if (gap >= 3) score[k] += gap * 0.3;
+    });
+    // 物极必反
+    if (curArr.length>=3){
+      var last = curArr[curArr.length-1];
+      var streak = 1;
+      for(var i=curArr.length-2;i>=0;i--){ if(curArr[i]===last) streak++; else break; }
+      if (streak >= 3){
+        score[last] -= streak * 1;
+        ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k] += streak * 0.5; });
+      }
+    }
+    // 交替模式
+    if (curArr.length>=3 && curArr[curArr.length-1]!==curArr[curArr.length-2] && curArr[curArr.length-2]===curArr[curArr.length-3]){
+      var next = curArr[curArr.length-2];
+      score[next] += 1.5;
+    }
+    // 连出3个后规律
+    if (curArr.length>=3 && curArr[curArr.length-1]===curArr[curArr.length-2] && curArr[curArr.length-2]===curArr[curArr.length-3]){
+      var last3s = curArr[curArr.length-1];
+      var cont3 = 0, rev3 = {hu:0,long:0,ru:0,chu:0}, rev3T = 0;
+      filtered.forEach(function(g, gi){
+        for (var i=2;i<g.list.length-1;i++){
+          if (g.list[i]===last3s && g.list[i-1]===last3s && g.list[i-2]===last3s){
+            if (g.list[i+1]===last3s) cont3 += wg(g, gi, i+1);
+            else { rev3[g.list[i+1]] += wg(g, gi, i+1); rev3T += wg(g, gi, i+1); }
+          }
+        }
+      });
+      if (cont3 + rev3T > 0){
+        if (cont3 >= rev3T) score[last3s] += cont3 * 1.5;
+        else ['hu','long','ru','chu'].forEach(function(k){ if(k!==last3s) score[k] += rev3[k] * 1.5; });
+      }
+    }
+    // 全局频率
+    var cG = {hu:0,long:0,ru:0,chu:0};
+    filtered.forEach(function(g, gi){ g.list.forEach(function(s, idx){cG[s]+=wg(g, gi, idx);}); });
+    var tG = cG.hu+cG.long+cG.ru+cG.chu;
+    if (tG>0) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=cG[k]/tG*2; });
+    // 统计学习AI大脑融合（主导信号）：马尔可夫+条件概率+位置分布归一化后加权
+    var sb = statBrain(curArr, filtered);
+    var sbT = sb.hu + sb.long + sb.ru + sb.chu;
+    if (sbT > 0){
+      ['hu','long','ru','chu'].forEach(function(k){ score[k] += sb[k] / sbT * 6; });
+    }
+    // 自学习自信调制（learnAdj 真实参与预测）：
+    // 最近常对 → learnAdj>1 → 放大第一名领先优势（更坚定）
+    // 最近常错 → learnAdj<1 → 拉平候选差距（更保守）
+    var adj = state.learnAdj || 1.0;
+    if (adj !== 1.0){
+      var maxKey = 'hu', maxV = score.hu;
+      ['long','ru','chu'].forEach(function(k){ if(score[k]>maxV){maxV=score[k];maxKey=k;} });
+      ['hu','long','ru','chu'].forEach(function(k){
+        if (k !== maxKey) score[k] += (maxV - score[k]) * (1 - adj);
+      });
+    }
+    return Object.keys(score).sort(function(a,b){return score[b]-score[a];}).slice(0,3);
+  }
+  function renderLiveHint(){
+    const box = $('liveHint');
+    const name = $('groupName').value.trim();
+    if (!name){ box.innerHTML = ''; return; }
+
+    // 时间筛选
+    const now = new Date();
+    const pad = x => String(x).padStart(2,'0');
+    const todayStr = (now.getMonth()+1) + '-' + pad(now.getDate());
+    const yest = new Date(now); yest.setDate(yest.getDate()-1);
+    const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
+
+    const names = parseNames(name);
+    let allMatches = state.groups.filter(g => names.indexOf(g.name) >= 0);
+    // 时间筛选按钮
+    let filtered = allMatches;
+    if (timeFilter === 'today') filtered = allMatches.filter(g => g.time && g.time.startsWith(todayStr));
+    else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => g.time && g.time.startsWith(yestStr));
+
+    // 只看这个人自己的历史，没数据就提示，不拿别人凑数
+    if (!filtered.length){ box.innerHTML = "<div style=\"padding:10px;color:#888;font-size:12px;text-align:center;\">这个人暂无历史数据，记几组就开始学他了</div>"; return; }
+    let hu=0, long=0, ru=0, chu=0;
+    filtered.forEach(g => g.list.forEach(s => {
+      if (s==='hu') hu++; else if (s==='long') long++;
+      else if (s==='ru') ru++; else if (s==='chu') chu++;
+    }));
+    let html = `<div style="background:#2b2b2b;border-radius:6px;padding:8px 10px;font-size:12px;color:#ccc;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-weight:700;color:#fbbf24;">${escapeHtml(name)} · ${filtered.length}组</div>
+        <div style="display:flex;gap:4px;">
+          <button class="mini-btn ${timeFilter==='all'?'on':''}" data-tf="all">全部</button>
+          <button class="mini-btn ${timeFilter==='today'?'on':''}" data-tf="today">今天</button>
+          <button class="mini-btn ${timeFilter==='yesterday'?'on':''}" data-tf="yesterday">昨天</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <span style="color:#fca5a5;">虎${hu}</span>
+        <span style="color:#93c5fd;">龙${long}</span>
+        <span style="color:#fde047;">入${ru}</span>
+        <span style="color:#86efac;">出${chu}</span>
+      </div>`;
+    // 智能预测：直接调用predictTop2，和点牌判断完全一致
+    const cur = state.current;
+    var sorted = predictTop2(cur, filtered);
+    if (sorted.length){
+      var curStr = cur.map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]; }).join('');
+      var prefixLabel = cur.length ? 'AI预测 ['+curStr+']' : 'AI预测 第一手';
+      var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
+      function cell(k, rank){
+        if (!k) return '<div style="padding:6px 0;"></div>';
+        var m = META[k];
+        var bg = m[1];
+        var fg = m[2];
+        var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
+        return '<div style="padding:6px 0;border-radius:4px;text-align:center;background:'+bg+';color:'+fg+';'+sh+'">'
+          + '<div style="font-size:18px;font-weight:900;line-height:1.1;">'+m[0]+'</div>'
+          + '</div>';
+      }
+      var nowSec = new Date().toLocaleTimeString();
+      var adjTxt = '· 学习加权×' + (state.learnAdj||1.0).toFixed(2) + (state.learnAdj >= 1 ? ' 越用越准' : ' 状态谨慎');
+      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:5px 6px;margin-bottom:6px;">'
+        + '<div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:3px;">'+prefixLabel+' <span style="font-size:10px;color:#888;font-weight:400;">准确率'+(state.accuracy.total?Math.round(state.accuracy.correct/state.accuracy.total*100):0)+'% ('+state.accuracy.correct+'/'+state.accuracy.total+') · 学了'+filtered.length+'组</span><span style="font-size:10px;color:#a78bfa;font-weight:600;">'+adjTxt+'</span> <span style="font-size:10px;color:#888;font-weight:400;">['+nowSec+']</span></div>'
+      var sb2 = statBrain(cur, filtered);
+      var sbT2 = sb2.hu + sb2.long + sb2.ru + sb2.chu;
+      if (sbT2 > 0){
+        var pctOf = function(k){ return Math.round(sb2[k]/sbT2*100); };
+        var bestK = 'hu', bestV = sb2.hu;
+        ['long','ru','chu'].forEach(function(k){ if (sb2[k]>bestV){bestV=sb2[k];bestK=k;} });
+        html += '<div style="font-size:10px;color:#93c5fd;font-weight:600;margin:3px 0;">统计AI大脑：虎'+pctOf('hu')+'% 龙'+pctOf('long')+'% 入'+pctOf('ru')+'% 出'+pctOf('chu')+'% · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>';
+      }
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">'
+        + cell(sorted[0],0)
+        + cell(sorted[1],1)
+        + cell(sorted[2],2)
+        + '</div>';
+      html += '</div>';
+    }
+    // 最近12次预测对错（放在预测板外面，确保每次都更新）
+    if (state.predictHistory && state.predictHistory.length){
+      var histHtml = state.predictHistory.map(function(h, i){
+        var color = h ? '#22c55e' : '#ef4444';
+        var mark = h ? '√' : 'X';
+        return '<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:'+color+';color:#fff;font-size:13px;font-weight:900;margin-right:4px;">'+mark+'</span>';
+      }).join('');
+      html += '<div style="background:#1a1a1a;border-radius:6px;padding:6px 8px;margin-bottom:6px;text-align:center;border:1px solid #333;">'+histHtml+'</div>';
+    }
+    // 人物习惯画像（AI自动学习总结）
+    var totalAll = hu+long+ru+chu;
+    if (totalAll > 10){
+      var habits = [];
+      // 1. 最爱出什么
+      var freq = {hu:hu, long:long, ru:ru, chu:chu};
+      var topChar = 'hu', topFreq = hu;
+      ['hu','long','ru','chu'].forEach(function(k){ if(freq[k]>topFreq){topFreq=freq[k];topChar=k;} });
+      var SYM_NAME = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+      habits.push('最爱走「'+SYM_NAME[topChar]+'」('+Math.round(topFreq/totalAll*100)+'%)');
+      // 2. 连出规律
+      var cont2 = 0, rev2 = 0;
+      filtered.forEach(function(g){
+        for(var i=1;i<g.list.length;i++){
+          if(g.list[i]===g.list[i-1]) cont2++;
+          else rev2++;
+        }
+      });
+      var contPct = Math.round(cont2/(cont2+rev2)*100);
+      if (contPct > 60) habits.push('喜欢连出('+contPct+'%延续)');
+      else if (contPct < 40) habits.push('喜欢反转('+(100-contPct)+'%变向)');
+      else habits.push('连出反转差不多('+contPct+'%延续)');
+      // 3. 交替模式
+      var alt = 0, altTotal = 0;
+      filtered.forEach(function(g){
+        for(var i=2;i<g.list.length;i++){
+          altTotal++;
+          if(g.list[i]!==g.list[i-1] && g.list[i-1]===g.list[i-2]) alt++;
+        }
+      });
+      if (altTotal > 5 && alt/altTotal > 0.4) habits.push('爱走交替路');
+      // 4. 物极必反：连出3个后反转概率
+      var after3cont = 0, after3rev = 0;
+      filtered.forEach(function(g){
+        for(var i=3;i<g.list.length;i++){
+          if(g.list[i-1]===g.list[i-2] && g.list[i-2]===g.list[i-3]){
+            if(g.list[i]===g.list[i-1]) after3cont++;
+            else after3rev++;
+          }
+        }
+      });
+      if (after3cont+after3rev > 0){
+        var revPct = Math.round(after3rev/(after3cont+after3rev)*100);
+        if (revPct > 60) habits.push('连3个后爱反('+revPct+'%)');
+        else habits.push('连3个后常续('+(100-revPct)+'%)');
+      }
+      // 5. 冷热：龙出完爱出什么
+      var afterLong = {hu:0,long:0,ru:0,chu:0}, afterLongT = 0;
+      filtered.forEach(function(g){
+        for(var i=0;i<g.list.length-1;i++){
+          if(g.list[i]==='long'){ afterLong[g.list[i+1]]++; afterLongT++; }
+        }
+      });
+      if (afterLongT > 3){
+        var topAfterLong = 'hu', topV = afterLong.hu;
+        ['hu','long','ru','chu'].forEach(function(k){ if(afterLong[k]>topV){topV=afterLong[k];topAfterLong=k;} });
+        habits.push('龙后爱接「'+SYM_NAME[topAfterLong]+'」');
+      }
+      html += '<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">'
+        + '<div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:5px;">AI人物画像 · '+filtered.length+'组数据学习</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:4px;">'
+        + habits.map(function(h){ return '<span style="background:rgba(168,85,247,.15);color:#d8b4fe;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;">'+h+'</span>'; }).join('')
+        + '</div></div>';
+    }
+    const matches = filtered;
+    function prefixScore(g){
+      if (!cur.length) return 0;
+      let n = 0;
+      for (let i=0; i<Math.min(cur.length, g.list.length); i++){
+        if (g.list[i] === cur[i]) n++; else break;
+      }
+      return n;
+    }
+    matches.sort((a,b) => {
+      var sa = prefixScore(a), sb = prefixScore(b);
+      if (sa !== sb) return sb - sa;
+      // 相同匹配度，时间最新的排前面
+      var ta = a.time || '', tb = b.time || '';
+      return tb > ta ? 1 : (tb < ta ? -1 : 0);
+    });
+    // 每组单独一块，最新在上，用麻将牌格子显示
+    for (let i = 0; i < matches.length; i++){
+      const g = matches[i];
+      const rows = Math.ceil(g.list.length / COLS);
+      const score = prefixScore(g);
+      const isMatch = cur.length && score >= cur.length;
+      let gridHtml = '';
+      for (let r = 0; r < rows; r++){
+        const startNum = r*COLS + 1;
+        const endNum = Math.min((r+1)*COLS, g.list.length);
+        gridHtml += `<div style="display:grid;grid-template-columns:20px repeat(6,1fr) 20px;gap:2px;align-items:center;margin-bottom:2px;">
+          <span style="font-size:10px;color:#888;text-align:center;">${startNum}</span>`;
+        for (let c = 0; c < COLS; c++){
+          const idx = r*COLS + c;
+          if (idx < g.list.length){
+            const s = g.list[idx];
+            const gm = (g.marks || [])[idx];
+            const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}" style="width:9px;height:9px;font-size:6px;">${gm?'✓':'×'}</span>` : '';
+            gridHtml += `<div class="hcell ${s}" style="font-size:14px;">${SYMBOLS[s]}${gmHtml}</div>`;
+          } else {
+            gridHtml += `<div style="aspect-ratio:1/1;"></div>`;
+          }
+        }
+        gridHtml += `<span style="font-size:10px;color:#888;text-align:center;">${endNum}</span></div>`;
+      }
+      html += `<div style="border-top:1px solid ${isMatch?'#4ade80':'#444'};padding-top:4px;margin-top:4px;${isMatch?'background:#1a3a2a;border-radius:6px;padding:6px 8px;':''}">
+        <div style="color:#888;font-size:11px;margin-bottom:2px;">${g.time || ''}${isMatch?' <span style="color:#4ade80;font-weight:700;">✓ 同走势</span>':''}</div>
+        ${gridHtml}
+      </div>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+    bindMiniBtns();
+  }
+
+  function bindMiniBtns(){
+    document.querySelectorAll('#liveHint .mini-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        if (b.dataset.tf) timeFilter = b.dataset.tf;
+        else if (b.dataset.mm) matchMode = b.dataset.mm;
+        renderLiveHint();
+      });
+    });
+  }
+
+  // ===== 新增：每组画像 =====
+  function groupProfile(g){
+    var c = {hu:0,long:0,ru:0,chu:0};
+    g.list.forEach(function(s){ c[s]++; });
+    var total = g.list.length;
+    var top = 'hu', topV = c.hu;
+    ['long','ru','chu'].forEach(function(k){ if(c[k]>topV){topV=c[k];top=k;} });
+    var tags = [];
+    if (total > 0) tags.push('主' + SYMBOLS[top] + Math.round(topV/total*100) + '%');
+    var cont2 = 0, rev2 = 0;
+    for (var i=1;i<total;i++){ if(g.list[i]===g.list[i-1]) cont2++; else rev2++; }
+    if (cont2+rev2 > 0){
+      var cp = Math.round(cont2/(cont2+rev2)*100);
+      tags.push(cp>=60 ? '连出'+cp+'%' : (cp<=40 ? '爱反转'+(100-cp)+'%' : '连反均'+cp+'%'));
+    }
+    var a3c = 0, a3r = 0;
+    for (var i=3;i<total;i++){
+      if (g.list[i-1]===g.list[i-2] && g.list[i-2]===g.list[i-3]){
+        if (g.list[i]===g.list[i-1]) a3c++; else a3r++;
+      }
+    }
+    if (a3c+a3r >= 2) tags.push('3连反' + Math.round(a3r/(a3c+a3r)*100) + '%');
+    return {c:c, total:total, top:top, topPct: total?Math.round(topV/total*100):0, tags:tags};
+  }
+
+  // ===== 新增：人名胜率（留一手验证：只学该人其他组，逐手预测本组） =====
+  function personRate(name){
+    var groups = state.groups.filter(function(g){ return g.name === name; });
+    if (!groups.length) return null;
+    var hit = 0, total = 0;
+    groups.forEach(function(g, gi){
+      var others = groups.filter(function(_, j){ return j !== gi; });
+      if (!others.length) return;
+      var cur = [];
+      for (var i=0;i<g.list.length;i++){
+        var sorted = predictTop2(cur, others);
+        if (sorted.length){ total++; if (sorted.indexOf(g.list[i]) >= 0) hit++; }
+        cur.push(g.list[i]);
+      }
+    });
+    return { hit: hit, total: total, rate: total ? Math.round(hit/total*100) : 0 };
+  }
+
+  // ===== 新增：渲染胜率表 =====
+  function renderRate(){
+    var box = $('rateContent');
+    var names = [];
+    state.groups.forEach(function(g){ if (names.indexOf(g.name) < 0) names.push(g.name); });
+    var rows = names.map(function(n){
+      var gs = state.groups.filter(function(g){ return g.name === n; });
+      var c = {hu:0,long:0,ru:0,chu:0};
+      gs.forEach(function(g){ g.list.forEach(function(s){ c[s]++; }); });
+      var hands = gs.reduce(function(a,g){ return a + g.list.length; }, 0);
+      var top = 'hu', tv = c.hu;
+      ['long','ru','chu'].forEach(function(k){ if(c[k]>tv){tv=c[k];top=k;} });
+      var rate = personRate(n);
+      return { name:n, groups:gs.length, hands:hands, c:c, top:top, topPct: hands?Math.round(tv/hands*100):0, rate:rate };
+    });
+    rows.sort(function(a,b){ return (b.rate?b.rate.rate:0) - (a.rate?a.rate.rate:0) || b.hands - a.hands; }); // 按AI胜率降序，同胜率按手数
+    var html = '<table class="rate-table"><tr><th>人名</th><th>组数</th><th>手数</th><th style="width:110px;">虎/龙/入/出 占比</th><th>主力路</th><th>AI胜率</th></tr>';
+    rows.forEach(function(r){
+      var pct = function(k){ return r.hands ? Math.round(r.c[k]/r.hands*100) : 0; };
+      var huP = pct('hu'), loP = pct('long'), ruP = pct('ru'), chP = pct('chu');
+      var dist = '<div class="dist-bar"><span class="dist-hu" style="width:'+huP+'%"></span><span class="dist-long" style="width:'+loP+'%"></span><span class="dist-ru" style="width:'+ruP+'%"></span><span class="dist-chu" style="width:'+chP+'%"></span></div>'
+        + '<div style="font-size:9px;color:#94a3b8;">虎'+huP+' 龙'+loP+' 入'+ruP+' 出'+chP+'</div>';
+      var rateTxt = r.rate ? '<span style="color:'+(r.rate.rate>=50?'#4ade80':'#f87171')+';font-weight:700;">'+r.rate.rate+'%</span> <span style="font-size:9px;color:#64748b;">('+r.rate.hit+'/'+r.rate.total+')</span>' : '<span style="color:#64748b;">-</span>';
+      html += '<tr data-name="'+escapeHtml(r.name)+'">'
+        + '<td style="color:#fef3c7;font-weight:700;">'+escapeHtml(r.name)+'</td>'
+        + '<td>'+r.groups+'</td><td>'+r.hands+'</td><td>'+dist+'</td>'
+        + '<td style="color:#fbbf24;font-weight:700;">'+SYMBOLS[r.top]+r.topPct+'%</td>'
+        + '<td class="rate-num">'+rateTxt+'</td></tr>';
+    });
+    html += '</table>'
+      + '<div style="font-size:10px;color:#64748b;margin-top:6px;">AI胜率 = 只学该人其他组、逐手预测本组下一手的命中率（留一手验证，不偷看本组）。点击某行可只看该人。</div>';
+    box.innerHTML = html;
+    box.querySelectorAll('tr[data-name]').forEach(function(tr){
+      tr.addEventListener('click', function(){
+        activeTag = tr.dataset.name;
+        searchQuery = '';
+        $('searchBox').value = '';
+        $('rateContent').style.display = 'none';
+        $('toggleRate').textContent = '展开 ▶';
+        render();
+      });
+    });
+  }
+
+  function render(){
+    renderGrid();
+    renderNameBar();
+    renderTags();
+    renderLiveHint();
+    renderHistory();
+  }
+
+  // 公共：记录一手牌（点按钮或键盘），同时把AI预测对错记到 currentMarks
+  function pushSymbol(s){
+    var filtered = getFiltered();
+    var top3 = predictTop2(state.current, filtered);
+    var mark = -1;
+    if (top3.length){
+      state.accuracy.total++;
+      var hit = top3.indexOf(s) >= 0;
+      if (hit) state.accuracy.correct++;
+      mark = hit ? 1 : 0;
+      state.predictHistory.push(hit ? 1 : 0);
+      if (state.predictHistory.length > 12) state.predictHistory.shift();
+      // 自学习：对了稍微提高学习系数，错了稍微降低，范围0.7~1.3
+      if (hit) state.learnAdj = Math.min(1.3, (state.learnAdj||1.0) * 1.02);
+      else state.learnAdj = Math.max(0.7, (state.learnAdj||1.0) * 0.98);
+    }
+    state.current.push(s);
+    if (!state.currentMarks) state.currentMarks = [];
+    state.currentMarks.push(mark);
+    save(); render();
+  }
+
+  // 补记：给没有对错记录的旧组，用当前AI模型逐手复盘补算（留一手：用前i手预测第i手，不偷看答案）
+  function backfillMarks(){
+    if (state._backfilled) return;
+    state._backfilled = true;
+    var changed = false;
+    state.groups.forEach(function(g){
+      if (g.marks && g.marks.length >= g.list.length) return;
+      var marks = [];
+      for (var i=0; i<g.list.length; i++){
+        if (i === 0){ marks.push(-1); continue; } // 第一手无前缀无法预测
+        var prefix = g.list.slice(0, i);
+        var filtered = state.groups.filter(function(x){ return x.name === g.name && x !== g; });
+        if (!filtered.length) filtered = state.groups.filter(function(x){ return x !== g; }); // 无同名人历史时用全局
+        var top3 = predictTop2(prefix, filtered);
+        if (!top3.length){ marks.push(-1); continue; }
+        marks.push(top3.indexOf(g.list[i]) >= 0 ? 1 : 0);
+      }
+      g.marks = marks;
+      changed = true;
+    });
+    if (changed){ save(); render(); }
+  }
+
+  document.querySelectorAll('.pbtn').forEach(b => {
+    b.addEventListener('click', () => {
+      pushSymbol(b.dataset.s);
+    });
+  });
+
+
+  $('undoBtn').addEventListener('click', () => {
+    state.current.pop();
+    if (state.currentMarks && state.currentMarks.length) state.currentMarks.pop();
+    save(); render();
+  });
+
+  $('doneBtn').addEventListener('click', () => {
+    if (!state.current.length){ alert('当前组还没填任何字'); return; }
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const timeStr = (now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+    state.groups.push({ name: currentName(), list: state.current.slice(), time: timeStr, marks: (state.currentMarks||[]).slice() });
+    state.current = [];
+    state.currentMarks = [];
+    state.groupNum++;
+    // 保留人名不清空，方便连续记录同一个人
+    save(); render();
+  });
+
+  $('searchBox').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    activeTag = '';
+    render();
+  });
+
+  $('groupName').addEventListener('input', () => {
+    renderLiveHint();
+  });
+
+  $('clearAllBtn').addEventListener('click', () => {
+    if (!confirm('清空所有历史和当前记录？')) return;
+    state.groups = [];
+    state.current = [];
+    save(); render();
+  });
+
+  // 画像/胜率表展开收起
+  $('toggleRate').addEventListener('click', function(){
+    var c = $('rateContent');
+    var show = c.style.display === 'none';
+    c.style.display = show ? 'block' : 'none';
+    this.textContent = show ? '收起 ▼' : '展开 ▶';
+    if (show) renderRate();
+  });
+
+  // 导出备份
+  $('exportBtn').addEventListener('click', () => {
+    const SYM2CODE = { '虎':'hu', '龙':'long', '入':'ru', '出':'chu' };
+    let lines = [];
+    state.groups.forEach(g => {
+      const chars = g.list.map(s => SYMBOLS[s]).join('');
+      lines.push([g.name, g.time || '', chars].join('|'));
+    });
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      alert('已复制到剪贴板，共' + state.groups.length + '组。\n\n把这段文字存到微信备忘录/记事本里，换设备时用"导入恢复"粘回来。');
+    }).catch(() => {
+      prompt('复制以下文字存好：', text);
+    });
+  });
+
+  // 导入恢复
+  $('importBtn').addEventListener('click', () => {
+    const text = prompt('粘贴之前导出的备份文字：');
+    if (!text || !text.trim()) return;
+    const CODE2SYM = { hu:'虎', long:'龙', ru:'入', chu:'出' };
+    const SYM2CODE = { '虎':'hu', '龙':'long', '入':'ru', '出':'chu' };
+    const newGroups = [];
+    text.trim().split('\n').forEach(line => {
+      const parts = line.split('|');
+      if (parts.length < 3) return;
+      const name = parts[0];
+      const time = parts[1];
+      const chars = parts[2];
+      const list = [];
+      for (const ch of chars){
+        if (SYM2CODE[ch]) list.push(SYM2CODE[ch]);
+      }
+      if (list.length) newGroups.push({ name, time, list });
+    });
+    if (!newGroups.length){ alert('没识别到有效数据'); return; }
+    if (!confirm('将导入' + newGroups.length + '组，和现有数据合并。继续？')) return;
+    state.groups = state.groups.concat(newGroups);
+    state.groupNum = state.groups.length + 1;
+    save(); render();
+    alert('导入成功，共' + newGroups.length + '组');
+  });
+
+  // 键盘快捷键
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const k = e.key.toLowerCase();
+    if (k === 'h' || k === 'j'){ pushSymbol('hu'); }
+    else if (k === 'l'){ pushSymbol('long'); }
+    else if (k === 'r'){ pushSymbol('ru'); }
+    else if (k === 'c'){ pushSymbol('chu'); }
+    else if (k === 'z'){ state.current.pop(); if (state.currentMarks && state.currentMarks.length) state.currentMarks.pop(); save(); render(); }
+    else if (k === 'enter'){
+      if (state.current.length){
+        const now = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        const timeStr = (now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+        state.groups.push({ name: currentName(), list: state.current.slice(), time: timeStr, marks: (state.currentMarks||[]).slice() });
+        state.current = [];
+        state.currentMarks = [];
+        state.groupNum++;
+        // 保留人名不清空
+        save(); render();
+      }
+    }
+  });
+
+  backfillMarks();
+  render();
+
+  // 实时时钟
+  function tick(){
+    const n = new Date();
+    const pad = x => String(x).padStart(2,'0');
+    $('nowTime').textContent = (n.getMonth()+1) + '-' + pad(n.getDate()) + ' ' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
