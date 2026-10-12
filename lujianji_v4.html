@@ -227,6 +227,17 @@
 </div>
 <div id="historyContent" style="display:none;">
 <div id="tagBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
+<!-- ===== 云端分析面板（实时热度/胜率，数据直接来自 Supabase 云端） ===== -->
+<div id="cloudSection" style="margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:12px;color:#34d399;font-weight:700;">云端分析 · 实时热度/胜率</span>
+    <div style="display:flex;gap:4px;">
+      <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">刷新</button>
+      <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">展开 ▶</button>
+    </div>
+  </div>
+  <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;"></div>
+</div>
 <div id="rateSection" style="margin-bottom:8px;">
   <div style="display:flex;justify-content:space-between;align-items:center;">
     <span style="font-size:12px;color:#fbbf24;font-weight:700;">各组画像 / 胜率表</span>
@@ -2286,6 +2297,110 @@
     });
   }
 
+  // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
+  function cloudAnalyze(){
+    var box = $('cloudContent');
+    box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…</div>';
+    sbFetchAll(function(rows){
+      if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; return; }
+      var groups = rows.map(function(r){
+        var list = r.list;
+        if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
+        if (!Array.isArray(list)) list = [];
+        return { name: r.name || '', time: r.time || '', list: list };
+      });
+      // 过滤老批次（9月旧数据 / 无时间的老名单）
+      var OLD = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
+      groups = groups.filter(function(g){
+        var t = String(g.time || '');
+        if (t.indexOf('9-') === 0) return false;
+        if (!t && OLD.indexOf(g.name) >= 0) return false;
+        return g.name && g.list.length;
+      });
+      // 每日记录量（日期补零归一）
+      function normDay(d){ var p = d.split('-'); if (p.length === 2) return p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0'); return d; }
+      var dayMap = {};
+      groups.forEach(function(g){
+        var d = normDay(String(g.time || '').split(' ')[0]);
+        if (d) dayMap[d] = (dayMap[d] || 0) + 1;
+      });
+      // 人名聚合
+      var nm = {};
+      groups.forEach(function(g){
+        if (!nm[g.name]) nm[g.name] = { name: g.name, groups: 0, hands: 0, days: {} };
+        var m = nm[g.name]; m.groups++; m.hands += g.list.length;
+        var d = normDay(String(g.time || '').split(' ')[0]);
+        if (d) m.days[d] = (m.days[d] || 0) + 1;
+      });
+      // 近7天边界（含今天往前7天）
+      var today = new Date();
+      function dkey(off){ var t = new Date(today); t.setDate(today.getDate() - off); return String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0'); }
+      var seven = {};
+      for (var i = 0; i < 7; i++) seven[dkey(i)] = 1;
+      Object.keys(nm).forEach(function(n){
+        var m = nm[n]; m.last7 = 0;
+        Object.keys(m.days).forEach(function(d){ if (seven[d]) m.last7 += m.days[d]; });
+      });
+      var names = Object.keys(nm);
+      // AI胜率（独立留一手验证：只学该人其他组逐手预测本组）
+      function calcRate(name){
+        var gs = groups.filter(function(g){ return g.name === name; });
+        if (gs.length < 2) return null;
+        var hit = 0, total = 0;
+        gs.forEach(function(g, gi){
+          var others = gs.filter(function(_, j){ return j !== gi; });
+          var cur = [];
+          for (var k = 0; k < g.list.length; k++){
+            var sorted = predictTop2(cur, others);
+            if (sorted.length){ total++; if (sorted.indexOf(g.list[k]) >= 0) hit++; }
+            cur.push(g.list[k]);
+          }
+        });
+        return { hit: hit, total: total, rate: total ? Math.round(hit/total*100) : 0 };
+      }
+      // 分片计算，避免卡 UI
+      var rates = {}, idx = 0;
+      function step(){
+        var t0 = Date.now();
+        while (idx < names.length && Date.now() - t0 < 60){ rates[names[idx]] = calcRate(names[idx]); idx++; }
+        if (idx < names.length){ setTimeout(step, 0); return; }
+        renderCloud(rates);
+      }
+      function renderCloud(rates){
+        var html = '';
+        // 每日记录量
+        var days = Object.keys(dayMap).sort();
+        html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">每日记录量</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+        days.forEach(function(d){ html += '<span style="background:rgba(52,211,153,.12);color:#a7f3d0;padding:2px 7px;border-radius:6px;font-size:10px;">' + d + ' · ' + dayMap[d] + '组</span>'; });
+        html += '</div>';
+        // 热度榜 TOP15（按记录组数）
+        var hot = Object.keys(nm).map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
+        html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（记录最多的）</div>';
+        html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th><th>近7天+</th></tr>';
+        hot.forEach(function(m){
+          var r = rates[m.name];
+          var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
+          html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
+        });
+        html += '</table>';
+        // AI胜率榜 TOP10（≥3组且≥20手）
+        var rateTop = Object.keys(nm).map(function(n){ return { name: n, m: nm[n], r: rates[n] }; }).filter(function(x){ return x.r && x.m.groups >= 3 && x.r.total >= 20; }).sort(function(a,b){ return b.r.rate - a.r.rate || b.m.hands - a.m.hands; }).slice(0, 10);
+        if (rateTop.length){
+          html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:8px 0 4px;">AI胜率榜 TOP10（≥3组）</div>';
+          html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+          rateTop.forEach(function(x){
+            var col = x.r.rate>=80?'#4ade80':x.r.rate>=70?'#fbbf24':'#f87171';
+            html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
+          });
+          html += '</table>';
+        }
+        html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
+        box.innerHTML = html;
+      }
+      setTimeout(step, 0);
+    });
+  }
+
   function render(){
     renderGrid();
     renderNameBar();
@@ -2389,6 +2504,21 @@
     c.style.display = show ? 'block' : 'none';
     this.textContent = show ? '收起 ▼' : '展开 ▶';
     if (show) renderRate();
+  });
+
+  // 云端分析面板：展开时计算一次，刷新按钮可重新拉云端重算
+  var cloudRendered = false;
+  function showCloudPanel(){
+    var c = $('cloudContent');
+    var show = c.style.display === 'none';
+    c.style.display = show ? 'block' : 'none';
+    $('toggleCloud').textContent = show ? '收起 ▼' : '展开 ▶';
+    if (show && !cloudRendered){ cloudRendered = true; cloudAnalyze(); }
+  }
+  $('toggleCloud').addEventListener('click', showCloudPanel);
+  $('cloudRefresh').addEventListener('click', function(){
+    cloudRendered = true;
+    cloudAnalyze();
   });
 
   // 导出备份
