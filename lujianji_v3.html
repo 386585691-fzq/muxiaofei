@@ -337,33 +337,12 @@
     { name: '可乐', list: ['chu','chu','hu','chu','long','chu','ru','chu','long','long','chu','long'] },
   ];
 
-  // ===== GitHub 云同步（手机电脑任意网络共用一份数据，不再依赖本机服务） =====
-  // 配置链接自动填钥匙：手机打开 ?k=钥匙 的链接，自动保存后跳回干净地址
-  (function(){
-    try{
-      var m = location.search.match(/[?&]k=([^&]+)/);
-      if (m && m[1]){
-        localStorage.setItem('road_gh_token', decodeURIComponent(m[1]));
-        history.replaceState(null, '', location.pathname);
-        location.reload();
-      }
-    }catch(e){}
-  })();
-  var GH_USER = '386585691-fzq';
-  var GH_REPO = 'muxiaofei';
-  var GH_FILE = 'road_groups_data.json';
-  var GH_TOKEN = localStorage.getItem('road_gh_token') || '';
-  var CLOUD = !!GH_TOKEN; // 配置了钥匙才云同步
+  // ===== Supabase 云同步（手机电脑任意网络共用一份数据，免费云端数据库） =====
+  var CLOUD_URL = 'https://bjlleyblusgffgmfvsjw.supabase.co';
+  var CLOUD_KEY = 'sb_publishable_MnsHFMCvr2rq5eXLSmXRkQ_5z4zKWN6';
+  var CLOUD_TBL = 'jipai';
+  var CLOUD = true; // 公开键 + 表权限已配置，直接同步，无需任何钥匙
   var cloudTimer = null;
-  var ghSha = null; // 云端文件版本号
-
-  // UTF-8 <-> base64（GitHub contents API 需要）
-  function b64Encode(str){
-    try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(String.fromCharCode.apply(null, new TextEncoder().encode(str))); }
-  }
-  function b64Decode(b64){
-    try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return new TextDecoder().decode(Uint8Array.from(atob(b64), function(c){ return c.charCodeAt(0); })); }
-  }
   // 合并去重：按 人名+牌路 合并两份数据，谁的数据都不丢
   function mergeGroups(a, b){
     var seen = {}; var out = [];
@@ -374,21 +353,36 @@
     });
     return out;
   }
-  function ghGet(){
-    return fetch('https://api.github.com/repos/' + GH_USER + '/' + GH_REPO + '/contents/' + GH_FILE, {
-      headers: { 'Authorization': 'Bearer ' + GH_TOKEN, 'Accept': 'application/vnd.github.v3+json' }
-    }).then(function(r){
-      if (r.status === 404) return null; // 云端还没有文件
-      if (!r.ok) throw new Error('gh get ' + r.status);
-      return r.json();
+  function sbReq(path, opts, cb){
+    var xhr = new XMLHttpRequest();
+    xhr.open((opts && opts.method) || 'GET', CLOUD_URL + '/rest/v1/' + path, true);
+    xhr.setRequestHeader('apikey', CLOUD_KEY);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + CLOUD_KEY);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    if (opts && opts.prefer) xhr.setRequestHeader('Prefer', opts.prefer);
+    xhr.onload = function(){ cb(null, xhr); };
+    xhr.onerror = function(){ cb(new Error('net')); };
+    xhr.send((opts && opts.body) || null);
+  }
+  // 拉云端全部行（按时间升序）
+  function sbFetchAll(cb){
+    sbReq(CLOUD_TBL + '?select=name,time,list&order=time.asc', null, function(err, xhr){
+      var rows = [];
+      if (!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
+      cb(rows);
     });
   }
-  function ghPut(content, sha){
-    return fetch('https://api.github.com/repos/' + GH_USER + '/' + GH_REPO + '/contents/' + GH_FILE, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + GH_TOKEN, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify({ message: '记牌器同步', content: b64Encode(content), sha: sha || undefined })
-    }).then(function(r){ if (!r.ok) throw new Error('gh put ' + r.status); return r.json(); });
+  // 批量插入缺失行（200 条一批）
+  function sbPushRows(rows, cb){
+    var i = 0, B = 200, done = 0;
+    (function next(){
+      if (i >= rows.length){ cb && cb(done); return; }
+      var batch = rows.slice(i, i + B); i += B;
+      sbReq(CLOUD_TBL, {method:'POST', prefer:'return=minimal', body: JSON.stringify(batch)}, function(err, xhr){
+        if (!err && (xhr.status === 201 || xhr.status === 200 || xhr.status === 204)){ done += batch.length; }
+        next();
+      });
+    })();
   }
 
   function load(){
@@ -421,18 +415,10 @@
     if (!CLOUD) return;
     if (cloudTimer) clearTimeout(cloudTimer);
     cloudTimer = setTimeout(function(){
-      // 先读云端最新（拿版本号+数据）→ 合并去重 → 写回，避免互相覆盖
-      ghGet().then(function(meta){
-        var remote = null;
-        if (meta && meta.content){
-          try { remote = JSON.parse(b64Decode(meta.content)); } catch(e){}
-        }
-        if (remote && remote.groups && remote.groups.length){
-          state.groups = mergeGroups(remote.groups, state.groups);
-          state.groupNum = state.groups.length + 1;
-          state.updatedAt = Math.max(state.updatedAt || 0, remote.updatedAt || 0);
-        }
-        ghSha = (meta && meta.sha) || ghSha;
+      // 先读云端最新 → 合并去重 → 只插入云端没有的（不删除、不覆盖）
+      sbFetchAll(function(remoteRows){
+        var remoteKeys = {};
+        remoteRows.forEach(function(r){ remoteKeys[(r.name||'') + '|' + JSON.stringify(r.list || [])] = 1; });
         // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
         var cleanGroups = state.groups.filter(function(g){
           if (!g) return false;
@@ -441,32 +427,34 @@
           if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
           return true;
         });
-        var payload = JSON.stringify(Object.assign({}, state, {groups: cleanGroups, groupNum: cleanGroups.length + 1}));
-        return ghPut(payload, ghSha).then(function(m){ ghSha = m.content.sha; });
-      }).catch(function(){});
+        state.groups = cleanGroups;
+        state.groupNum = cleanGroups.length + 1;
+        var missing = [];
+        cleanGroups.forEach(function(g){
+          var k = (g.name||'') + '|' + JSON.stringify(g.list || []);
+          if (!remoteKeys[k]) missing.push({name: g.name, time: String(g.time || ''), list: g.list || []});
+        });
+        if (missing.length) sbPushRows(missing, function(){});
+        saveLocal();
+      });
     }, 600);
   }
   // 启动拉云端：合并云端与本地，显示全量
   function pullCloud(){
     if (!CLOUD) return;
-    ghGet().then(function(meta){
-      if (!meta || !meta.content) return;
-      var d = null;
-      try { d = JSON.parse(b64Decode(meta.content)); } catch(e){}
-      if (!d || !d.groups) return;
-      state.groups = mergeGroups(d.groups, state.groups);
-      state.current = d.current || state.current || [];
-      if (d.gameName) state.gameName = d.gameName;
-      state.groupNum = d.groupNum || state.groupNum || 1;
-      if (d.accuracy) state.accuracy = d.accuracy;
-      if (d.learnAdj) state.learnAdj = d.learnAdj;
-      if (d.predictHistory) state.predictHistory = d.predictHistory;
-      if (d.currentMarks) state.currentMarks = d.currentMarks;
-      state.updatedAt = Math.max(d.updatedAt || 0, state.updatedAt || 0);
-      ghSha = meta.sha;
+    sbFetchAll(function(rows){
+      if (!rows || !rows.length) return;
+      var remote = rows.map(function(r){
+        var list = r.list;
+        if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
+        if (!Array.isArray(list)) list = [];
+        return { name: r.name, list: list, time: r.time };
+      });
+      state.groups = mergeGroups(remote, state.groups);
+      state.groupNum = state.groups.length + 1;
       saveLocal();
       render();
-    }).catch(function(){});
+    });
   }
 
   let state = load();
@@ -490,16 +478,7 @@
       render();
     }
   }
-  // 首次使用：提示配置 GitHub 同步钥匙（存在本浏览器里，安全）
-  if (!GH_TOKEN && location.protocol !== 'file:'){
-    setTimeout(function(){
-      var t = prompt('首次使用，请粘贴你的 GitHub 钥匙（ghp_ 开头的那串，从 GitHub Settings 复制）：');
-      if (t && t.trim()){
-        localStorage.setItem('road_gh_token', t.trim());
-        location.reload();
-      }
-    }, 600);
-  }
+  // Supabase 云端无需任何钥匙，打开页面直接同步
   pullCloud(); // 联网时拉取云端最新数据（file:// 直开时自动跳过）
   if (!state.accuracy) state.accuracy = {correct:0, total:0};
   if (!state.learnAdj) state.learnAdj = 1.0; // 自学习系数，越用越准
