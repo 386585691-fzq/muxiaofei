@@ -2054,14 +2054,14 @@
         if (!k) return '<div style="padding:6px 0;"></div>';
         var m = META[k];
         var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
-        return '<div style="padding:6px 0;border-radius:4px;text-align:center;background:'+m[1]+';color:'+m[2]+';'+sh+'">'
-          + '<div style="font-size:18px;font-weight:900;line-height:1.1;">'+m[0]+'</div>'
+        return '<div style="padding:8px 0;border-radius:6px;text-align:center;background:'+m[1]+';color:'+m[2]+';'+sh+'">'
+          + '<div style="font-size:30px;font-weight:900;line-height:1.2;">'+m[0]+'</div>'
           + '</div>';
       }
-      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:5px 6px;margin-bottom:6px;">'
-        + '<div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:3px;">统计AI推荐 <span style="font-size:10px;color:#888;font-weight:400;">· 全库学了'+learnPool.length+'组 · 仅供参考</span></div>'
-        + '<div style="font-size:10px;color:#93c5fd;font-weight:600;margin:3px 0;">虎'+pctOf('hu')+'% 龙'+pctOf('long')+'% 入'+pctOf('ru')+'% 出'+pctOf('chu')+'% · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">'
+      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
+        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 全库学了'+learnPool.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">虎'+pctOf('hu')+'% 龙'+pctOf('long')+'% 入'+pctOf('ru')+'% 出'+pctOf('chu')+'% · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
         + cell(sortedSb[0],0)
         + cell(sortedSb[1],1)
         + cell(sortedSb[2],2)
