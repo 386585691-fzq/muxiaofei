@@ -2023,7 +2023,7 @@
       </div>`;
     // 统计AI推荐：用全部历史组学习（不只当前人名），输出 top3 三卡面板
     const cur = state.current;
-    var learnPool = state.groups;
+    var learnPool = filtered;
     var sb2 = statBrain(cur, learnPool);
     var sbT2 = sb2.hu + sb2.long + sb2.ru + sb2.chu;
     if (sbT2 > 0){
@@ -2040,7 +2040,7 @@
           + '</div>';
       }
       html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
-        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 全库学了'+learnPool.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
         + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
         + cell(sortedSb[0],0)
