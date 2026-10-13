@@ -39,56 +39,56 @@
     background: rgba(30, 41, 59, .6);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(251,191,36,.15);
-    border-radius: 16px; padding: 12px 14px; margin-bottom: 8px;
+    border-radius: 14px; padding: 8px 10px; margin-bottom: 8px;
     box-shadow: 0 8px 32px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
   }
-  .group-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .group-name-row label { font-size: 13px; color: #94a3b8; white-space: nowrap; font-weight: 600; }
+  .group-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .group-name-row label { font-size: 12px; color: #94a3b8; white-space: nowrap; font-weight: 600; }
   #groupName {
     flex: 1; background: rgba(250, 245, 224, .95); border: 2px solid #b8a87a; color: #1a1a1a;
-    padding: 8px 12px; border-radius: 10px; font-size: 17px; font-weight: 900; outline: none;
+    padding: 5px 10px; border-radius: 8px; font-size: 14px; font-weight: 900; outline: none;
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
     box-shadow: 0 4px 15px rgba(184,168,122,.2);
   }
   #groupName::placeholder { color: #b8a87a; font-weight: 600; }
 
-  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px; }
   .cell {
     background: linear-gradient(180deg, #fef9e7 0%, #f5e9c8 100%);
     border: 1px solid #d4c59a;
-    border-radius: 8px;
-    box-shadow: 0 3px 0 #a89060, 0 6px 12px rgba(0,0,0,.2), inset 0 1px 0 #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 0 #a89060, 0 4px 10px rgba(0,0,0,.2), inset 0 1px 0 #fff;
     aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
-    font-size: 30px; font-weight: 900; color: #1a1a1a; cursor: pointer; user-select: none;
+    font-size: 22px; font-weight: 900; color: #1a1a1a; cursor: pointer; user-select: none;
     text-shadow: 0 1px 0 rgba(255,255,255,.6);
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
     transition: transform .1s;
     position: relative;
   }
   .cell-mark {
-    position: absolute; top: 2px; right: 2px;
-    width: 17px; height: 17px; border-radius: 50%;
-    color: #fff; font-size: 12px; font-weight: 900;
+    position: absolute; top: 1px; right: 1px;
+    width: 14px; height: 14px; border-radius: 50%;
+    color: #fff; font-size: 10px; font-weight: 900;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 1px 3px rgba(0,0,0,.45); line-height: 1;
   }
   .cell-mark.ok { background: #22c55e; }
   .cell-mark.bad { background: #ef4444; }
   .cell:active { transform: scale(.95); }
-  .cell.empty { color: #c5b98a; font-size: 14px; text-shadow: none; }
-  .cell.last { box-shadow: 0 3px 0 #a89060, 0 0 0 3px #fbbf24, 0 0 20px rgba(251,191,36,.5); }
+  .cell.empty { color: #c5b98a; font-size: 12px; text-shadow: none; }
+  .cell.last { box-shadow: 0 2px 0 #a89060, 0 0 0 2px #fbbf24, 0 0 14px rgba(251,191,36,.5); }
   .cell.hu   { color: #dc2626; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(220,38,38,.2); }
   .cell.long { color: #2563eb; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(37,99,235,.2); }
   .cell.ru   { color: #d97706; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(217,119,6,.2); }
   .cell.chu  { color: #16a34a; text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(22,163,74,.2); }
 
-  .pick-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+  .pick-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 5px; }
   .pbtn {
-    padding: 15px 0; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
-    font-size: 28px; font-weight: 900; cursor: pointer;
+    padding: 9px 0; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
+    font-size: 21px; font-weight: 900; cursor: pointer;
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
     transition: all .15s;
-    box-shadow: 0 4px 15px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
+    box-shadow: 0 3px 10px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
   }
   .pbtn:active { transform: scale(0.95); }
   .pbtn-hu   { background: linear-gradient(180deg, #991b1b, #7f1d1d); color: #fecaca; }
@@ -96,10 +96,10 @@
   .pbtn-ru   { background: linear-gradient(180deg, #b45309, #854d0e); color: #fef08a; }
   .pbtn-chu  { background: linear-gradient(180deg, #15803d, #14532d); color: #bbf7d0; }
 
-  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .abtn {
-    padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
-    font-size: 13px; font-weight: 700; cursor: pointer;
+    padding: 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
+    font-size: 12px; font-weight: 700; cursor: pointer;
     transition: all .15s;
     backdrop-filter: blur(10px);
   }
@@ -199,11 +199,11 @@
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-    <span style="font-size:11px;color:#888;">快捷选名</span>
-    <button id="toggleNameBar" style="padding:2px 8px;border-radius:8px;background:#3a3a3a;color:#aaa;font-size:11px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+    <span style="font-size:10px;color:#888;">快捷选名</span>
+    <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
-  <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:10px;max-height:150px;overflow-y:auto;"></div>
+  <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
   <div class="grid" id="grid"></div>
   <div class="pick-btns">
     <button class="pbtn pbtn-hu" data-s="hu">虎</button>
@@ -215,7 +215,7 @@
     <button class="abtn abtn-undo" id="undoBtn">撤销</button>
     <button class="abtn abtn-done" id="doneBtn">完成本组并开新组</button>
   </div>
-  <div id="liveHint" style="margin-top:8px;"></div>
+  <div id="liveHint" style="margin-top:5px;"></div>
 </div>
 
 
