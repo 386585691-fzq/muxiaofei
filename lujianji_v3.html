@@ -2028,41 +2028,18 @@
         <span style="color:#fde047;">入${ru}</span>
         <span style="color:#86efac;">出${chu}</span>
       </div>`;
-    // 智能预测：直接调用predictTop2，和点牌判断完全一致
+    // 统计AI主推（唯一推荐：多策略实测中最稳，主推命中≈随机基线但波动最小）
     const cur = state.current;
-    var sorted = predictTop2(cur, filtered);
-    if (sorted.length){
-      var curStr = cur.map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]; }).join('');
-      var prefixLabel = cur.length ? 'AI预测 ['+curStr+']' : 'AI预测 第一手';
-      var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
-      function cell(k, rank){
-        if (!k) return '<div style="padding:6px 0;"></div>';
-        var m = META[k];
-        var bg = m[1];
-        var fg = m[2];
-        var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
-        return '<div style="padding:6px 0;border-radius:4px;text-align:center;background:'+bg+';color:'+fg+';'+sh+'">'
-          + '<div style="font-size:18px;font-weight:900;line-height:1.1;">'+m[0]+'</div>'
-          + '</div>';
-      }
-      var nowSec = new Date().toLocaleTimeString();
-      var adjTxt = '· 学习加权×' + (state.learnAdj||1.0).toFixed(2) + (state.learnAdj >= 1 ? ' 越用越准' : ' 状态谨慎');
+    var sb2 = statBrain(cur, filtered);
+    var sbT2 = sb2.hu + sb2.long + sb2.ru + sb2.chu;
+    if (sbT2 > 0){
+      var pctOf = function(k){ return Math.round(sb2[k]/sbT2*100); };
+      var bestK = 'hu', bestV = sb2.hu;
+      ['long','ru','chu'].forEach(function(k){ if (sb2[k]>bestV){bestV=sb2[k];bestK=k;} });
       html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:5px 6px;margin-bottom:6px;">'
-        + '<div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:3px;">'+prefixLabel+' <span style="font-size:10px;color:#888;font-weight:400;">准确率'+(state.accuracy.total?Math.round(state.accuracy.correct/state.accuracy.total*100):0)+'% ('+state.accuracy.correct+'/'+state.accuracy.total+') · 学了'+filtered.length+'组</span><span style="font-size:10px;color:#a78bfa;font-weight:600;">'+adjTxt+'</span> <span style="font-size:10px;color:#888;font-weight:400;">['+nowSec+']</span></div>'
-      var sb2 = statBrain(cur, filtered);
-      var sbT2 = sb2.hu + sb2.long + sb2.ru + sb2.chu;
-      if (sbT2 > 0){
-        var pctOf = function(k){ return Math.round(sb2[k]/sbT2*100); };
-        var bestK = 'hu', bestV = sb2.hu;
-        ['long','ru','chu'].forEach(function(k){ if (sb2[k]>bestV){bestV=sb2[k];bestK=k;} });
-        html += '<div style="font-size:10px;color:#93c5fd;font-weight:600;margin:3px 0;">统计AI大脑：虎'+pctOf('hu')+'% 龙'+pctOf('long')+'% 入'+pctOf('ru')+'% 出'+pctOf('chu')+'% · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>';
-      }
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">'
-        + cell(sorted[0],0)
-        + cell(sorted[1],1)
-        + cell(sorted[2],2)
+        + '<div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:3px;">统计AI推荐 <span style="font-size:10px;color:#888;font-weight:400;">· 学了'+filtered.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:10px;color:#93c5fd;font-weight:600;margin:3px 0;">虎'+pctOf('hu')+'% 龙'+pctOf('long')+'% 入'+pctOf('ru')+'% 出'+pctOf('chu')+'% · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
         + '</div>';
-      html += '</div>';
     }
     // 最近12次预测对错（放在预测板外面，确保每次都更新）
     if (state.predictHistory && state.predictHistory.length){
