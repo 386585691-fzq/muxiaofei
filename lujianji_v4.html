@@ -2332,6 +2332,45 @@ function cell(k, rank){
           // 两门集中：主走两门>=85%
           var sp = doorsArr.slice().sort(function(a,b){ return p[b]-p[a]; });
           if (p[sp[0]]+p[sp[1]] >= 85) tags.push({t:'主走'+DOOR_NAME[sp[0]]+DOOR_NAME[sp[1]]+'门'+String(p[sp[0]]+p[sp[1]])+'%', c:'#38bdf8'});
+          // 专走两门：top2>=85% 且另外两门合计<=10%（一直只跑2门）
+          var sp2 = doorsArr.slice().sort(function(a,b){ return p[b]-p[a]; });
+          var oth2 = doorsArr.filter(function(x){ return x!==sp2[0] && x!==sp2[1]; });
+          if (s.total >= 12 && p[sp2[0]]+p[sp2[1]] >= 85 && (s[oth2[0]]+s[oth2[1]]) <= s.total*0.10){
+            tags.push({t:'专走'+DOOR_NAME[sp2[0]]+DOOR_NAME[sp2[1]]+' · 从不出'+DOOR_NAME[oth2[0]]+DOOR_NAME[oth2[1]], c:'#fb923c'});
+          }
+          // 近15手专走两门（近期一直只跑2门）
+          if (arr.length >= 10){
+            var tc = {hu:0,long:0,ru:0,chu:0};
+            arr.forEach(function(x){ if (tc[x]!==undefined) tc[x]++; });
+            var ttot = arr.length;
+            var tp = {};
+            doorsArr.forEach(function(x){ tp[x] = Math.round(tc[x]/ttot*100); });
+            var tsp = doorsArr.slice().sort(function(a,b){ return tp[b]-tp[a]; });
+            var toth = doorsArr.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
+            if (tp[tsp[0]]+tp[tsp[1]] >= 85 && (tc[toth[0]]+tc[toth[1]]) <= ttot*0.10){
+              tags.push({t:'近15手专走'+DOOR_NAME[tsp[0]]+DOOR_NAME[tsp[1]]+' · 从不出'+DOOR_NAME[toth[0]]+DOOR_NAME[toth[1]], c:'#fb923c'});
+            }
+          }
+          // 后半场收敛：去掉前4手后只跑2门到结束
+          var converge = [];
+          groups.forEach(function(g){
+            if (!g || !g.list) return;
+            if (splitNames(g.name).indexOf(n) < 0) return;
+            var lst = g.list;
+            if (lst.length >= 12){
+              var tail = lst.slice(4);
+              var cnt = {};
+              tail.forEach(function(x){ cnt[x] = (cnt[x]||0)+1; });
+              var have = doorsArr.filter(function(x){ return cnt[x] > 0; });
+              if (have.length === 2 && tail.length >= 8) converge.push(DOOR_NAME[have[0]]+DOOR_NAME[have[1]]);
+            }
+          });
+          if (converge.length){
+            var cm = {};
+            converge.forEach(function(c){ cm[c] = (cm[c]||0)+1; });
+            var bestC = Object.keys(cm).sort(function(a,b){ return cm[b]-cm[a]; })[0];
+            tags.push({t:'后半场收敛 · 一直跑'+bestC+'到结束('+cm[bestC]+'场)', c:'#fbbf24'});
+          }
           // 组内最长连庄
           var best = 1, bestDoor = '';
           groups.forEach(function(g){
