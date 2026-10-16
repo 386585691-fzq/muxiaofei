@@ -184,6 +184,15 @@
     .pick{font-size:15px;padding:13px 0}
     .backuprow{grid-template-columns:repeat(2,1fr)}
   }
+
+#aiHint .aihint-warn{ background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.45); color:#fecaca; border-radius:10px; padding:6px 9px; font-size:12px; font-weight:700; margin-top:6px; line-height:1.5; }
+#aiHint .aihint-ok{ background:rgba(148,163,184,.08); border:1px solid rgba(148,163,184,.25); color:var(--muted); border-radius:10px; padding:5px 9px; font-size:11px; margin-top:6px; }
+#aiFocusPanel{ display:flex; flex-direction:column; gap:6px; }
+.aif-warn{ background:rgba(248,113,113,.10); border:1px solid rgba(248,113,113,.4); border-radius:10px; padding:7px 10px; }
+.aif-card{ background:rgba(216,178,92,.06); border:1px solid rgba(216,178,92,.25); border-radius:10px; padding:7px 10px; }
+.aif-reuse{ background:rgba(56,189,248,.07); border:1px solid rgba(56,189,248,.3); border-radius:10px; padding:7px 10px; }
+.aif-tag{ display:inline-block; background:rgba(216,178,92,.12); border:1px solid rgba(216,178,92,.35); color:var(--gold); border-radius:6px; padding:1px 6px; font-size:10px; font-weight:700; margin:1px 3px 1px 0; }
+.aif-bar{ display:flex; height:6px; border-radius:3px; overflow:hidden; margin:4px 0; }
 </style>
 </head>
 <body>
@@ -208,6 +217,7 @@
   <div class="nameWrap">
     <input id="groupName" placeholder="组名（游戏名），打第一个字就联想历史名字，或点下面快速选">
     <div id="nameSuggest" hidden></div>
+    <div id="aiHint" hidden></div>
   </div>
   <div id="comboHint" hidden style="margin:10px 0;padding:10px 12px;border:1px solid var(--gold);border-radius:10px;background:rgba(216,178,92,.10);color:var(--gold);font-size:13px;cursor:pointer;line-height:1.6">检测到组合还没归并（牡丹、888 等都还是单独名字），<b>点这里一键归并成合集（多彩合集、牡丹合集…）</b>，其他个人名字不受影响</div>
 
@@ -240,6 +250,10 @@
     <div id="groupList"></div>
   </div>
 
+  <div class="panel">
+    <div class="panel-title"><span>🤖 AI 关注 · 四门规律（从数据学习）</span></div>
+    <div id="aiFocusPanel"><div style="color:var(--muted);font-size:12px;padding:8px 0;">分析中…</div></div>
+  </div>
   <div class="backuprow">
     <button id="batchBtn">批量导入记录</button>
     <button id="exportBtn">导出备份</button>
@@ -1039,8 +1053,184 @@
     save(); autoBackup(); render();
     try{ cloudPushOne(state.groups[state.groups.length-1]); }catch(e){}
   });
-  nameEl.addEventListener('input', function(){ state.current.name = nameEl.value; state.current.names = []; save(); render(); showNameSuggest(); });
+  nameEl.addEventListener('input', function(){ state.current.name = nameEl.value; state.current.names = []; save(); render(); showNameSuggest(); updateAIHint(); });
   document.addEventListener('click', function(e){ var sg=document.getElementById('nameSuggest'); if(sg && !sg.hidden && !sg.contains(e.target) && e.target!==nameEl) sg.hidden = true; });
+  /* ===== AI 关注模块（从数据学习）：专走三门/两门/后半场收敛/近15手/诱单/当日框架借用 ===== */
+  function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function nmSplit(nm){ return String(nm).split(/[,，、\/]/).map(function(s){ return s.trim(); }).filter(Boolean); }
+  function aiCalcPerson(nm){
+    var drs = ['虎','龙','入','出'];
+    var grps = state.groups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
+    if(!grps.length) return null;
+    var s = {虎:0,龙:0,入:0,出:0,total:0};
+    var near = [];
+    grps.forEach(function(g){
+      (g.tiles||[]).forEach(function(x){ if(s[x]!==undefined){ s[x]++; s.total++; } });
+      near = near.concat(g.tiles||[]);
+      if(near.length > 15) near.splice(0, near.length-15);
+    });
+    if(s.total < 8) return null;
+    var tags = [];
+    var p = {};
+    drs.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
+    drs.forEach(function(x){
+      if(s[x] === 0){
+        var oth = drs.filter(function(y){ return s[y] > 0; });
+        if(oth.length === 3) tags.push({t:'⚠️专走'+oth.join('')+'留'+x+'·疑似诱单', c:'#f87171'});
+      }
+    });
+    if(near.length >= 10){
+      drs.forEach(function(x){ if(near.indexOf(x) < 0) tags.push({t:'近15手不走'+x+'门', c:'#fb923c'}); });
+      var tc = {}; drs.forEach(function(x){ tc[x] = 0; });
+      near.forEach(function(x){ if(tc[x]!==undefined) tc[x]++; });
+      var tsp = drs.slice().sort(function(a,b){ return tc[b]-tc[a]; });
+      var toth = drs.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
+      if((tc[tsp[0]]+tc[tsp[1]])/near.length >= 0.85 && (tc[toth[0]]+tc[toth[1]]) <= near.length*0.10) tags.push({t:'近15手专走'+tsp[0]+tsp[1]+'·从不出'+toth[0]+toth[1], c:'#fb923c'});
+    }
+    drs.forEach(function(x){ if(p[x] >= 60) tags.push({t:x+'门'+p[x]+'%', c:'#4ade80'}); });
+    var sp2 = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
+    var o2 = drs.filter(function(x){ return x!==sp2[0] && x!==sp2[1]; });
+    if(s.total >= 12 && p[sp2[0]]+p[sp2[1]] >= 85 && (s[o2[0]]+s[o2[1]]) <= s.total*0.10) tags.push({t:'专走'+sp2[0]+sp2[1]+'·从不出'+o2[0]+o2[1], c:'#fb923c'});
+    var best = 1;
+    grps.forEach(function(g){
+      var lst = g.tiles || []; var r = 1;
+      for(var i=1;i<lst.length;i++){ if(lst[i]===lst[i-1]){ r++; if(r>best) best=r; } else r=1; }
+    });
+    if(best >= 6) tags.push({t:'最长连 '+best+'手', c:'#c084fc'});
+    return {name:nm, groups:grps.length, total:s.total, p:p, tags:tags};
+  }
+  function updateAIHint(){
+    var box = document.getElementById('aiHint');
+    if(!box) return;
+    var q = nameEl.value.trim();
+    if(!q){ box.hidden = true; box.innerHTML = ''; return; }
+    var nms = nmSplit(q);
+    var html = '';
+    nms.forEach(function(n){
+      var r = aiCalcPerson(n);
+      if(r && r.tags.length) html += '<div class="aihint-warn">⚠️ ' + escH(n) + '：' + escH(r.tags.map(function(t){return t.t;}).join('、')) + '</div>';
+      else if(r) html += '<div class="aihint-ok">' + escH(n) + '：暂无异常规律</div>';
+    });
+    if(!html) return;
+    box.innerHTML = html;
+    box.hidden = false;
+  }
+  function renderAIFocus(){
+    var box = document.getElementById('aiFocusPanel');
+    if(!box) return;
+    var groups = state.groups || [];
+    if(!groups.length){ box.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0;">暂无数据，记录几组后自动分析</div>'; return; }
+    var drs = ['虎','龙','入','出'];
+    var gT = {虎:0,龙:0,入:0,出:0,all:0};
+    groups.forEach(function(g){ (g.tiles||[]).forEach(function(x){ if(gT[x]!==undefined){ gT[x]++; gT.all++; } }); });
+    var gp = {};
+    drs.forEach(function(x){ gp[x] = gT.all ? Math.round(gT[x]/gT.all*100) : 25; });
+    var ds = {}, near = {};
+    groups.forEach(function(g){
+      var n = (g.name||'').trim();
+      if(!n || !g.tiles || !g.tiles.length) return;
+      nmSplit(n).forEach(function(nm){
+        var s = ds[nm] || (ds[nm] = {虎:0,龙:0,入:0,出:0,total:0,groups:0});
+        s.groups++;
+        g.tiles.forEach(function(x){ if(s[x]!==undefined){ s[x]++; s.total++; } });
+        var arr = near[nm] || (near[nm] = []);
+        arr = arr.concat(g.tiles||[]);
+        if(arr.length > 15) arr.splice(0, arr.length-15);
+        near[nm] = arr;
+      });
+    });
+    var focus = [];
+    Object.keys(ds).forEach(function(n){
+      var s = ds[n];
+      if(s.total < 8) return;
+      var tags = [];
+      var p = {};
+      drs.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
+      drs.forEach(function(x){
+        if(s[x] === 0){
+          var oth = drs.filter(function(y){ return s[y] > 0; });
+          if(oth.length === 3) tags.push({t:'⚠️专走'+oth.join('')+'留'+x+'·疑似诱单', c:'#f87171'});
+          else if(gp[x] > 10) tags.push({t:'从不出'+x+'门', c:'#f87171'});
+        }
+      });
+      drs.forEach(function(x){ if(s[x] > 0 && p[x] < 12 && p[x] < gp[x]/2) tags.push({t:x+'门极少'+p[x]+'%', c:'#fbbf24'}); });
+      drs.forEach(function(x){ if(p[x]-gp[x] >= 20) tags.push({t:x+'门偏多+'+(p[x]-gp[x])+'%', c:'#4ade80'}); });
+      var sp = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
+      var o2 = drs.filter(function(x){ return x!==sp[0] && x!==sp[1]; });
+      if(s.total >= 12 && p[sp[0]]+p[sp[1]] >= 85 && (s[o2[0]]+s[o2[1]]) <= s.total*0.10) tags.push({t:'专走'+sp[0]+sp[1]+'·从不出'+o2[0]+o2[1], c:'#fb923c'});
+      var best = 1;
+      groups.forEach(function(g){
+        if(!g || !g.tiles) return;
+        if(nmSplit(g.name||'').indexOf(n) < 0) return;
+        var lst = g.tiles; var r = 1;
+        for(var i=1;i<lst.length;i++){ if(lst[i]===lst[i-1]){ r++; if(r>best){ best=r; } } else r=1; }
+      });
+      if(best >= 6) tags.push({t:'最长连 '+best+'手', c:'#c084fc'});
+      var arr = near[n] || [];
+      if(arr.length >= 10){
+        drs.forEach(function(x){ if(arr.indexOf(x) < 0) tags.push({t:'近15手不走'+x+'门', c:'#fb923c'}); });
+        var tc = {}; drs.forEach(function(x){ tc[x] = 0; });
+        arr.forEach(function(x){ if(tc[x]!==undefined) tc[x]++; });
+        var tsp = drs.slice().sort(function(a,b){ return tc[b]-tc[a]; });
+        var toth = drs.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
+        if((tc[tsp[0]]+tc[tsp[1]])/arr.length >= 0.85 && (tc[toth[0]]+tc[toth[1]]) <= arr.length*0.10) tags.push({t:'近15手专走'+tsp[0]+tsp[1]+'·从不出'+toth[0]+toth[1], c:'#fb923c'});
+      }
+      if(tags.length) focus.push({name:n, s:s, tags:tags});
+    });
+    focus.sort(function(a,b){ return b.tags.length*10 + b.s.total - (a.tags.length*10 + a.s.total); });
+    var html = '';
+    html += '<div style="font-size:10px;color:#f87171;font-weight:700;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:5px 8px;">⚠️ 诱单警示：专走三门、长期留一门 = 最典型钓鱼信号，要反着防，别追着他留的门下注</div>';
+    if(focus.length){
+      html += '<div style="font-size:11px;color:var(--gold);font-weight:700;margin-top:8px;">🎯 重点盯（个人规律）</div>';
+      focus.slice(0, 8).forEach(function(f){
+        var bar = '';
+        drs.forEach(function(x){ bar += '<span style="display:inline-block;width:'+f.p[x]+'%;height:6px;background:'+({虎:'#b03a2e',龙:'#2456a6',入:'#c8862a',出:'#2e8b57'})[x]+';"></span>'; });
+        var tgs = f.tags.map(function(t){ return '<span class="aif-tag" style="color:'+t.c+'">'+t.t+'</span>'; }).join('');
+        html += '<div class="aif-card"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-weight:700;font-size:13px;">'+escH(f.name)+'</span><span style="color:var(--muted);font-size:10px;">'+f.s.groups+'组 · '+f.s.total+'手</span></div><div class="aif-bar">'+bar+'</div><div style="font-size:10px;color:var(--muted);">虎 '+f.p['虎']+'% · 龙 '+f.p['龙']+'% · 入 '+f.p['入']+'% · 出 '+f.p['出']+'%</div><div style="margin-top:3px;">'+tgs+'</div></div>';
+      });
+    }
+    // 当日框架借用
+    var dayPat = {};
+    groups.forEach(function(g){
+      if(!g || !g.tiles || !g.tiles.length) return;
+      var t = g.time || 0;
+      var dd = new Date(t);
+      var day = (dd.getMonth()+1) + '-' + (dd.getDate()<10?'0':'') + dd.getDate();
+      var lst = g.tiles;
+      var c = {}; drs.forEach(function(x){ c[x] = 0; });
+      lst.forEach(function(x){ if(c[x]!==undefined) c[x]++; });
+      var z = drs.filter(function(x){ return c[x] === 0; });
+      var p2 = drs.slice().sort(function(a,b){ return c[b]-c[a]; });
+      var o2 = drs.filter(function(x){ return x!==p2[0] && x!==p2[1]; });
+      var pat = '';
+      if(z.length === 1 && lst.length >= 8) pat = '专走三门留' + z[0];
+      else if((c[p2[0]]+c[p2[1]])/lst.length >= 0.85 && lst.length >= 8) pat = '专走' + p2[0] + p2[1];
+      if(!pat) return;
+      nmSplit(g.name||'').forEach(function(n2){
+        var dp = dayPat[day] || (dayPat[day] = {});
+        var ap = dp[pat] || (dp[pat] = []);
+        if(ap.indexOf(n2) < 0) ap.push(n2);
+      });
+    });
+    var reuse = [];
+    Object.keys(dayPat).forEach(function(day){
+      Object.keys(dayPat[day]).forEach(function(pat){
+        var ps = dayPat[day][pat];
+        if(ps.length >= 2) reuse.push({day:day, pat:pat, ps:ps});
+      });
+    });
+    reuse.sort(function(a,b){ return b.ps.length - a.ps.length || a.day.localeCompare(b.day); });
+    if(reuse.length){
+      html += '<div style="font-size:11px;color:#38bdf8;font-weight:700;margin-top:8px;">📡 当日框架借用（同天多人同框架）</div>';
+      reuse.slice(0, 6).forEach(function(r){
+        html += '<div class="aif-reuse"><div style="color:#bae6fd;font-weight:700;font-size:11px;">' + r.day + ' · ' + r.pat + '</div><div style="color:var(--text);font-size:10px;">' + escH(r.ps.join('、')) + ' 同用此框架</div></div>';
+      });
+      html += '<div style="font-size:9px;color:var(--muted);margin-top:2px;">同天多人同框架 = 疑似互相借用/统一收割，谨防被钓</div>';
+    }
+    box.innerHTML = html;
+  }
+  setTimeout(function(){ try{ renderAIFocus(); }catch(e){} }, 1800);
+
   /* 组名联想：打第一个字就跳出历史相似名字，点选即用 */
   function showNameSuggest(){
     var sug = document.getElementById('nameSuggest');
@@ -1066,6 +1256,7 @@
         state.current.name = n;
         sug.hidden = true;
         save(); render();
+        updateAIHint();
       });
     });
   }
