@@ -187,6 +187,9 @@
 
 #aiHint .aihint-warn{ background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.4); color:#fecaca; border-radius:8px; padding:5px 8px; font-size:12px; font-weight:700; margin-bottom:3px; }
 #aiHint .aihint-ok{ background:rgba(148,163,184,.08); border:1px solid rgba(148,163,184,.25); color:#cbd5e1; border-radius:8px; padding:4px 8px; font-size:11px; margin-bottom:3px; }
+
+.pbtn.top1{ outline:2px solid #fbbf24; box-shadow:0 0 10px rgba(251,191,36,.55); }
+.pbtn.top2{ outline:1px solid rgba(251,191,36,.45); }
 </style>
 </head>
 <body>
@@ -2542,6 +2545,22 @@ function cell(k, rank){
     renderTags();
     renderLiveHint();
     renderHistory();
+    updateRecommend();
+  }
+
+  // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
+  function updateRecommend(){
+    document.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('top1','top2'); });
+    const filtered = getFiltered();
+    const top = predictTop2(state.current, filtered);
+    if (!top.length) return;
+    const map = {hu:'.pbtn-hu', long:'.pbtn-long', ru:'.pbtn-ru', chu:'.pbtn-chu'};
+    const b1 = document.querySelector(map[top[0]]);
+    if (b1) b1.classList.add('top1');
+    if (top.length > 1){
+      const b2 = document.querySelector(map[top[1]]);
+      if (b2) b2.classList.add('top2');
+    }
   }
 
   // 公共：记录一手牌（点按钮或键盘），同时把AI预测对错记到 currentMarks
