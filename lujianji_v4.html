@@ -2576,7 +2576,7 @@ function cell(k, rank){
         if (i === 0){ marks.push(-1); continue; } // 第一手无前缀无法预测
         var prefix = g.list.slice(0, i);
         var filtered = state.groups.filter(function(x){ return x.name === g.name && x !== g; });
-        if (!filtered.length) filtered = state.groups.filter(function(x){ return x !== g; }); // 无同名人历史时用全局
+        // 修复：无同名人历史时不再用全局数据补算，与实时记录保持一致，避免两套标准
         var top3 = predictTop2(prefix, filtered);
         if (!top3.length){ marks.push(-1); continue; }
         marks.push(top3.indexOf(g.list[i]) >= 0 ? 1 : 0);
