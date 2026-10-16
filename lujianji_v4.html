@@ -2117,15 +2117,81 @@
     if (best >= 6) tags.push('最长连 '+best+'手');
     return tags;
   }
+  // AI关注（组名位置常显）：算当前人四门规律，记录时直接可见
+  function calcFocusNearName(nm){
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    var grps = state.groups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
+    if (!grps.length) return null;
+    var s = {hu:0,long:0,ru:0,chu:0,total:0};
+    var near = [];
+    grps.forEach(function(g){
+      (g.list||[]).forEach(function(x){ if (s[x] !== undefined){ s[x]++; s.total++; } });
+      near = near.concat(g.list||[]);
+      if (near.length > 15) near.splice(0, near.length - 15);
+    });
+    if (s.total < 8) return null;
+    var p = {};
+    drs.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
+    var tags = [];
+    // 专走三门留一门（疑似诱单）
+    drs.forEach(function(x){
+      if (s[x] === 0){
+        var oth = drs.filter(function(y){ return s[y] > 0; });
+        if (oth.length === 3) tags.push('⚠️专走'+oth.map(function(y){return DRN[y];}).join('')+'留'+DRN[x]+'·疑似诱单');
+        else tags.push('从不出'+DRN[x]+'门');
+      }
+    });
+    // 近15手
+    if (near.length >= 10){
+      drs.forEach(function(x){ if (near.indexOf(x) < 0) tags.push('近15手不走'+DRN[x]+'门'); });
+      var tc = {}; drs.forEach(function(x){ tc[x] = 0; });
+      near.forEach(function(x){ if (tc[x] !== undefined) tc[x]++; });
+      var tp = {}; drs.forEach(function(x){ tp[x] = Math.round(tc[x]/near.length*100); });
+      var tsp = drs.slice().sort(function(a,b){ return tp[b]-tp[a]; });
+      var toth = drs.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
+      if (tp[tsp[0]]+tp[tsp[1]] >= 85 && (tc[toth[0]]+tc[toth[1]]) <= near.length*0.10) tags.push('近15手专走'+DRN[tsp[0]]+DRN[tsp[1]]+'·从不出'+DRN[toth[0]]+DRN[toth[1]]);
+    }
+    drs.forEach(function(x){ if (p[x] >= 60) tags.push(DRN[x]+'门'+p[x]+'%'); });
+    var sp2 = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
+    var o2 = drs.filter(function(x){ return x!==sp2[0] && x!==sp2[1]; });
+    if (s.total >= 12 && p[sp2[0]]+p[sp2[1]] >= 85 && (s[o2[0]]+s[o2[1]]) <= s.total*0.10) tags.push('专走'+DRN[sp2[0]]+DRN[sp2[1]]+'·从不出'+DRN[o2[0]]+DRN[o2[1]]);
+    var best = 1;
+    grps.forEach(function(g){
+      var lst = g.list || []; var r = 1;
+      for (var i=1;i<lst.length;i++){
+        if (lst[i] === lst[i-1]){ r++; if (r>best) best = r; } else r = 1;
+      }
+    });
+    if (best >= 6) tags.push('最长连 '+best+'手');
+    return {p:p, tags:tags};
+  }
+
   function updateAIHint(){
     const box = $('aiHint');
     const q = $('groupName').value.trim();
     if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    // 全局四门平均（从全部数据学习，作为基准）
+    var gT = {hu:0,long:0,ru:0,chu:0,all:0};
+    state.groups.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
+    var gp = {};
+    drs.forEach(function(x){ gp[x] = gT.all ? Math.round(gT[x]/gT.all*100) : 25; });
     const nms = nmSplit(q);
     let html = '';
+    html += '<div style="font-size:9px;color:#64748b;margin-bottom:3px;">🎯 AI关注 · 全局平均 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（从数据学习）</div>';
     nms.forEach(n => {
-      const tags = calcAIForName(n);
-      if (tags.length) html += '<div class="aihint-warn">⚠️ ' + escapeHtml(n) + '：' + escapeHtml(tags.join('、')) + '</div>';
+      const info = calcFocusNearName(n);
+      if (!info){
+        html += '<div class="aihint-ok">' + escapeHtml(n) + '：暂无数据（需≥8手才分析）</div>';
+        return;
+      }
+      var bar = '';
+      drs.forEach(function(x){ bar += '<span style="display:inline-block;width:'+info.p[x]+'%;background:'+(x==='hu'?'#dc2626':x==='long'?'#2563eb':x==='ru'?'#16a34a':'#64748b')+';height:5px;border-radius:2px;"></span>'; });
+      html += '<div style="font-size:12px;color:#fef3c7;font-weight:700;margin-top:2px;">' + escapeHtml(n) + '：虎'+info.p.hu+'% 龙'+info.p.long+'% 入'+info.p.ru+'% 出'+info.p.chu+'%</div>';
+      html += '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);display:flex;gap:1px;margin-bottom:2px;">' + bar + '</div>';
+      if (info.tags.length) html += '<div class="aihint-warn">⚠️ ' + escapeHtml(n) + '：' + escapeHtml(info.tags.join('、')) + '</div>';
       else html += '<div class="aihint-ok">' + escapeHtml(n) + '：暂无异常规律</div>';
     });
     box.innerHTML = html;
