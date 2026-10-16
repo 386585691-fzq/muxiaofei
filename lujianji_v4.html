@@ -2278,10 +2278,19 @@ function cell(k, rank){
           html += '</table>';
         }
         
-        // ===== AI 关注 · 四门规律（重点盯） =====
+                // ===== AI 关注 · 四门规律（从原有数据学习：对比全局平均） =====
         var DOOR_NAME = { hu:'虎', long:'龙', ru:'入', chu:'出' };
         var doorsArr = ['hu','long','ru','chu'];
         var doorColor = { hu:'#dc2626', long:'#2563eb', ru:'#16a34a', chu:'#64748b' };
+        // 1) 全局四门基准（从全部数据学习）
+        var gTotal = {hu:0,long:0,ru:0,chu:0,all:0};
+        groups.forEach(function(g){
+          if (!g || !g.list) return;
+          g.list.forEach(function(x){ if (gTotal[x] !== undefined){ gTotal[x]++; gTotal.all++; } });
+        });
+        var gp = {};
+        doorsArr.forEach(function(x){ gp[x] = gTotal.all ? Math.round(gTotal[x]/gTotal.all*100) : 25; });
+        // 2) 每人四门分布
         var ds = {};
         groups.forEach(function(g){
           if (!g || !g.name || !g.list) return;
@@ -2289,22 +2298,23 @@ function cell(k, rank){
           s.groups++;
           g.list.forEach(function(x){ if (s[x] !== undefined) s[x]++; s.total++; });
         });
+        // 3) 学习规律（个人 vs 全局基准，自动发现显著差异）
         var focus = [];
         Object.keys(ds).forEach(function(n){
           var s = ds[n];
-          if (s.groups < 3 || s.total < 12) return; // 样本太少不评
+          if (s.groups < 3 || s.total < 12) return;
           var tags = [];
           var p = {};
           doorsArr.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
-          // 三门怪：某门从不出
-          doorsArr.forEach(function(x){ if (s[x] === 0) tags.push({t:'从不出'+DOOR_NAME[x]+'门', c:'#f87171'}); });
-          // 四留一：某门极弱(<8%)
-          doorsArr.forEach(function(x){ if (s[x] > 0 && p[x] < 8) tags.push({t:DOOR_NAME[x]+'门极弱'+p[x]+'%', c:'#fbbf24'}); });
-          // 单边主导：某门>=60%
-          doorsArr.forEach(function(x){ if (p[x] >= 60) tags.push({t:DOOR_NAME[x]+'门主导'+p[x]+'%', c:'#4ade80'}); });
-          // 两门集中：两门合计>=90%
+          // 三门怪：某门从不出，且全局平均这门正常(>12%)
+          doorsArr.forEach(function(x){ if (s[x] === 0 && gp[x] > 12) tags.push({t:'从不出'+DOOR_NAME[x]+'门(平均'+gp[x]+'%)', c:'#f87171'}); });
+          // 四留一：某门占比极低(<全局一半 且 <12%)
+          doorsArr.forEach(function(x){ if (s[x] > 0 && p[x] < 12 && p[x] < gp[x]/2) tags.push({t:DOOR_NAME[x]+'门极少'+p[x]+'%(平均'+gp[x]+'%)', c:'#fbbf24'}); });
+          // 单边主导：某门比全局平均多出>=20%
+          doorsArr.forEach(function(x){ if (p[x] - gp[x] >= 20) tags.push({t:DOOR_NAME[x]+'门偏多+'+ (p[x]-gp[x]) +'%(平均'+gp[x]+'%)', c:'#4ade80'}); });
+          // 两门集中：主走两门>=85%
           var sp = doorsArr.slice().sort(function(a,b){ return p[b]-p[a]; });
-          if (p[sp[0]]+p[sp[1]] >= 90) tags.push({t:'主走'+DOOR_NAME[sp[0]]+DOOR_NAME[sp[1]]+'门', c:'#38bdf8'});
+          if (p[sp[0]]+p[sp[1]] >= 85) tags.push({t:'主走'+DOOR_NAME[sp[0]]+DOOR_NAME[sp[1]]+'门'+String(p[sp[0]]+p[sp[1]])+'%', c:'#38bdf8'});
           // 组内最长连庄
           var best = 1, bestDoor = '';
           groups.forEach(function(g){
@@ -2316,27 +2326,36 @@ function cell(k, rank){
             }
           });
           if (best >= 6) tags.push({t:'最长连'+DOOR_NAME[bestDoor]+' '+best+'手', c:'#c084fc'});
-          if (tags.length) focus.push({name:n, s:s, p:p, tags:tags, score: tags.length*10 + s.total});
+          // 偏差标签（vs 全局）：每门差异，取显著项
+          var devTags = [];
+          doorsArr.forEach(function(x){
+            var dev = p[x] - gp[x];
+            if (dev >= 8) devTags.push(DOOR_NAME[x]+'+'+dev);
+            else if (dev <= -8) devTags.push(DOOR_NAME[x]+dev);
+          });
+          if (tags.length || devTags.length) focus.push({name:n, s:s, p:p, tags:tags, dev:devTags, score: tags.length*10 + (devTags.length*3) + s.total});
         });
         focus.sort(function(a,b){ return b.score - a.score; });
-        var focusShow = focus.slice(0, 12);
+        var focusShow = focus.slice(0, 15);
         if (focusShow.length){
-          html += '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:8px 0 4px;">🎯 AI 关注 · 四门规律（重点盯）</div>';
+          html += '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:8px 0 4px;">🎯 AI 关注 · 四门规律（从数据学习 · 对比全局平均）</div>';
+          html += '<div style="font-size:9px;color:#64748b;margin-bottom:4px;">全局平均：虎 '+gp.hu+'% · 龙 '+gp.long+'% · 入 '+gp.ru+'% · 出 '+gp.chu+'%</div>';
           focusShow.forEach(function(f){
             var tagHtml = f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('');
+            var devHtml = f.dev.length ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">vs平均：'+f.dev.join(' ')+'</div>' : '';
             var bar = '';
             doorsArr.forEach(function(x){ bar += '<span style="display:inline-block;width:'+f.p[x]+'%;background:'+doorColor[x]+';height:6px;"></span>'; });
             html += '<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:6px 8px;margin-bottom:4px;">'
               + '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#fef3c7;font-weight:700;font-size:12px;">'+escapeHtml(f.name)+'</span><span style="color:#94a3b8;font-size:10px;">'+f.s.groups+'组 · '+f.s.total+'手</span></div>'
               + '<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:3px 0;">'+bar+'</div>'
               + '<div style="font-size:10px;color:#94a3b8;">虎 '+f.p.hu+'% · 龙 '+f.p.long+'% · 入 '+f.p.ru+'% · 出 '+f.p.chu+'%</div>'
+              + devHtml
               + '<div style="margin-top:2px;">'+tagHtml+'</div>'
               + '</div>';
           });
-          html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">样本≥3组且≥12手才评；三门怪=某门从不出，四留一=某门占比&lt;8%，仅供参考无确定规律</div>';
+          html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">规律=个人分布对比全部数据自动学习：三门怪/四留一/单边/集中/连庄；样本≥3组12手才评，仅供参考无确定规律</div>';
         }
-
-html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
+      html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
       }
       setTimeout(step, 0);
