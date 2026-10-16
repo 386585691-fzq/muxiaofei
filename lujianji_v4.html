@@ -181,6 +181,9 @@
   .rate-table tr { cursor: pointer; }
   .rate-table tr:hover td { background: rgba(251,191,36,.05); }
   .rate-num { font-variant-numeric: tabular-nums; }
+
+#nameSuggest .suggest-item{ padding:6px 10px; color:#fef3c7; font-size:14px; cursor:pointer; border-bottom:1px solid rgba(251,191,36,.12); font-weight:700; }
+#nameSuggest .suggest-item:hover, #nameSuggest .suggest-item.active{ background:rgba(251,191,36,.15); color:#facc15; }
 </style>
 </head>
 <body>
@@ -198,6 +201,7 @@
   <div class="group-name-row">
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
+    <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
     <span style="font-size:10px;color:#888;">快捷选名</span>
@@ -2031,7 +2035,39 @@
       var sortedSb = Object.keys(sb2).sort(function(a,b){ return sb2[b]-sb2[a]; });
       var bestK = sortedSb[0];
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
-      function cell(k, rank){
+      
+  // 人名联想：输一个字跳出匹配人选
+  function renderSuggest(){
+    const box = $('nameSuggest');
+    const q = $('groupName').value.trim();
+    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    const names = [];
+    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
+    const hit = names.filter(n => n.includes(q)).slice(0, 12);
+    if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    let html = '';
+    hit.forEach(n => { html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '">' + escapeHtml(n) + '</div>'; });
+    box.innerHTML = html;
+    box.style.display = 'block';
+    box.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('click', () => {
+        $('groupName').value = el.dataset.n;
+        box.style.display = 'none';
+        renderLiveHint();
+      });
+    });
+  }
+
+  // 点击别处收起联想
+  document.addEventListener('click', function(e){
+    const box = $('nameSuggest');
+    const inp = $('groupName');
+    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== inp){
+      box.style.display = 'none';
+    }
+  });
+
+function cell(k, rank){
         if (!k) return '<div style="padding:6px 0;"></div>';
         var m = META[k];
         var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
@@ -2391,6 +2427,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
 
   $('groupName').addEventListener('input', () => {
     renderLiveHint();
+    renderSuggest();
   });
 
   $('clearAllBtn').addEventListener('click', () => {
