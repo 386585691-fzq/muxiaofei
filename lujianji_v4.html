@@ -380,13 +380,39 @@
     xhr.onerror = function(){ cb(new Error('net')); };
     xhr.send((opts && opts.body) || null);
   }
-  // 拉云端全部行（按时间升序）
+  // 时间归一化（'10-04'->'10-4'，容忍无前导零），用于去重/排序
+  function _nt(s){
+    s = String(s || '');
+    var parts = s.split(' ');
+    var d = parts[0].split('-');
+    if (d.length === 2){
+      var a = parseInt(d[0],10), b = parseInt(d[1],10);
+      if (!isNaN(a) && !isNaN(b)) parts[0] = a + '-' + b;
+    }
+    return parts.join(' ');
+  }
+  // 时间解析为可比较数值（MM-DD HH:mm，容忍无前导零）
+  function _tk(t){
+    if (!t) return 0;
+    var p = String(t).trim().split(/[\s:-]+/);
+    var m = parseInt(p[0],10)||1, d = parseInt(p[1],10)||1, h = parseInt(p[2],10)||0, mi = parseInt(p[3],10)||0;
+    return ((m*31+d)*24+h)*60+mi;
+  }
+  // 拉云端全部行（分页拉全，避免超过1000条漏数据/误判缺失重复推送；按时间解析排序）
   function sbFetchAll(cb){
-    sbReq(CLOUD_TBL + '?select=name,time,list&order=time.asc', null, function(err, xhr){
-      var rows = [];
-      if (!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
-      cb(rows);
-    });
+    var all = [];
+    (function page(off){
+      sbReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
+        var rows = [];
+        if (!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
+        all = all.concat(rows);
+        if (rows.length >= 1000) page(off + 1000);
+        else {
+          all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
+          cb(all);
+        }
+      });
+    })(0);
   }
   // 批量插入缺失行（200 条一批）
   function sbPushRows(rows, cb){
@@ -434,7 +460,7 @@
       // 先读云端最新 → 合并去重 → 只插入云端没有的（不删除、不覆盖）
       sbFetchAll(function(remoteRows){
         var remoteKeys = {};
-        remoteRows.forEach(function(r){ remoteKeys[(r.name||'') + '|' + JSON.stringify(r.list || [])] = 1; });
+        remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + _nt(r.time) + '|' + JSON.stringify(r.list || [])] = 1; });
         // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
         var cleanGroups = state.groups.filter(function(g){
           if (!g) return false;
@@ -447,7 +473,7 @@
         state.groupNum = cleanGroups.length + 1;
         var missing = [];
         cleanGroups.forEach(function(g){
-          var k = (g.name||'') + '|' + JSON.stringify(g.list || []);
+          var k = _nt(g.name) + '|' + _nt(g.time) + '|' + JSON.stringify(g.list || []);
           if (!remoteKeys[k]) missing.push({name: g.name, time: String(g.time || ''), list: g.list || []});
         });
         if (missing.length) sbPushRows(missing, function(){});
