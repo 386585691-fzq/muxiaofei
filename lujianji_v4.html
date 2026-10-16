@@ -184,6 +184,9 @@
 
 #nameSuggest .suggest-item{ padding:6px 10px; color:#fef3c7; font-size:14px; cursor:pointer; border-bottom:1px solid rgba(251,191,36,.12); font-weight:700; }
 #nameSuggest .suggest-item:hover, #nameSuggest .suggest-item.active{ background:rgba(251,191,36,.15); color:#facc15; }
+
+#aiHint .aihint-warn{ background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.4); color:#fecaca; border-radius:8px; padding:5px 8px; font-size:12px; font-weight:700; margin-bottom:3px; }
+#aiHint .aihint-ok{ background:rgba(148,163,184,.08); border:1px solid rgba(148,163,184,.25); color:#cbd5e1; border-radius:8px; padding:4px 8px; font-size:11px; margin-bottom:3px; }
 </style>
 </head>
 <body>
@@ -202,6 +205,7 @@
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
     <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
+    <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
     <span style="font-size:10px;color:#888;">快捷选名</span>
@@ -2036,6 +2040,68 @@
       var bestK = sortedSb[0];
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
       
+  // 记录时实时AI提示：算某人的规律标签
+  function nmSplit(nm){ return String(nm).split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean); }
+  function calcAIForName(nm){
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    var grps = state.groups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
+    if (!grps.length) return [];
+    var s = {hu:0,long:0,ru:0,chu:0,total:0};
+    var near = [];
+    grps.forEach(function(g){
+      (g.list||[]).forEach(function(x){ if (s[x] !== undefined){ s[x]++; s.total++; } });
+      near = near.concat(g.list||[]);
+      if (near.length > 15) near.splice(0, near.length - 15);
+    });
+    if (s.total < 8) return [];
+    var tags = [];
+    var p = {};
+    drs.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
+    drs.forEach(function(x){
+      if (s[x] === 0){
+        var oth = drs.filter(function(y){ return s[y] > 0; });
+        if (oth.length === 3) tags.push('⚠️专走'+oth.map(function(y){return DRN[y];}).join('')+'留'+DRN[x]+'·疑似诱单');
+      }
+    });
+    if (near.length >= 10){
+      drs.forEach(function(x){ if (near.indexOf(x) < 0) tags.push('近15手不走'+DRN[x]+'门'); });
+      var tc = {}; drs.forEach(function(x){ tc[x] = 0; });
+      near.forEach(function(x){ if (tc[x] !== undefined) tc[x]++; });
+      var tp = {}; drs.forEach(function(x){ tp[x] = Math.round(tc[x]/near.length*100); });
+      var tsp = drs.slice().sort(function(a,b){ return tp[b]-tp[a]; });
+      var toth = drs.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
+      if (tp[tsp[0]]+tp[tsp[1]] >= 85 && (tc[toth[0]]+tc[toth[1]]) <= near.length*0.10) tags.push('近15手专走'+DRN[tsp[0]]+DRN[tsp[1]]+'·从不出'+DRN[toth[0]]+DRN[toth[1]]);
+    }
+    drs.forEach(function(x){ if (p[x] >= 60) tags.push(DRN[x]+'门'+p[x]+'%'); });
+    var sp2 = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
+    var o2 = drs.filter(function(x){ return x!==sp2[0] && x!==sp2[1]; });
+    if (s.total >= 12 && p[sp2[0]]+p[sp2[1]] >= 85 && (s[o2[0]]+s[o2[1]]) <= s.total*0.10) tags.push('专走'+DRN[sp2[0]]+DRN[sp2[1]]+'·从不出'+DRN[o2[0]]+DRN[o2[1]]);
+    var best = 1;
+    grps.forEach(function(g){
+      var lst = g.list || []; var r = 1;
+      for (var i=1;i<lst.length;i++){
+        if (lst[i] === lst[i-1]){ r++; if (r>best) best = r; } else r = 1;
+      }
+    });
+    if (best >= 6) tags.push('最长连 '+best+'手');
+    return tags;
+  }
+  function updateAIHint(){
+    const box = $('aiHint');
+    const q = $('groupName').value.trim();
+    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    const nms = nmSplit(q);
+    let html = '';
+    nms.forEach(n => {
+      const tags = calcAIForName(n);
+      if (tags.length) html += '<div class="aihint-warn">⚠️ ' + escapeHtml(n) + '：' + escapeHtml(tags.join('、')) + '</div>';
+      else html += '<div class="aihint-ok">' + escapeHtml(n) + '：暂无异常规律</div>';
+    });
+    box.innerHTML = html;
+    box.style.display = 'block';
+  }
+
   // 人名联想：输一个字跳出匹配人选
   function renderSuggest(){
     const box = $('nameSuggest');
@@ -2054,6 +2120,7 @@
         $('groupName').value = el.dataset.n;
         box.style.display = 'none';
         renderLiveHint();
+        updateAIHint();
       });
     });
   }
@@ -2494,6 +2561,7 @@ function cell(k, rank){
     if (!state.currentMarks) state.currentMarks = [];
     state.currentMarks.push(mark);
     save(); render();
+    updateAIHint();
   }
 
   // 补记：给没有对错记录的旧组，用当前AI模型逐手复盘补算（留一手：用前i手预测第i手，不偷看答案）
@@ -2554,6 +2622,7 @@ function cell(k, rank){
   $('groupName').addEventListener('input', () => {
     renderLiveHint();
     renderSuggest();
+    updateAIHint();
   });
 
   $('clearAllBtn').addEventListener('click', () => {
