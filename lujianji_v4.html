@@ -2282,6 +2282,8 @@ function cell(k, rank){
         var DOOR_NAME = { hu:'虎', long:'龙', ru:'入', chu:'出' };
         var doorsArr = ['hu','long','ru','chu'];
         var doorColor = { hu:'#dc2626', long:'#2563eb', ru:'#16a34a', chu:'#64748b' };
+        // 逗号组名拆分：一局多人各自独立统计
+        function splitNames(nm){ return String(nm).split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean); }
         // 1) 全局四门基准（从全部数据学习）
         var gTotal = {hu:0,long:0,ru:0,chu:0,all:0};
         groups.forEach(function(g){
@@ -2290,24 +2292,39 @@ function cell(k, rank){
         });
         var gp = {};
         doorsArr.forEach(function(x){ gp[x] = gTotal.all ? Math.round(gTotal[x]/gTotal.all*100) : 25; });
-        // 2) 每人四门分布
+        // 2) 每人四门分布 + 近15手
         var ds = {};
+        var near = {};
         groups.forEach(function(g){
           if (!g || !g.name || !g.list) return;
-          var s = ds[g.name] || (ds[g.name] = {hu:0,long:0,ru:0,chu:0,total:0,groups:0});
-          s.groups++;
-          g.list.forEach(function(x){ if (s[x] !== undefined) s[x]++; s.total++; });
+          var nms = splitNames(g.name);
+          nms.forEach(function(nm){
+            var s = ds[nm] || (ds[nm] = {hu:0,long:0,ru:0,chu:0,total:0,groups:0});
+            s.groups++;
+            g.list.forEach(function(x){ if (s[x] !== undefined) s[x]++; s.total++; });
+            var arr = near[nm] || (near[nm] = []);
+            g.list.forEach(function(x){ arr.push(x); });
+            if (arr.length > 15) arr.splice(0, arr.length - 15);
+          });
+          g.list.forEach(function(x){ arr.push(x); });
+          if (arr.length > 15) arr.splice(0, arr.length - 15);
         });
-        // 3) 学习规律（个人 vs 全局基准，自动发现显著差异）
+        // 3) 学习规律（个人 vs 全局基准 + 专走三门 + 近期动态）
         var focus = [];
         Object.keys(ds).forEach(function(n){
           var s = ds[n];
-          if (s.groups < 3 || s.total < 12) return;
+          if (s.total < 8) return;
           var tags = [];
           var p = {};
           doorsArr.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
-          // 三门怪：某门从不出，且全局平均这门正常(>12%)
-          doorsArr.forEach(function(x){ if (s[x] === 0 && gp[x] > 12) tags.push({t:'从不出'+DOOR_NAME[x]+'门(平均'+gp[x]+'%)', c:'#f87171'}); });
+          // 专走三门：某门一次没走，其他三门都走（用户观察：一直龙虎出不走入）
+          doorsArr.forEach(function(x){
+            if (s[x] === 0){
+              var others = doorsArr.filter(function(y){ return s[y] > 0; });
+              if (others.length === 3) tags.push({t:'⚠️专走'+others.map(function(y){return DOOR_NAME[y];}).join('')+'留'+DOOR_NAME[x]+'·疑似诱单', c:'#f87171'});
+              else if (gp[x] > 10) tags.push({t:'从不出'+DOOR_NAME[x]+'门', c:'#f87171'});
+            }
+          });
           // 四留一：某门占比极低(<全局一半 且 <12%)
           doorsArr.forEach(function(x){ if (s[x] > 0 && p[x] < 12 && p[x] < gp[x]/2) tags.push({t:DOOR_NAME[x]+'门极少'+p[x]+'%(平均'+gp[x]+'%)', c:'#fbbf24'}); });
           // 单边主导：某门比全局平均多出>=20%
@@ -2318,7 +2335,8 @@ function cell(k, rank){
           // 组内最长连庄
           var best = 1, bestDoor = '';
           groups.forEach(function(g){
-            if (g.name !== n) return;
+            if (!g || !g.list) return;
+            if (splitNames(g.name).indexOf(n) < 0) return;
             var r = 1;
             for (var i=1;i<g.list.length;i++){
               if (g.list[i] === g.list[i-1]) { r++; if (r>best){best=r; bestDoor=g.list[i];} }
@@ -2326,7 +2344,12 @@ function cell(k, rank){
             }
           });
           if (best >= 6) tags.push({t:'最长连'+DOOR_NAME[bestDoor]+' '+best+'手', c:'#c084fc'});
-          // 偏差标签（vs 全局）：每门差异，取显著项
+          // 近15手不走某门（近期动态）
+          var arr = near[n] || [];
+          if (arr.length >= 10){
+            doorsArr.forEach(function(x){ if (arr.indexOf(x) < 0) tags.push({t:'近15手不走'+DOOR_NAME[x]+'门', c:'#fb923c'}); });
+          }
+          // 偏差标签（vs 全局）
           var devTags = [];
           doorsArr.forEach(function(x){
             var dev = p[x] - gp[x];
@@ -2340,6 +2363,7 @@ function cell(k, rank){
         if (focusShow.length){
           html += '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:8px 0 4px;">🎯 AI 关注 · 四门规律（从数据学习 · 对比全局平均）</div>';
           html += '<div style="font-size:9px;color:#64748b;margin-bottom:4px;">全局平均：虎 '+gp.hu+'% · 龙 '+gp.long+'% · 入 '+gp.ru+'% · 出 '+gp.chu+'%</div>';
+          html += '<div style="font-size:10px;color:#f87171;font-weight:700;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:3px 6px;margin-bottom:4px;">⚠️ 诱单警示：专走三门、长期留一门不走 = 最典型钓鱼信号。留门越久越可能反手进门收割，盯这种人要反着防，别追着他留的门下注</div>';
           focusShow.forEach(function(f){
             var tagHtml = f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('');
             var devHtml = f.dev.length ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">vs平均：'+f.dev.join(' ')+'</div>' : '';
@@ -2353,7 +2377,7 @@ function cell(k, rank){
               + '<div style="margin-top:2px;">'+tagHtml+'</div>'
               + '</div>';
           });
-          html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">规律=个人分布对比全部数据自动学习：三门怪/四留一/单边/集中/连庄；样本≥3组12手才评，仅供参考无确定规律</div>';
+          html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">规律=个人分布对比全部数据自动学习：专走三门/从不走某门/四留一/单边/集中/连庄/近15手；≥8手即评，仅供参考无确定规律</div>';
         }
       html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
