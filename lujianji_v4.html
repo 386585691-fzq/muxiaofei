@@ -2403,6 +2403,7 @@ function cell(k, rank){
           html += '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:8px 0 4px;">🎯 AI 关注 · 四门规律（从数据学习 · 对比全局平均）</div>';
           html += '<div style="font-size:9px;color:#64748b;margin-bottom:4px;">全局平均：虎 '+gp.hu+'% · 龙 '+gp.long+'% · 入 '+gp.ru+'% · 出 '+gp.chu+'%</div>';
           html += '<div style="font-size:10px;color:#f87171;font-weight:700;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:3px 6px;margin-bottom:4px;">⚠️ 诱单警示：专走三门、长期留一门不走 = 最典型钓鱼信号。留门越久越可能反手进门收割，盯这种人要反着防，别追着他留的门下注</div>';
+          html += '<div style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,.08);border-radius:6px;padding:3px 6px;margin-bottom:4px;">🤖 AI 自主研究框架（自动扫描每个人/每场/每天）：专走三门留一门 · 专走两门 · 后半场收敛 · 近15手留门 · 单边偏多 · 两门集中 · 最长连庄 · 跨人框架借用</div>';
           focusShow.forEach(function(f){
             var tagHtml = f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('');
             var devHtml = f.dev.length ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">vs平均：'+f.dev.join(' ')+'</div>' : '';
@@ -2416,6 +2417,49 @@ function cell(k, rank){
               + '<div style="margin-top:2px;">'+tagHtml+'</div>'
               + '</div>';
           });
+
+          // ===== 当日框架借用：同一天多个人用同一框架 =====
+          var dayPat = {};
+          groups.forEach(function(g){
+            if (!g || !g.list || !g.list.length) return;
+            var day = String(g.time || '').split(' ')[0];
+            if (!day) return;
+            var lst = g.list;
+            var c = {};
+            doorsArr.forEach(function(x){ c[x] = 0; });
+            lst.forEach(function(s){ if (c[s] !== undefined) c[s]++; });
+            var z = doorsArr.filter(function(x){ return c[x] === 0; });
+            var p2 = doorsArr.slice().sort(function(a,b){ return c[b]-c[a]; });
+            var o2 = doorsArr.filter(function(x){ return x!==p2[0] && x!==p2[1]; });
+            var pat = '';
+            if (z.length === 1 && lst.length >= 8) pat = '专走三门留' + DOOR_NAME[z[0]];
+            else if ((c[p2[0]]+c[p2[1]])/lst.length >= 0.85 && lst.length >= 8) pat = '专走' + DOOR_NAME[p2[0]] + DOOR_NAME[p2[1]];
+            if (!pat) return;
+            splitNames(g.name).forEach(function(n2){
+              var dp = dayPat[day] || (dayPat[day] = {});
+              var ap = dp[pat] || (dp[pat] = []);
+              if (ap.indexOf(n2) < 0) ap.push(n2);
+            });
+          });
+          var reuse = [];
+          Object.keys(dayPat).forEach(function(day){
+            Object.keys(dayPat[day]).forEach(function(pat){
+              var ps = dayPat[day][pat];
+              if (ps.length >= 2) reuse.push({day:day, pat:pat, ps:ps});
+            });
+          });
+          reuse.sort(function(a,b){ return b.ps.length - a.ps.length || a.day.localeCompare(b.day); });
+          if (reuse.length){
+            html += '<div style="font-size:12px;color:#38bdf8;font-weight:700;margin:8px 0 4px;">📡 当日框架借用（同天多人同框架）</div>';
+            reuse.slice(0, 6).forEach(function(r){
+              html += '<div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25);border-radius:8px;padding:5px 8px;margin-bottom:4px;">'
+                + '<div style="color:#bae6fd;font-weight:700;font-size:11px;">' + r.day + ' · ' + r.pat + '</div>'
+                + '<div style="color:#e0f2fe;font-size:10px;">' + r.ps.join('、') + ' 同用此框架</div>'
+                + '</div>';
+            });
+            html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">同天多人同框架 = 疑似互相借用/跟单框架，谨防统一收割</div>';
+          }
+
           html += '<div style="font-size:9px;color:#64748b;margin-top:2px;">规律=个人分布对比全部数据自动学习：专走三门/从不走某门/四留一/单边/集中/连庄/近15手；≥8手即评，仅供参考无确定规律</div>';
         }
       html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
