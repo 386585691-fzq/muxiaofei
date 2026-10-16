@@ -190,6 +190,10 @@
 
 .pbtn.top1{ outline:2px solid #fbbf24; box-shadow:0 0 10px rgba(251,191,36,.55); }
 .pbtn.top2{ outline:1px solid rgba(251,191,36,.45); }
+
+  .navbtn{flex:1;padding:8px 0;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:13px;font-weight:700;border:1px solid rgba(251,191,36,.25);cursor:pointer;font-family:inherit;}
+  .navbtn:active{background:rgba(251,191,36,.35);}
+  #topNav{position:sticky;top:0;z-index:50;display:flex;gap:6px;background:rgba(15,23,42,.95);backdrop-filter:blur(10px);padding:6px 8px;border-bottom:1px solid rgba(251,191,36,.2);}
 </style>
 </head>
 <body>
@@ -203,8 +207,14 @@
     <div style="font-size:11px;color:#64748b;margin-top:12px;" id="lockTip"></div>
   </div>
 </div>
+<div id="topNav">
+  <button class="navbtn" data-target="sec-ai">🎯 AI关注</button>
+  <button class="navbtn" data-target="grid">📝 记录</button>
+  <button class="navbtn" data-target="cloudContent">📊 分析</button>
+  <button class="navbtn" data-target="historyContent">📚 历史</button>
+</div>
 <div class="current">
-  <div class="group-name-row">
+  <div class="group-name-row" id="sec-ai">
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
     <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
@@ -319,6 +329,24 @@
       c.style.display = 'none';
       b.textContent = '历史组 ▶';
     }
+  });
+
+  // 顶部导航：点一下跳到对应板块（分析/历史没展开的自动展开）
+  document.querySelectorAll('.navbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var t = b.dataset.target;
+      if (t === 'cloudContent'){
+        var cc = document.getElementById('cloudContent');
+        if (cc && cc.style.display === 'none') showCloudPanel();
+      }
+      if (t === 'historyContent'){
+        var hc = document.getElementById('historyContent');
+        var th = document.getElementById('toggleHistory');
+        if (hc && hc.style.display === 'none' && th){ th.click(); }
+      }
+      var el = document.getElementById(t);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    });
   });
 
   document.getElementById('toggleTags').addEventListener('click', function(){
@@ -2650,7 +2678,6 @@ function cell(k, rank){
     renderLiveHint();
     renderHistory();
     updateRecommend();
-    updateAIHint(); // 组名位置 AI关注常显：打开页面就显示全局概览
   }
 
   // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
