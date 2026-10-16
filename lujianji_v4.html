@@ -335,9 +335,13 @@
   document.querySelectorAll('.navbtn').forEach(function(b){
     b.addEventListener('click', function(){
       var t = b.dataset.target;
+      // 云端分析嵌在历史区里：先展开历史区，再展开云端分析
       if (t === 'cloudContent'){
-        var cc = document.getElementById('cloudContent');
-        if (cc && cc.style.display === 'none') showCloudPanel();
+        var hc0 = document.getElementById('historyContent');
+        var th0 = document.getElementById('toggleHistory');
+        if (hc0 && hc0.style.display === 'none' && th0){ th0.click(); }
+        var cc0 = document.getElementById('cloudContent');
+        if (cc0 && cc0.style.display === 'none') showCloudPanel();
       }
       if (t === 'historyContent'){
         var hc = document.getElementById('historyContent');
@@ -345,7 +349,7 @@
         if (hc && hc.style.display === 'none' && th){ th.click(); }
       }
       var el = document.getElementById(t);
-      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+      if (el) setTimeout(function(){ el.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
     });
   });
 
