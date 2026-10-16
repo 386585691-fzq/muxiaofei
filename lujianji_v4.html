@@ -1733,6 +1733,7 @@
       t.addEventListener('click', () => {
         $('groupName').value = t.dataset.name;
         renderLiveHint();
+        updateAIHint();
       });
     });
   }
@@ -2170,7 +2171,17 @@
   function updateAIHint(){
     const box = $('aiHint');
     const q = $('groupName').value.trim();
-    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    if (!q){
+      // 组名空：显示全局概览（AI关注常显，记录时永远看得到）
+      var gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
+      state.groups.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
+      var gp0 = {};
+      ['hu','long','ru','chu'].forEach(function(x){ gp0[x] = gT0.all ? Math.round(gT0[x]/gT0.all*100) : 25; });
+      box.innerHTML = '<div style="font-size:9px;color:#64748b;margin-bottom:2px;">🎯 AI关注 · 全局平均 虎'+gp0.hu+'% 龙'+gp0.long+'% 入'+gp0.ru+'% 出'+gp0.chu+'%（从'+state.groups.length+'组数据学习）</div>'
+        + '<div style="font-size:11px;color:#94a3b8;">点上面快捷选名 / 输入组名，查看这个人的四门规律与诱单警示</div>';
+      box.style.display = 'block';
+      return;
+    }
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
     // 全局四门平均（从全部数据学习，作为基准）
