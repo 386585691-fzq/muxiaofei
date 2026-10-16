@@ -234,8 +234,9 @@
 <div class="section-title">
   <button id="toggleHistory" style="padding:2px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;border:1px solid rgba(251,191,36,.3);cursor:pointer;font-weight:700;">历史组 ▶</button>
   <button id="toggleTags" style="padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.08);color:#94a3b8;font-size:11px;border:1px solid rgba(255,255,255,.1);cursor:pointer;">人名列表 ▶</button>
-  <input id="searchBox" type="text" placeholder="搜组名...">
+  <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)...">
 </div>
+<div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
 <div id="historyContent" style="display:none;">
 <div id="tagBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
 <!-- ===== 云端分析面板（实时热度/胜率，数据直接来自 Supabase 云端） ===== -->
@@ -2491,7 +2492,7 @@ function cell(k, rank){
             if (dev >= 8) devTags.push(DOOR_NAME[x]+'+'+dev);
             else if (dev <= -8) devTags.push(DOOR_NAME[x]+dev);
           });
-          if (tags.length || devTags.length) focus.push({name:n, s:s, p:p, tags:tags, dev:devTags, score: tags.length*10 + (devTags.length*3) + s.total});
+          focus.push({name:n, s:s, p:p, tags:tags, dev:devTags, score: tags.length*10 + (devTags.length*3) + s.total});
         });
         focus.sort(function(a,b){ return b.score - a.score; });
         var focusShow = focus.slice(0, 15);
@@ -2501,7 +2502,7 @@ function cell(k, rank){
           html += '<div style="font-size:10px;color:#f87171;font-weight:700;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:3px 6px;margin-bottom:4px;">⚠️ 诱单警示：专走三门、长期留一门不走 = 最典型钓鱼信号。留门越久越可能反手进门收割，盯这种人要反着防，别追着他留的门下注</div>';
           html += '<div style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,.08);border-radius:6px;padding:3px 6px;margin-bottom:4px;">🤖 AI 自主研究框架（自动扫描每个人/每场/每天）：专走三门留一门 · 专走两门 · 后半场收敛 · 近15手留门 · 单边偏多 · 两门集中 · 最长连庄 · 跨人框架借用</div>';
           focusShow.forEach(function(f){
-            var tagHtml = f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('');
+            var tagHtml = f.tags.length ? f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('') : '<span style="display:inline-block;background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid #94a3b844;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;">暂无异常规律</span>';
             var devHtml = f.dev.length ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">vs平均：'+f.dev.join(' ')+'</div>' : '';
             var bar = '';
             doorsArr.forEach(function(x){ bar += '<span style="display:inline-block;width:'+f.p[x]+'%;background:'+doorColor[x]+';height:6px;"></span>'; });
@@ -2658,11 +2659,38 @@ function cell(k, rank){
     save(); render();
   });
 
-  $('searchBox').addEventListener('input', e => {
+   $('searchBox').addEventListener('input', e => {
     searchQuery = e.target.value;
     activeTag = '';
     render();
-  });
+     // 人名联想：输一个字跳出匹配人名
+     var sug = $('searchSuggest');
+     var q = e.target.value.trim();
+     if (!q){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
+     var names = [];
+     state.groups.forEach(function(g){ if (g.name && names.indexOf(g.name) < 0) names.push(g.name); });
+     var hits = names.filter(function(n){ return n.indexOf(q) >= 0; }).slice(0, 10);
+     if (!hits.length){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
+     sug.innerHTML = hits.map(function(n){
+       return '<div class="suggest-item" data-n="' + n.replace(/"/g,'&quot;') + '">' + n.replace(/</g,'&lt;') + '</div>';
+     }).join('');
+     sug.style.display = 'block';
+     sug.querySelectorAll('.suggest-item').forEach(function(el){
+       el.addEventListener('click', function(){
+         searchQuery = el.dataset.n;
+         activeTag = '';
+         $('searchBox').value = el.dataset.n;
+         sug.style.display = 'none'; sug.innerHTML = '';
+         render();
+       });
+     });
+   });
+   // 点击别处收起搜索联想
+   document.addEventListener('click', function(e){
+     var sug = $('searchSuggest');
+     var inp = $('searchBox');
+     if (sug.style.display === 'block' && !sug.contains(e.target) && e.target !== inp){ sug.style.display = 'none'; }
+   });
 
   $('groupName').addEventListener('input', () => {
     renderLiveHint();
@@ -2687,6 +2715,8 @@ function cell(k, rank){
     if (show && !cloudRendered){ cloudRendered = true; cloudAnalyze(); }
   }
   $('toggleCloud').addEventListener('click', showCloudPanel);
+   // 默认展开云端分析面板（AI关注直接可见）
+   setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
   $('cloudRefresh').addEventListener('click', function(){
     cloudRendered = true;
     cloudAnalyze();
