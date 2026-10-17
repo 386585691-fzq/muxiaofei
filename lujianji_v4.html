@@ -3697,13 +3697,27 @@ function cell(k, rank){
     return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid};
   }
   window.cycleStrategy = function(){
-    var cur = state.aiStrategy || 'ai';
+    var cur = state._previewStrategy || state.aiStrategy || 'ai';
     var idx = STRAT_ORDER.indexOf(cur);
     var next = STRAT_ORDER[(idx+1) % STRAT_ORDER.length];
-    state.aiStrategy = next;
+    state._previewStrategy = next;   // 只预览，不落定不保存，要自己确认
+    var b = $('stratCycle');
+    if (b) b.textContent = '🔄 预览：' + STRAT_NAMES[next] + '（点我流转）';
+    var c = $('stratConfirm');
+    if (c){ c.style.display = 'inline-block'; c.textContent = '✅ 确认采用：' + STRAT_NAMES[next]; }
+    var h = $('stratHint');
+    if (h) h.textContent = '⏳ 预览中…点「确认采用」记录页主推才换（电脑手机各自确认）';
+  };
+  window.confirmStrategy = function(){
+    if (state._previewStrategy) state.aiStrategy = state._previewStrategy;
+    state._previewStrategy = null;
     if (typeof saveLocal === 'function') saveLocal();
     var b = $('stratCycle');
-    if (b) b.textContent = '🔄 当前推荐：' + STRAT_NAMES[next] + '（点我流转）';
+    if (b) b.textContent = '✅ 已确认：' + STRAT_NAMES[state.aiStrategy] + '（点我流转）';
+    var c = $('stratConfirm');
+    if (c) c.style.display = 'none';
+    var h = $('stratHint');
+    if (h) h.textContent = '记录页主推跟着这个策略走';
     if (typeof renderLiveHint === 'function') renderLiveHint();
     if (typeof renderAIPage === 'function') renderAIPage();
   };
@@ -3712,7 +3726,8 @@ function cell(k, rank){
     var curS = state.aiStrategy || 'ai';
     var html = '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap;">'
       + '<button id="stratCycle" onclick="cycleStrategy()" style="padding:3px 10px;border-radius:8px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.4);cursor:pointer;">🔄 当前推荐：' + STRAT_NAMES[curS] + '（点我流转）</button>'
-      + '<span style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
+      + '<button id="stratConfirm" onclick="confirmStrategy()" style="display:none;padding:3px 10px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;"></button>'
+      + '<span id="stratHint" style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
     html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 32大策略对比（留一手验证 · 3门命中率 · 全部'+groups.length+'组）</div>';
     html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
@@ -4144,6 +4159,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v56 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v57 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
