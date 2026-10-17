@@ -217,6 +217,10 @@
   <button class="navbtn" data-page="cloud">☁️ 云端分析</button>
   <button class="navbtn" data-page="history">📚 历史</button>
 </div>
+<div id="globalAI" style="padding:6px 8px;background:rgba(251,191,36,.04);border-bottom:1px solid rgba(251,191,36,.12);">
+  <input id="globalAIName" type="text" placeholder="🎯 输名字/选人，下方直接显示四门规律与诱单警示（如：顺顺）" maxlength="20" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:13px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <div id="globalAIHint" style="margin-top:4px;line-height:1.5;"></div>
+</div>
 <div class="current page active" id="page-record">
   <div class="group-name-row" id="sec-ai">
     <label>组名</label>
@@ -429,6 +433,32 @@
   }
   $('aiNameInput').addEventListener('input', renderAIPage);
 
+  // 全局 AI 查询：所有页面顶部实时提示
+  function updateGlobalAI(){
+    var box = $('globalAIHint');
+    var q = ($('globalAIName').value||'').trim();
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    if (!q){
+      box.innerHTML = '<div style="font-size:10px;color:#64748b;">输名字/选人，下方直接显示这个人的四门规律（虎龙入出占比）与诱单警示</div>';
+      return;
+    }
+    var html = '';
+    var nms = q.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
+    nms.forEach(function(n){
+      var info = calcFocusNearName(n);
+      if (!info){ html += '<div class="aihint-ok">'+n+'：暂无数据（需≥8手）</div>'; return; }
+      var bar = '';
+      drs.forEach(function(x){ bar += '<span style="display:inline-block;width:'+info.p[x]+'%;background:'+(x==='hu'?'#dc2626':x==='long'?'#2563eb':x==='ru'?'#16a34a':'#64748b')+';height:5px;border-radius:2px;"></span>'; });
+      html += '<div style="font-size:12px;color:#fef3c7;font-weight:700;">'+n+'：虎'+info.p.hu+'% 龙'+info.p.long+'% 入'+info.p.ru+'% 出'+info.p.chu+'%</div>';
+      html += '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);display:flex;gap:1px;margin-bottom:2px;">'+bar+'</div>';
+      if (info.tags.length) html += '<div class="aihint-warn">⚠️ '+info.tags.join(' | ')+'</div>';
+      else html += '<div class="aihint-ok">暂无异常规律</div>';
+    });
+    box.innerHTML = html;
+  }
+  $('globalAIName').addEventListener('input', updateGlobalAI);
+
 
 
   // ===== 从你Excel导入的历史数据 =====
@@ -480,6 +510,8 @@
     xhr.setRequestHeader('Authorization', 'Bearer ' + CLOUD_KEY);
     xhr.setRequestHeader('Content-Type', 'application/json');
     if (opts && opts.prefer) xhr.setRequestHeader('Prefer', opts.prefer);
+    xhr.timeout = (opts && opts.timeout) || 20000;
+    xhr.ontimeout = function(){ cb(new Error('timeout')); };
     xhr.onload = function(){ cb(null, xhr); };
     xhr.onerror = function(){ cb(new Error('net')); };
     xhr.send((opts && opts.body) || null);
@@ -507,13 +539,14 @@
     var all = [];
     (function page(off){
       sbReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
+        if (err){ cb(err); return; }
         var rows = [];
-        if (!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
+        if (xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
         all = all.concat(rows);
         if (rows.length >= 1000) page(off + 1000);
         else {
           all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
-          cb(all);
+          cb(null, all);
         }
       });
     })(0);
@@ -562,7 +595,8 @@
     if (cloudTimer) clearTimeout(cloudTimer);
     cloudTimer = setTimeout(function(){
       // 先读云端最新 → 合并去重 → 只插入云端没有的（不删除、不覆盖）
-      sbFetchAll(function(remoteRows){
+      sbFetchAll(function(err, remoteRows){
+        if (err){ saveLocal(); return; }
         var remoteKeys = {};
         remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + _nt(r.time) + '|' + JSON.stringify(r.list || [])] = 1; });
         // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
@@ -588,7 +622,8 @@
   // 启动拉云端：合并云端与本地，显示全量
   function pullCloud(){
     if (!CLOUD) return;
-    sbFetchAll(function(rows){
+    sbFetchAll(function(err, rows){
+      if (err) return;
       if (!rows || !rows.length) return;
       var remote = rows.map(function(r){
         var list = r.list;
@@ -2461,7 +2496,8 @@ function cell(k, rank){
   function cloudAnalyze(){
     var box = $('cloudContent');
     box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…</div>';
-    sbFetchAll(function(rows){
+    sbFetchAll(function(err, rows){
+      if (err){ box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试</div>'; return; }
       if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; return; }
       var groups = rows.map(function(r){
         var list = r.list;
