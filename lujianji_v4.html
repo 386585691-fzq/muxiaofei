@@ -3155,14 +3155,18 @@ function cell(k, rank){
     var S = [
       {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
       {id:'hot2', name:'🎯 热门2门', desc:'押最常出的2门，中1个算对'},
+      {id:'hot3', name:'🎯 热门3门', desc:'押最常出的3门，中1个算对'},
       {id:'follow', name:'🔁 顺势跟庄', desc:'上把出什么，下把还押什么'},
       {id:'reverse', name:'🔄 反势博弈', desc:'押上把没出的门（对称补缺）'},
       {id:'near', name:'📊 近15手主走', desc:'只看最近15手，押最热1门'},
       {id:'cold', name:'🧊 冷门反买', desc:'押TA最少出的门（防诱单）'},
       {id:'stop', name:'🛑 走过即停', desc:'押后半场还在走的门'},
+      {id:'markov', name:'⚡ 马尔可夫链', desc:'上把出X，按历史下把跟风'},
+      {id:'mean', name:'📉 均值回归', desc:'近15手少走的门押回调'},
+      {id:'trend', name:'🐉 长龙跟踪', desc:'连续走势延续，断则跟历史热'},
       {id:'ai', name:'🤖 综合AI', desc:'近期记录加权投票（现有模型）'},
     ];
-    S.forEach(function(x){ x.hit = 0; x.total = 0; });
+    S.forEach(function(x){ x.hit=0; x.total=0; x.hit3=0; x.total3=0; });
     groups.forEach(function(g, gi){
       var lst = g.list || [];
       if (lst.length < 8) return;
@@ -3181,31 +3185,61 @@ function cell(k, rank){
         var prev = i>0 ? lst[i-1] : null;
         var pre15 = lst.slice(Math.max(0,i-15), i);
         var secondHalf = lst.slice(half, i);
+        var h3 = histN ? topN(hist,3) : [];
+        var p3 = pre15.length>=5 ? topN(cntArr(pre15),3) : [];
+        var s3 = secondHalf.length>=3 ? topN(cntArr(secondHalf),3) : [];
+        var rec3 = recN ? topN(rec,3) : [];
+        var tr = {hu:0,long:0,ru:0,chu:0}; var trN = 0;
+        groups.forEach(function(o, oi){
+          if (oi === gi) return;
+          var ol = o.list||[];
+          for (var t=0;t<ol.length-1;t++){ if (ol[t]===prev && tr[ol[t+1]]!==undefined){ tr[ol[t+1]]++; trN++; } }
+        });
+        var trk = trN ? topN(tr,3) : [];
+        var meanN = pre15.length>=5 ? bottomN(cntArr(pre15),3) : [];
+        var trendK = prev || null;
         var preds = {
-          hot1: histN ? topN(hist, 1) : [],
-          hot2: histN ? topN(hist, 2) : [],
+          hot1: histN ? topN(hist,1) : [],
+          hot2: histN ? topN(hist,2) : [],
+          hot3: h3,
           follow: prev ? [prev] : [],
-          reverse: histN ? topExcept(hist, [prev]) : [],
-          near: pre15.length >= 5 ? topN(cntArr(pre15), 1) : [],
-          cold: histN ? bottomN(hist, 1) : [],
-          stop: secondHalf.length >= 3 ? topN(cntArr(secondHalf), 1) : [],
-          ai: recN ? topN(rec, 1) : (histN ? topN(hist, 1) : [])
+          reverse: histN ? topExcept(hist,[prev]) : [],
+          near: p3.length ? [p3[0]] : [],
+          cold: histN ? bottomN(hist,1) : [],
+          stop: s3.length ? [s3[0]] : [],
+          markov: trk.length ? trk : h3,
+          mean: meanN.length ? meanN : h3,
+          trend: trendK ? [trendK] : h3,
+          ai: recN ? topN(rec,1) : (histN ? topN(hist,1) : [])
+        };
+        var top3map = {
+          hot1: h3, hot2: h3, hot3: h3,
+          follow: prev ? [prev].concat(h3.filter(function(k){return k!==prev;}).slice(0,2)) : [],
+          reverse: histN ? topExcept(hist,[prev]).slice(0,3) : [],
+          near: p3,
+          cold: histN ? bottomN(hist,3) : [],
+          stop: s3,
+          markov: trk.length ? trk.slice(0,3) : h3,
+          mean: meanN.length ? meanN.slice(0,3) : h3,
+          trend: trendK ? [trendK].concat(h3.filter(function(k){return k!==trendK;}).slice(0,2)) : [],
+          ai: rec3
         };
         S.forEach(function(x){
           var p = preds[x.id];
           if (!p || !p.length) return;
-          x.total++;
-          if (p.indexOf(cur) >= 0) x.hit++;
+          x.total++; if (p.indexOf(cur) >= 0) x.hit++;
+          var p3v = top3map[x.id];
+          if (p3v && p3v.length){ x.total3++; if (p3v.indexOf(cur) >= 0) x.hit3++; }
         });
       }
     });
-    S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit / x.total * 100) : 0; });
-    S.sort(function(a,b){ return b.rate - a.rate || b.total - a.total; });
+    S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit/x.total*100) : 0; x.rate3 = x.total3 ? Math.round(x.hit3/x.total3*100) : 0; });
+    S.sort(function(a,b){ return b.rate3 - a.rate3 || b.rate - a.rate || b.total3 - a.total3; });
     return S;
   }
   // 全局策略表 + 流转
-  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', ai:'综合AI'};
-  var STRAT_ORDER = ['hot1','hot2','follow','reverse','near','cold','stop','ai'];
+  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', ai:'综合AI'};
+  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','ai'];
   function strategyPredict(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
     var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
@@ -3243,8 +3277,23 @@ function cell(k, rank){
       var tsp = drs2.filter(function(k){ return th[k] > 0; }).sort(function(a,b){ return th[b]-th[a]; });
       main = tsp[0] || sp[0];
       top3 = tsp.length ? tsp.slice(0,3) : sp.slice(0,3);
-    } else if (sid === 'hot2'){
+    } else if (sid === 'hot2' || sid === 'hot3'){
       top3 = sp.slice(0,3); main = sp[0];
+    } else if (sid === 'markov'){
+      var mk = {hu:0,long:0,ru:0,chu:0};
+      for (var mi=1; mi<lst.length; mi++){ if (lst[mi-1]===prev && mk[lst[mi]]!==undefined) mk[lst[mi]]++; }
+      var mks = drs2.filter(function(k){ return mk[k] > 0; }).sort(function(a,b){ return mk[b]-mk[a]; });
+      main = mks[0] || sp[0];
+      top3 = mks.length ? mks.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'mean'){
+      var mL = lst.slice(-15);
+      var mh = cntArr(mL);
+      var msp = drs2.slice().sort(function(a,b){ return mh[a]-mh[b]; });
+      main = msp[0];
+      top3 = msp.slice(0,3);
+    } else if (sid === 'trend'){
+      main = prev || sp[0];
+      top3 = [main].concat(sp.filter(function(k){ return k !== main; }).slice(0,2));
     } else if (sid === 'hot1'){
       main = sp[0]; top3 = sp.slice(0,3);
     } else {
@@ -3280,15 +3329,16 @@ function cell(k, rank){
       + '<button id="stratCycle" onclick="cycleStrategy()" style="padding:3px 10px;border-radius:8px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.4);cursor:pointer;">🔄 当前推荐：' + STRAT_NAMES[curS] + '（点我流转）</button>'
       + '<span style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
-    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 8大策略对比（留一手验证 · 全部'+groups.length+'组）</div>';
-    html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th></tr>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 12大策略对比（留一手验证 · 3门命中率 · 全部'+groups.length+'组）</div>';
+    html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
     S.forEach(function(x, idx){
       var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
-      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + (idx===0?'🥇 ':'') + x.name + '</td><td style="color:#94a3b8;font-size:10px;">' + x.desc + '</td><td>' + x.hit + '/' + x.total + '</td><td style="color:' + col + ';font-weight:700;">' + x.rate + '%</td></tr>';
+      var col3 = x.rate3>=70?'#4ade80':x.rate3>=60?'#fbbf24':'#93c5fd';
+      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + (idx===0?'🥇 ':'') + x.name + '</td><td style="color:#94a3b8;font-size:10px;">' + x.desc + '</td><td>' + x.hit + '/' + x.total + '</td><td style="color:' + col + ';font-weight:700;">' + x.rate + '%</td><td>' + x.hit3 + '/' + x.total3 + '</td><td style="color:' + col3 + ';font-weight:700;">' + x.rate3 + '%</td></tr>';
     });
     html += '</table>';
-    if (S.length && S[0].total >= 30){
-      html += '<div style="font-size:10px;color:#fbbf24;margin-top:4px;">💡 目前最准：<b>' + S[0].name + '</b>（' + S[0].rate + '%）· 数据越多越接近真实规律</div>';
+    if (S.length && S[0].total3 >= 30){
+      html += '<div style="font-size:10px;color:#fbbf24;margin-top:4px;">💡 3门命中率最准：<b>' + S[0].name + '</b>（' + S[0].rate3 + '%）· 数据越多越接近真实规律</div>';
     }
     return html;
   }
@@ -3681,6 +3731,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v46 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v47 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
