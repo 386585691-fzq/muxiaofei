@@ -194,6 +194,9 @@
   .navbtn{flex:1;padding:8px 0;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:13px;font-weight:700;border:1px solid rgba(251,191,36,.25);cursor:pointer;font-family:inherit;}
   .navbtn:active{background:rgba(251,191,36,.35);}
   #topNav{position:sticky;top:0;z-index:50;display:flex;gap:6px;background:rgba(15,23,42,.95);backdrop-filter:blur(10px);padding:6px 8px;border-bottom:1px solid rgba(251,191,36,.2);}
+
+  .page{display:none;}
+  .page.active{display:block;}
 </style>
 </head>
 <body>
@@ -208,12 +211,13 @@
   </div>
 </div>
 <div id="topNav">
-  <button class="navbtn" data-target="sec-ai">🎯 AI关注</button>
-  <button class="navbtn" data-target="grid">📝 记录</button>
-  <button class="navbtn" data-target="cloudContent">📊 分析</button>
-  <button class="navbtn" data-target="historyContent">📚 历史</button>
+  <button class="navbtn active" data-page="record">📝 记录</button>
+  <button class="navbtn" data-page="ai">🎯 AI关注</button>
+  <button class="navbtn" data-page="analyze">📊 分析</button>
+  <button class="navbtn" data-page="cloud">☁️ 云端分析</button>
+  <button class="navbtn" data-page="history">📚 历史</button>
 </div>
-<div class="current">
+<div class="current page active" id="page-record">
   <div class="group-name-row" id="sec-ai">
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
@@ -241,33 +245,41 @@
 
 
 
-<div class="section-title">
-  <button id="toggleHistory" style="padding:2px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;border:1px solid rgba(251,191,36,.3);cursor:pointer;font-weight:700;">历史组 ▶</button>
-  <button id="toggleTags" style="padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.08);color:#94a3b8;font-size:11px;border:1px solid rgba(255,255,255,.1);cursor:pointer;">人名列表 ▶</button>
-  <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)...">
-</div>
-<div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
-<div id="historyContent" style="display:none;">
-<div id="tagBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
-<!-- ===== 云端分析面板（实时热度/胜率，数据直接来自 Supabase 云端） ===== -->
-<div id="cloudSection" style="margin-bottom:8px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-size:12px;color:#34d399;font-weight:700;">云端分析 · 实时热度/胜率</span>
-    <div style="display:flex;gap:4px;">
-      <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">刷新</button>
-      <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">展开 ▶</button>
-    </div>
-  </div>
-  <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;"></div>
-</div>
-<div id="historyList"></div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-  <button class="action-btn undo" id="exportBtn">导出备份</button>
-  <button class="action-btn undo" id="importBtn">导入恢复</button>
-</div>
-<button class="clear-all" id="clearAllBtn">清空全部历史</button>
-</div>
 
+<div class="page" id="page-ai">
+  <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🎯 AI关注 · 四门规律（从数据学习）</div>
+  <input id="aiNameInput" type="text" placeholder="输入人名（如 顺顺、牡丹），查看这个人的规律" maxlength="20" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:14px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <div id="aiFocusBody" style="margin-top:6px;"></div>
+  <div id="aiFocusList" style="margin-top:8px;"></div>
+</div>
+<div class="page" id="page-analyze">
+  <div id="analyzeBody"></div>
+</div>
+<div class="page" id="page-cloud">
+  <div id="cloudSection" style="margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:#34d399;font-weight:700;">云端分析 · 实时热度/胜率</span>
+      <div style="display:flex;gap:4px;">
+        <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">
+        <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">
+      </div>
+    </div>
+    <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;">
+  </div>
+</div>
+<div class="page" id="page-history">
+  <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
+    <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)...">
+  </div>
+  <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;">
+  <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;">
+  <div id="historyList">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+    <button class="action-btn undo" id="exportBtn">导出备份</button>
+    <button class="action-btn undo" id="importBtn">导入恢复</button>
+  </div>
+  <button class="clear-all" id="clearAllBtn">清空全部历史</button>
+</div>
 <script>
 (function(){
   const PWD_KEY = 'road_pwd_v1';
@@ -318,47 +330,106 @@
     this.textContent = show ? '收起 ▼' : '展开 ▶';
   });
 
-  // 折叠历史组的人名列表
-  document.getElementById('toggleHistory').addEventListener('click', function(){
-    var c = document.getElementById('historyContent');
-    var b = document.getElementById('toggleHistory');
-    if (c.style.display === 'none'){
-      c.style.display = 'block';
-      b.textContent = '历史组 ▼';
-    } else {
-      c.style.display = 'none';
-      b.textContent = '历史组 ▶';
+
+
+  // ===== 页面切换：5 个独立页面（记录/AI关注/分析/云端分析/历史） =====
+  function switchPage(p){
+    document.querySelectorAll('.page').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.navbtn').forEach(function(x){ x.classList.remove('active'); });
+    var el = document.getElementById('page-' + p);
+    if (el) el.classList.add('active');
+    var nb = document.querySelector('.navbtn[data-page="' + p + '"]');
+    if (nb) nb.classList.add('active');
+    if (p === 'record') render();
+    if (p === 'ai') renderAIPage();
+    if (p === 'analyze') renderAnalyzePage();
+    if (p === 'cloud'){
+      var cc = document.getElementById('cloudContent');
+      if (cc && cc.style.display === 'none') showCloudPanel(); else cloudAnalyze();
     }
-  });
-
-  // 顶部导航：点一下跳到对应板块（分析/历史没展开的自动展开）
+    if (p === 'history'){ renderTags(); renderHistory(); }
+    window.scrollTo(0,0);
+  }
   document.querySelectorAll('.navbtn').forEach(function(b){
-    b.addEventListener('click', function(){
-      var t = b.dataset.target;
-      // 云端分析嵌在历史区里：先展开历史区，再展开云端分析
-      if (t === 'cloudContent'){
-        var hc0 = document.getElementById('historyContent');
-        var th0 = document.getElementById('toggleHistory');
-        if (hc0 && hc0.style.display === 'none' && th0){ th0.click(); }
-        var cc0 = document.getElementById('cloudContent');
-        if (cc0 && cc0.style.display === 'none') showCloudPanel();
-      }
-      if (t === 'historyContent'){
-        var hc = document.getElementById('historyContent');
-        var th = document.getElementById('toggleHistory');
-        if (hc && hc.style.display === 'none' && th){ th.click(); }
-      }
-      var el = document.getElementById(t);
-      if (el) setTimeout(function(){ el.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
-    });
+    b.addEventListener('click', function(){ switchPage(b.dataset.page); });
   });
 
-  document.getElementById('toggleTags').addEventListener('click', function(){
-    const bar = document.getElementById('tagBar');
-    const show = bar.style.display === 'none';
-    bar.style.display = show ? 'flex' : 'none';
-    this.textContent = show ? '人名列表 ▼' : '人名列表 ▶';
-  });
+  // AI关注页：全局平均 + 个人规律 + 关注列表
+  function renderAIPage(){
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    var gT = {hu:0,long:0,ru:0,chu:0,all:0};
+    state.groups.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
+    var gp = {};
+    drs.forEach(function(x){ gp[x] = gT.all ? Math.round(gT[x]/gT.all*100) : 25; });
+    var q = ($('aiNameInput').value||'').trim();
+    var body = $('aiFocusBody');
+    var html = '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎯 全局平均 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（从'+state.groups.length+'组数据学习）</div>';
+    if (q){
+      var nms = q.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
+      nms.forEach(function(n){
+        var info = calcFocusNearName(n);
+        if (!info){ html += '<div class="aihint-ok">'+n+'：暂无数据（需≥8手）</div>'; return; }
+        var bar = '';
+        drs.forEach(function(x){ bar += '<span style="display:inline-block;width:'+info.p[x]+'%;background:'+(x==='hu'?'#dc2626':x==='long'?'#2563eb':x==='ru'?'#16a34a':'#64748b')+';height:6px;border-radius:2px;"></span>'; });
+        html += '<div style="font-size:13px;color:#fef3c7;font-weight:700;">'+n+'：虎'+info.p.hu+'% 龙'+info.p.long+'% 入'+info.p.ru+'% 出'+info.p.chu+'%</div>';
+        html += '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);display:flex;gap:1px;margin-bottom:3px;">'+bar+'</div>';
+        if (info.tags.length) html += '<div class="aihint-warn">⚠️ '+info.tags.join(' | ')+'</div>';
+        else html += '<div class="aihint-ok">暂无异常规律</div>';
+      });
+    } else {
+      html += '<div style="font-size:11px;color:#94a3b8;">输入人名查看四门规律与诱单警示（如：顺顺、牡丹）</div>';
+    }
+    body.innerHTML = html;
+    var names = [];
+    state.groups.forEach(function(g){ if (g.name && names.indexOf(g.name) < 0) names.push(g.name); });
+    var items = [];
+    names.forEach(function(n){
+      var info = calcFocusNearName(n);
+      if (info) items.push({n:n, info:info});
+    });
+    items.sort(function(a,b){ return b.info.tags.length - a.info.tags.length; });
+    var lh = '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:10px 0 4px;">关注列表（'+items.length+'人 · ≥8手）</div>';
+    if (!items.length) lh += '<div style="font-size:11px;color:#64748b;">数据还不够，先记录一些组（每人≥8手）</div>';
+    items.slice(0,30).forEach(function(it){
+      var tag = it.info.tags.length ? '<span style="color:#f87171;font-weight:700;">⚠️'+it.info.tags.slice(0,3).join('、')+'</span>' : '<span style="color:#94a3b8;">暂无异常</span>';
+      lh += '<div style="font-size:11px;padding:5px 8px;margin-bottom:3px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.12);border-radius:6px;"><span style="color:#fef3c7;font-weight:700;">'+it.n+'</span> 虎'+it.info.p.hu+'% 龙'+it.info.p.long+'% 入'+it.info.p.ru+'% 出'+it.info.p.chu+'% '+tag+'</div>';
+    });
+    $('aiFocusList').innerHTML = lh;
+  }
+
+  // 分析页：本地全量统计（四门分布/每日记录量/TOP热度）
+  function renderAnalyzePage(){
+    var box = $('analyzeBody');
+    var drs = ['hu','long','ru','chu'];
+    var gT = {hu:0,long:0,ru:0,chu:0,all:0};
+    var dayMap = {};
+    var nm = {};
+    state.groups.forEach(function(g){
+      if(!g||!g.list) return;
+      (g.list||[]).forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} });
+      var d = String(g.time||'').split(' ')[0];
+      if (d) dayMap[d] = (dayMap[d]||0)+1;
+      var nn = String(g.name||'');
+      nn.split(/[,，]/).forEach(function(s){ s = s.trim(); if (s){ nm[s] = nm[s] || {groups:0,hands:0}; nm[s].groups++; nm[s].hands += (g.list||[]).length; } });
+    });
+    var html = '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;">📊 本地分析 · 全部数据统计</div>';
+    html += '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">共'+state.groups.length+'组 · '+gT.all+'手 · '+Object.keys(nm).length+'人</div>';
+    var bar = '';
+    drs.forEach(function(x){ var w = gT.all ? Math.round(gT[x]/gT.all*100) : 0; bar += '<span style="display:inline-block;width:'+w+'%;background:'+(x==='hu'?'#dc2626':x==='long'?'#2563eb':x==='ru'?'#16a34a':'#64748b')+';height:8px;border-radius:2px;"></span>'; });
+    html += '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.06);display:flex;gap:1px;margin-bottom:4px;">'+bar+'</div>';
+    html += '<div style="font-size:11px;color:#fef3c7;margin-bottom:8px;">全局分布 虎'+(gT.all?Math.round(gT.hu/gT.all*100):0)+'% 龙'+(gT.all?Math.round(gT.long/gT.all*100):0)+'% 入'+(gT.all?Math.round(gT.ru/gT.all*100):0)+'% 出'+(gT.all?Math.round(gT.chu/gT.all*100):0)+'%</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:3px;">每日记录量</div>';
+    var days = Object.keys(dayMap).sort();
+    days.slice(-14).forEach(function(d){ html += '<div style="font-size:10px;color:#94a3b8;">'+d+'：'+dayMap[d]+'组</div>'; });
+    html += '<div style="font-size:11px;color:#38bdf8;font-weight:700;margin:8px 0 3px;">TOP15 热度（按组数）</div>';
+    var hot = Object.keys(nm).map(function(n){ return {n:n, g:nm[n].groups, h:nm[n].hands}; }).sort(function(a,b){ return b.g-a.g || b.h-a.h; }).slice(0,15);
+    hot.forEach(function(x){ html += '<div style="font-size:10px;color:#94a3b8;">'+x.n+'：'+x.g+'组 · '+x.h+'手</div>'; });
+    box.innerHTML = html;
+  }
+  $('aiNameInput').addEventListener('input', renderAIPage);
+
+
 
   // ===== 从你Excel导入的历史数据 =====
   const INITIAL_GROUPS = [
