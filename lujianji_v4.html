@@ -3164,9 +3164,30 @@ function cell(k, rank){
       {id:'markov', name:'⚡ 马尔可夫链', desc:'上把出X，按历史下把跟风'},
       {id:'mean', name:'📉 均值回归', desc:'近15手少走的门押回调'},
       {id:'trend', name:'🐉 长龙跟踪', desc:'连续走势延续，断则跟历史热'},
+      {id:'zone', name:'🗄️ 分区热推', desc:'虎龙/入出两区，押热区里的门'},
+      {id:'cut', name:'🔗 断龙反打', desc:'连3+同门押它断，押其它门'},
+      {id:'hour', name:'🕐 时段偏好', desc:'按当前时段TA的习惯押'},
+      {id:'deep', name:'🧠 深度AI', desc:'历史+近15+转移多信号加权'},
+      {id:'cycle', name:'🎡 四门轮转', desc:'押这局还没出的门'},
+      {id:'head', name:'🔮 前段走势', desc:'本局前段热的门接着押'},
+      {id:'champ', name:'🏆 全组共识', desc:'押这局目前最热的门'},
+      {id:'sym', name:'📐 对称补数', desc:'上把虎押出、龙押入对角补'},
+      {id:'order', name:'🧩 二阶马尔可夫', desc:'上上把+上把组合，押下把'},
+      {id:'slope', name:'📈 趋势加速', desc:'押近期比历史增长最快的门'},
+      {id:'mid', name:'🥈 双门夹击', desc:'押第二热门+补位'},
+      {id:'bayes', name:'🧮 贝叶斯更新', desc:'转移+先验加权算概率'},
+      {id:'first', name:'🏁 首局定调', desc:'本局第一手出了什么继续押'},
+      {id:'multi', name:'👑 连庄续打', desc:'连着的方向继续押一把'},
+      {id:'regress', name:'📦 全局回归', desc:'全局最少出的门押补缺'},
+      {id:'mono', name:'🎰 蒙特卡洛', desc:'按历史比例随机模拟100把'},
+      {id:'meta', name:'🧠 元学习', desc:'学近期哪种押法最准就用哪种'},
+      {id:'grp30', name:'🕰️ 近30手主走', desc:'只看最近30手，押最热'},
+      {id:'even', name:'⚖️ 均衡平门', desc:'押占比最接近四分之一的门'},
+      {id:'sleep', name:'💤 反走过即停', desc:'押后半场少走的门'},
       {id:'ai', name:'🤖 综合AI', desc:'近期记录加权投票（现有模型）'},
     ];
     S.forEach(function(x){ x.hit=0; x.total=0; x.hit3=0; x.total3=0; });
+    var drs2 = ['hu','long','ru','chu'];
     groups.forEach(function(g, gi){
       var lst = g.list || [];
       if (lst.length < 8) return;
@@ -3179,16 +3200,27 @@ function cell(k, rank){
       groups.slice(Math.max(0, gi-10), gi).forEach(function(o){
         (o.list||[]).forEach(function(x){ if (rec[x]!==undefined){ rec[x]++; recN++; } });
       });
+      var hh = String(g.time || '').split(' ')[1] || '';
+      var hhH = {hu:0,long:0,ru:0,chu:0}; var hhN = 0;
+      groups.forEach(function(o, oi){
+        if (oi === gi) return;
+        var ot = String(o.time || '').split(' ')[1] || '';
+        if (!hh || !ot || ot.slice(0,2) !== hh.slice(0,2)) return;
+        (o.list||[]).forEach(function(x){ if (hhH[x]!==undefined){ hhH[x]++; hhN++; } });
+      });
       var half = Math.floor(lst.length / 2);
+      var hspG = histN ? drs2.filter(function(k){ return hist[k]>0; }).sort(function(a,b){ return hist[b]-hist[a]; }) : [];
       for (var i=0;i<lst.length;i++){
         var cur = lst[i];
         var prev = i>0 ? lst[i-1] : null;
+        var prev2 = i>=2 ? lst[i-2] : null;
         var pre15 = lst.slice(Math.max(0,i-15), i);
         var secondHalf = lst.slice(half, i);
         var h3 = histN ? topN(hist,3) : [];
         var p3 = pre15.length>=5 ? topN(cntArr(pre15),3) : [];
         var s3 = secondHalf.length>=3 ? topN(cntArr(secondHalf),3) : [];
         var rec3 = recN ? topN(rec,3) : [];
+        var hh3 = hhN ? topN(hhH,3) : [];
         var tr = {hu:0,long:0,ru:0,chu:0}; var trN = 0;
         groups.forEach(function(o, oi){
           if (oi === gi) return;
@@ -3198,6 +3230,82 @@ function cell(k, rank){
         var trk = trN ? topN(tr,3) : [];
         var meanN = pre15.length>=5 ? bottomN(cntArr(pre15),3) : [];
         var trendK = prev || null;
+        var zoneK = histN ? topN(hist,3) : [];
+        var streak = 1;
+        for (var jj=i-1; jj>=0 && lst[jj]===lst[i-1]; jj--) streak++;
+        var cutK = streak >= 3 ? drs2.filter(function(k){ return k !== lst[i-1]; }).slice(0,3) : h3;
+        var sc = {hu:0,long:0,ru:0,chu:0};
+        h3.forEach(function(k, ii){ sc[k] += 3 - ii; });
+        p3.forEach(function(k, ii){ sc[k] += 2 - ii; });
+        trk.forEach(function(k, ii){ sc[k] += 1 - ii; });
+        if (prev) sc[prev] += 1;
+        var deepK = topN(sc,3);
+        var seen = {}; lst.slice(0, i).forEach(function(x){ seen[x] = 1; });
+        var unseen = drs2.filter(function(k){ return !seen[k]; });
+        var cycleK = h3;
+        if (unseen.length){
+          var us2 = unseen.slice().sort(function(a,b){ return hist[b]-hist[a]; });
+          cycleK = us2.slice(0,3);
+        }
+        var headK = i>=3 ? topN(cntArr(lst.slice(0,i)),3) : h3;
+        var c0 = i>=1 ? topN(cntArr(lst.slice(0,i)),1) : [];
+        var champK = c0.length ? [c0[0]].concat(h3.filter(function(k){ return k !== c0[0]; }).slice(0,2)) : h3;
+        var symK = [];
+        if (prev === 'hu') symK = ['chu']; else if (prev === 'chu') symK = ['hu'];
+        else if (prev === 'long') symK = ['ru']; else if (prev === 'ru') symK = ['long'];
+        if (symK.length){
+          var rest = h3.filter(function(k){ return k !== symK[0]; }).slice(0,2);
+          symK = [symK[0]].concat(rest);
+        } else symK = h3;
+        var od = {hu:0,long:0,ru:0,chu:0}; var odN = 0;
+        if (prev2){
+          groups.forEach(function(o, oi){
+            if (oi === gi) return;
+            var ol = o.list||[];
+            for (var t2=2;t2<ol.length;t2++){
+              if (ol[t2-2]===prev2 && ol[t2-1]===prev && od[ol[t2]]!==undefined){ od[ol[t2]]++; odN++; }
+            }
+          });
+        }
+        var orderK = odN ? topN(od,3) : (trk.length ? trk : h3);
+        var n10 = cntArr(lst.slice(Math.max(0,i-10), i));
+        var sc2 = {hu:0,long:0,ru:0,chu:0};
+        drs2.forEach(function(k){ sc2[k] = ((n10[k]||0)/Math.max(1,Math.min(10,i))) - ((hist[k]||0)/Math.max(1,histN)); });
+        var sl = drs2.filter(function(k){ return sc2[k] > -9; }).sort(function(a,b){ return sc2[b]-sc2[a]; });
+        var slopeK = sl.length ? sl.slice(0,3) : h3;
+        var midK = histN && hspG.length>=2 ? [hspG[1]].concat(h3.filter(function(k){ return k !== hspG[1]; }).slice(0,2)) : h3;
+        var bs = {hu:0,long:0,ru:0,chu:0};
+        drs2.forEach(function(k){ bs[k] = (tr[k]||0) + 0.5*(hist[k]||0); });
+        var bayesK = topN(bs,3);
+        var firstK = lst.length ? [lst[0]].concat(h3.filter(function(k){ return k !== lst[0]; }).slice(0,2)) : h3;
+        var multiK = streak>=2 ? [lst[i-1]].concat(h3.filter(function(k){ return k !== lst[i-1]; }).slice(0,2)) : h3;
+        var regressK = histN ? bottomN(hist,3) : h3;
+        var mo = {hu:0,long:0,ru:0,chu:0};
+        for (var mz=0;mz<100;mz++){
+          var rr = Math.random()*histN, acc2 = 0, pk = null;
+          drs2.forEach(function(k){ acc2 += hist[k]||0; if (rr < acc2 && pk === null) pk = k; });
+          if (pk === null) pk = drs2[0];
+          mo[pk] = (mo[pk]||0) + 1;
+        }
+        var monoK = topN(mo,3);
+        var metaBest = 'hot2', metaBestHit = -1;
+        ['hot2','follow','near'].forEach(function(sid2){
+          var hh2 = 0, tt2 = 0;
+          for (var mj = Math.max(1, i-15); mj < i; mj++){
+            var pp2 = lst[mj-1], pc2 = lst[mj];
+            var p152 = lst.slice(Math.max(0,mj-15), mj);
+            var mPred = sid2==='follow' ? [pp2] : sid2==='near' ? (p152.length>=5 ? [topN(cntArr(p152),1)[0]] : []) : topN(cntArr(lst.slice(0,mj)),2);
+            if (mPred && mPred.length && mPred.indexOf(pc2)>=0) hh2++;
+            tt2++;
+          }
+          if (tt2 && hh2/tt2 > metaBestHit){ metaBestHit = hh2/tt2; metaBest = sid2; }
+        });
+        var metaK = metaBest==='follow' ? [prev].concat(h3.filter(function(k){ return k !== prev; }).slice(0,2)) : metaBest==='near' ? p3 : h3;
+        var g30 = lst.slice(Math.max(0,i-30), i);
+        var g30K = g30.length>=5 ? topN(cntArr(g30),3) : h3;
+        var ev = drs2.slice().sort(function(a,b){ return Math.abs((hist[a]||0)/Math.max(1,histN)-0.25) - Math.abs((hist[b]||0)/Math.max(1,histN)-0.25); });
+        var evenK = [ev[0]].concat(h3.filter(function(k){ return k !== ev[0]; }).slice(0,2));
+        var sleepK = secondHalf.length>=3 ? bottomN(cntArr(secondHalf),3) : h3;
         var preds = {
           hot1: histN ? topN(hist,1) : [],
           hot2: histN ? topN(hist,2) : [],
@@ -3210,6 +3318,26 @@ function cell(k, rank){
           markov: trk.length ? trk : h3,
           mean: meanN.length ? meanN : h3,
           trend: trendK ? [trendK] : h3,
+          zone: zoneK,
+          cut: cutK,
+          hour: hh3.length ? hh3 : h3,
+          deep: deepK.length ? deepK : h3,
+          cycle: cycleK,
+          head: headK.length ? headK : h3,
+          champ: champK.length ? champK : h3,
+          sym: symK,
+          order: orderK,
+          slope: slopeK,
+          mid: midK,
+          bayes: bayesK,
+          first: firstK,
+          multi: multiK,
+          regress: regressK,
+          mono: monoK,
+          meta: metaK,
+          grp30: g30K,
+          even: evenK,
+          sleep: sleepK,
           ai: recN ? topN(rec,1) : (histN ? topN(hist,1) : [])
         };
         var top3map = {
@@ -3222,6 +3350,26 @@ function cell(k, rank){
           markov: trk.length ? trk.slice(0,3) : h3,
           mean: meanN.length ? meanN.slice(0,3) : h3,
           trend: trendK ? [trendK].concat(h3.filter(function(k){return k!==trendK;}).slice(0,2)) : [],
+          zone: zoneK.slice(0,3),
+          cut: cutK.slice(0,3),
+          hour: (hh3.length ? hh3 : h3).slice(0,3),
+          deep: (deepK.length ? deepK : h3).slice(0,3),
+          cycle: cycleK.slice(0,3),
+          head: (headK.length ? headK : h3).slice(0,3),
+          champ: (champK.length ? champK : h3).slice(0,3),
+          sym: symK.slice(0,3),
+          order: orderK.slice(0,3),
+          slope: slopeK.slice(0,3),
+          mid: midK.slice(0,3),
+          bayes: bayesK.slice(0,3),
+          first: firstK.slice(0,3),
+          multi: multiK.slice(0,3),
+          regress: regressK.slice(0,3),
+          mono: monoK.slice(0,3),
+          meta: metaK.slice(0,3),
+          grp30: g30K.slice(0,3),
+          even: evenK.slice(0,3),
+          sleep: sleepK.slice(0,3),
           ai: rec3
         };
         S.forEach(function(x){
@@ -3238,8 +3386,8 @@ function cell(k, rank){
     return S;
   }
   // 全局策略表 + 流转
-  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', ai:'综合AI'};
-  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','ai'];
+  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', ai:'综合AI'};
+  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','ai'];
   function strategyPredict(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
     var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
@@ -3250,6 +3398,44 @@ function cell(k, rank){
     drs2.forEach(function(k){ probs[k] = lst.length ? Math.round(hist[k]/lst.length*100) : 25; });
     var top3 = [], main = null;
     var prev = lst.length ? lst[lst.length-1] : null;
+    var prev2 = lst.length >= 2 ? lst[lst.length-2] : null;
+    var h3 = sp.slice(0,3);
+    var nearL = lst.slice(-15), nh = cntArr(nearL);
+    var nsp = drs2.filter(function(k){ return nh[k] > 0; }).sort(function(a,b){ return nh[b]-nh[a]; });
+    var g30L = lst.slice(-30), g30h = cntArr(g30L);
+    var g30sp = drs2.filter(function(k){ return g30h[k] > 0; }).sort(function(a,b){ return g30h[b]-g30h[a]; });
+    var mh = cntArr(nearL);
+    var msp = drs2.slice().sort(function(a,b){ return mh[a]-mh[b]; });
+    var lastG = gr.length ? gr[gr.length-1] : null;
+    var lg = (lastG && lastG.list && lastG.list.length) ? lastG.list : lst;
+    var tail2 = lg.slice(Math.floor(lg.length/2));
+    var th = cntArr(tail2);
+    var tsp = drs2.filter(function(k){ return th[k] > 0; }).sort(function(a,b){ return th[b]-th[a]; });
+    var streak = 1;
+    for (var jj=lst.length-1; jj>=0 && lst[jj]===lst[lst.length-1]; jj--) streak++;
+    var tr = {hu:0,long:0,ru:0,chu:0};
+    for (var mi=1; mi<lst.length; mi++){ if (lst[mi-1]===prev && tr[lst[mi]]!==undefined) tr[lst[mi]]++; }
+    var trs = drs2.filter(function(k){ return tr[k] > 0; }).sort(function(a,b){ return tr[b]-tr[a]; });
+    var od = {hu:0,long:0,ru:0,chu:0};
+    if (prev2){ for (var mi2=2; mi2<lst.length; mi2++){ if (lst[mi2-2]===prev2 && lst[mi2-1]===prev && od[lst[mi2]]!==undefined) od[lst[mi2]]++; } }
+    var ods = drs2.filter(function(k){ return od[k] > 0; }).sort(function(a,b){ return od[b]-od[a]; });
+    var recL = []; gr.slice(-10).forEach(function(g){ recL = recL.concat(g.list||[]); });
+    var rh = cntArr(recL);
+    var rsp = drs2.filter(function(k){ return rh[k] > 0; }).sort(function(a,b){ return rh[b]-rh[a]; });
+    var seen = {}; lst.forEach(function(x){ seen[x] = 1; });
+    var unseen = drs2.filter(function(k){ return !seen[k]; }).sort(function(a,b){ return hist[b]-hist[a]; });
+    var bs = {}; drs2.forEach(function(k){ bs[k] = (tr[k]||0) + 0.5*(hist[k]||0); });
+    var bsp = drs2.slice().sort(function(a,b){ return bs[b]-bs[a]; });
+    var n10 = cntArr(lst.slice(-10));
+    var sc2 = {}; drs2.forEach(function(k){ sc2[k] = ((n10[k]||0)/Math.max(1,Math.min(10,lst.length))) - ((hist[k]||0)/Math.max(1,lst.length)); });
+    var sl = drs2.filter(function(k){ return sc2[k] > -9; }).sort(function(a,b){ return sc2[b]-sc2[a]; });
+    var ev = drs2.slice().sort(function(a,b){ return Math.abs((hist[a]||0)/Math.max(1,lst.length)-0.25) - Math.abs((hist[b]||0)/Math.max(1,lst.length)-0.25); });
+    var sc = {}; drs2.forEach(function(k){ sc[k] = 0; });
+    h3.forEach(function(k, ii){ sc[k] += 3 - ii; });
+    nsp.forEach(function(k, ii){ sc[k] += 2 - ii; });
+    trs.forEach(function(k, ii){ sc[k] += 1 - ii; });
+    if (prev) sc[prev] += 1;
+    var dsp = drs2.slice().sort(function(a,b){ return sc[b]-sc[a]; });
     if (sid === 'follow'){
       main = prev || sp[0];
       top3 = [main].concat(sp.slice(0,2));
@@ -3258,9 +3444,6 @@ function cell(k, rank){
       main = rev[0] || sp[0];
       top3 = [main].concat(sp.slice(0,2));
     } else if (sid === 'near'){
-      var nearL = lst.slice(-15);
-      var nh = cntArr(nearL);
-      var nsp = drs2.filter(function(k){ return nh[k] > 0; }).sort(function(a,b){ return nh[b]-nh[a]; });
       main = nsp[0] || sp[0];
       top3 = nsp.length ? nsp.slice(0,3) : sp.slice(0,3);
       drs2.forEach(function(k){ probs[k] = nearL.length ? Math.round(nh[k]/nearL.length*100) : 25; });
@@ -3269,37 +3452,117 @@ function cell(k, rank){
       main = csp[0];
       top3 = [csp[0]].concat(sp.slice(0,2));
     } else if (sid === 'stop'){
-      var lastG = gr.length ? gr[gr.length-1] : null;
-      var lg = (lastG && lastG.list && lastG.list.length) ? lastG.list : lst;
-      var half2 = Math.floor(lg.length/2);
-      var tail2 = lg.slice(half2);
-      var th = cntArr(tail2);
-      var tsp = drs2.filter(function(k){ return th[k] > 0; }).sort(function(a,b){ return th[b]-th[a]; });
       main = tsp[0] || sp[0];
       top3 = tsp.length ? tsp.slice(0,3) : sp.slice(0,3);
-    } else if (sid === 'hot2' || sid === 'hot3'){
+    } else if (sid === 'hot2' || sid === 'hot3' || sid === 'hot1'){
       top3 = sp.slice(0,3); main = sp[0];
     } else if (sid === 'markov'){
-      var mk = {hu:0,long:0,ru:0,chu:0};
-      for (var mi=1; mi<lst.length; mi++){ if (lst[mi-1]===prev && mk[lst[mi]]!==undefined) mk[lst[mi]]++; }
-      var mks = drs2.filter(function(k){ return mk[k] > 0; }).sort(function(a,b){ return mk[b]-mk[a]; });
-      main = mks[0] || sp[0];
-      top3 = mks.length ? mks.slice(0,3) : sp.slice(0,3);
+      main = trs[0] || sp[0];
+      top3 = trs.length ? trs.slice(0,3) : sp.slice(0,3);
     } else if (sid === 'mean'){
-      var mL = lst.slice(-15);
-      var mh = cntArr(mL);
-      var msp = drs2.slice().sort(function(a,b){ return mh[a]-mh[b]; });
       main = msp[0];
       top3 = msp.slice(0,3);
     } else if (sid === 'trend'){
       main = prev || sp[0];
       top3 = [main].concat(sp.filter(function(k){ return k !== main; }).slice(0,2));
-    } else if (sid === 'hot1'){
-      main = sp[0]; top3 = sp.slice(0,3);
+    } else if (sid === 'zone'){
+      main = sp[0];
+      top3 = sp.slice(0,3);
+    } else if (sid === 'cut'){
+      var ck = streak >= 3 ? drs2.filter(function(k){ return k !== prev; }).slice(0,3) : sp.slice(0,3);
+      main = ck[0] || sp[0];
+      top3 = ck.length ? ck : sp.slice(0,3);
+    } else if (sid === 'hour'){
+      var hh = String((lastG && lastG.time) || '').split(' ')[1] || '';
+      var hhH = {hu:0,long:0,ru:0,chu:0};
+      gr.forEach(function(g){ var ot = String(g.time||'').split(' ')[1]||''; if (ot.slice(0,2) === hh.slice(0,2)){ (g.list||[]).forEach(function(x){ if (hhH[x]!==undefined) hhH[x]++; }); } });
+      var hhsp = drs2.filter(function(k){ return hhH[k] > 0; }).sort(function(a,b){ return hhH[b]-hhH[a]; });
+      main = hhsp[0] || sp[0];
+      top3 = hhsp.length ? hhsp.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'deep'){
+      main = dsp[0] || sp[0];
+      top3 = dsp.length ? dsp.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'cycle'){
+      main = unseen[0] || sp[0];
+      top3 = unseen.length ? unseen.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'head'){
+      var hd = lst.length >= 3 ? topN(cntArr(lst.slice(0, lst.length)),3) : sp.slice(0,3);
+      main = hd[0] || sp[0];
+      top3 = hd.length ? hd : sp.slice(0,3);
+    } else if (sid === 'champ'){
+      var cp = topN(cntArr(lst),3);
+      main = cp[0] || sp[0];
+      top3 = cp.length ? cp : sp.slice(0,3);
+    } else if (sid === 'sym'){
+      var sk = [];
+      if (prev === 'hu') sk = ['chu']; else if (prev === 'chu') sk = ['hu'];
+      else if (prev === 'long') sk = ['ru']; else if (prev === 'ru') sk = ['long'];
+      if (sk.length){ sk = [sk[0]].concat(sp.filter(function(k){ return k !== sk[0]; }).slice(0,2)); }
+      else sk = sp.slice(0,3);
+      main = sk[0] || sp[0];
+      top3 = sk;
+    } else if (sid === 'order'){
+      main = ods[0] || sp[0];
+      top3 = ods.length ? ods.slice(0,3) : (trs.length ? trs.slice(0,3) : sp.slice(0,3));
+    } else if (sid === 'slope'){
+      main = sl[0] || sp[0];
+      top3 = sl.length ? sl.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'mid'){
+      main = sp[1] || sp[0];
+      top3 = sp.length>=2 ? [sp[1]].concat(sp.filter(function(k){ return k !== sp[1]; }).slice(0,2)) : sp.slice(0,3);
+    } else if (sid === 'bayes'){
+      main = bsp[0] || sp[0];
+      top3 = bsp.length ? bsp.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'first'){
+      main = lst[0] || sp[0];
+      top3 = lst.length ? [lst[0]].concat(sp.filter(function(k){ return k !== lst[0]; }).slice(0,2)) : sp.slice(0,3);
+    } else if (sid === 'multi'){
+      main = streak>=2 ? (prev || sp[0]) : sp[0];
+      top3 = streak>=2 ? [main].concat(sp.filter(function(k){ return k !== main; }).slice(0,2)) : sp.slice(0,3);
+    } else if (sid === 'regress'){
+      var rk = drs2.slice().sort(function(a,b){ return hist[a]-hist[b]; });
+      main = rk[0] || sp[0];
+      top3 = rk.slice(0,3);
+    } else if (sid === 'mono'){
+      var mo = {hu:0,long:0,ru:0,chu:0};
+      var tot = Math.max(1, lst.length);
+      for (var mz=0;mz<100;mz++){
+        var rr = Math.random()*tot, acc2 = 0, pk = null;
+        drs2.forEach(function(k){ acc2 += hist[k]||0; if (rr < acc2 && pk === null) pk = k; });
+        if (pk === null) pk = drs2[0];
+        mo[pk] = (mo[pk]||0) + 1;
+      }
+      var mok = drs2.slice().sort(function(a,b){ return mo[b]-mo[a]; });
+      main = mok[0] || sp[0];
+      top3 = mok.slice(0,3);
+    } else if (sid === 'meta'){
+      var metaBest = 'hot2', metaBestHit = -1;
+      ['hot2','follow','near'].forEach(function(sid2){
+        var hh2 = 0, tt2 = 0;
+        for (var mj = Math.max(1, lst.length-15); mj < lst.length; mj++){
+          var pp2 = lst[mj-1], pc2 = lst[mj];
+          var p152 = lst.slice(Math.max(0,mj-15), mj);
+          var mPred = sid2==='follow' ? [pp2] : sid2==='near' ? (p152.length>=5 ? [topN(cntArr(p152),1)[0]] : []) : topN(cntArr(lst.slice(0,mj)),2);
+          if (mPred && mPred.length && mPred.indexOf(pc2)>=0) hh2++;
+          tt2++;
+        }
+        if (tt2 && hh2/tt2 > metaBestHit){ metaBestHit = hh2/tt2; metaBest = sid2; }
+      });
+      if (metaBest === 'follow'){ main = prev || sp[0]; top3 = [main].concat(sp.filter(function(k){ return k !== main; }).slice(0,2)); }
+      else if (metaBest === 'near'){ main = nsp[0] || sp[0]; top3 = nsp.length ? nsp.slice(0,3) : sp.slice(0,3); }
+      else { main = sp[0]; top3 = sp.slice(0,3); }
+    } else if (sid === 'grp30'){
+      main = g30sp[0] || sp[0];
+      top3 = g30sp.length ? g30sp.slice(0,3) : sp.slice(0,3);
+      drs2.forEach(function(k){ probs[k] = g30L.length ? Math.round(g30h[k]/g30L.length*100) : 25; });
+    } else if (sid === 'even'){
+      main = ev[0] || sp[0];
+      top3 = [ev[0]].concat(sp.filter(function(k){ return k !== ev[0]; }).slice(0,2));
+    } else if (sid === 'sleep'){
+      var sk2 = drs2.slice().sort(function(a,b){ return th[a]-th[b]; });
+      main = sk2[0] || sp[0];
+      top3 = sk2.slice(0,3);
     } else {
-      var recL = []; gr.slice(-10).forEach(function(g){ recL = recL.concat(g.list||[]); });
-      var rh = cntArr(recL);
-      var rsp = drs2.filter(function(k){ return rh[k] > 0; }).sort(function(a,b){ return rh[b]-rh[a]; });
       main = rsp[0] || sp[0];
       top3 = rsp.length ? rsp.slice(0,3) : sp.slice(0,3);
       drs2.forEach(function(k){ probs[k] = recL.length ? Math.round(rh[k]/recL.length*100) : probs[k]; });
@@ -3329,7 +3592,7 @@ function cell(k, rank){
       + '<button id="stratCycle" onclick="cycleStrategy()" style="padding:3px 10px;border-radius:8px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.4);cursor:pointer;">🔄 当前推荐：' + STRAT_NAMES[curS] + '（点我流转）</button>'
       + '<span style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
-    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 12大策略对比（留一手验证 · 3门命中率 · 全部'+groups.length+'组）</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 32大策略对比（留一手验证 · 3门命中率 · 全部'+groups.length+'组）</div>';
     html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
     S.forEach(function(x, idx){
       var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
@@ -3731,6 +3994,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v47 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v48 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
