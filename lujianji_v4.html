@@ -281,8 +281,8 @@
   <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
     <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)...">
   </div>
-  <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;">
-  <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;">
+  <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
+  <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
   <div id="historyList">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
     <button class="action-btn undo" id="exportBtn">导出备份</button>
@@ -1763,7 +1763,7 @@
   let timeFilter = 'all';  // all / today / yesterday
   let matchMode = 'prefix'; // prefix / contains
 
-  const $ = id => document.getElementById(id);
+  function $(id){ return document.getElementById(id); }
 
   function currentName(){
     const n = $('groupName').value.trim();
@@ -3082,7 +3082,8 @@ function cell(k, rank){
   function tick(){
     const n = new Date();
     const pad = x => String(x).padStart(2,'0');
-    $('nowTime').textContent = (n.getMonth()+1) + '-' + pad(n.getDate()) + ' ' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    var t = $('nowTime');
+    if (t) t.textContent = (n.getMonth()+1) + '-' + pad(n.getDate()) + ' ' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
   }
   tick();
   setInterval(tick, 1000);
