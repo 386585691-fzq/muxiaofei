@@ -3718,12 +3718,23 @@ function cell(k, rank){
     if (state._previewStrategy) state.aiStrategy = state._previewStrategy;
     state._previewStrategy = null;
     if (typeof saveLocal === 'function') saveLocal();
+    // 切换策略后：当前组已录的对错按新策略重算（每手用前N-1手预测），不再沿用旧策略的×
+    if (state.current && state.current.length){
+      var nm = [];
+      for (var i=0; i<state.current.length; i++){
+        var pr = predictMain(state.current.slice(0,i), getFiltered());
+        nm.push(pr.top.indexOf(state.current[i]) >= 0 ? 1 : 0);
+      }
+      state.currentMarks = nm;
+      if (typeof saveLocal === 'function') saveLocal();
+    }
     var b = $('stratCycle');
     if (b) b.textContent = '✅ 已确认：' + STRAT_NAMES[state.aiStrategy] + '（点我流转）';
     var c = $('stratConfirm');
     if (c) c.style.display = 'none';
     var h = $('stratHint');
     if (h) h.textContent = '记录页主推跟着这个策略走';
+    if (typeof renderGrid === 'function') renderGrid();
     if (typeof renderLiveHint === 'function') renderLiveHint();
     if (typeof renderAIPage === 'function') renderAIPage();
   };
@@ -4181,6 +4192,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v60 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v61 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
