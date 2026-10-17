@@ -2904,7 +2904,7 @@ function renderAIPage(){
     else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => g.time && g.time.startsWith(yestStr));
 
     // 只看这个人自己的历史，没数据就提示，不拿别人凑数
-    if (!filtered.length){ box.innerHTML = "<div style=\"padding:10px;color:#888;font-size:12px;text-align:center;\">这个人暂无历史数据，记几组就开始学他了</div>"; return; }
+    if (!filtered.length){ box.innerHTML = "<div style=\"padding:10px;color:#94a3b8;font-size:12px;text-align:center;\">暂无个人历史 · AI 参考当天实时全局规律（可能是同人换名）</div>"; return; }
     let hu=0, long=0, ru=0, chu=0;
     filtered.forEach(g => g.list.forEach(s => {
       if (s==='hu') hu++; else if (s==='long') long++;
@@ -3915,18 +3915,17 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     renderHistory();
     updateRecommend();
   }
-  // 记录按键用轻量渲染：不动历史/标签，避免每次按键重建全部列表卡顿
+  // 记录按键用轻量渲染：只更新宫格+推荐高亮（提示区/组名栏/历史录入中不变，避免全库遍历）
   function renderLight(){
     renderGrid();
-    renderLiveHint();
     updateRecommend();
   }
 
   // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
-  function updateRecommend(){
+  function updateRecommend(pred){
     document.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('top1','top2'); });
     const filtered = getFiltered();
-    const top = predictTop2(state.current, filtered);
+    const top = pred && pred.length ? pred : predictTop2(state.current, filtered);
     if (!top.length) return;
     const map = {hu:'.pbtn-hu', long:'.pbtn-long', ru:'.pbtn-ru', chu:'.pbtn-chu'};
     const b1 = document.querySelector(map[top[0]]);
@@ -3947,8 +3946,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var mk = -1;
     if (pred.length){ mk = pred.indexOf(s) >= 0 ? 1 : 0; }
     state.currentMarks.push(mk);
-    save(); renderLight();
-    updateAIHint();
+    save(); renderGrid();
+    updateRecommend(pred);
   }
 
   // 打对错：推荐3门=整组热门3门。开热门✓，开冷门×（热门=该组出现最多的3门）
@@ -4145,6 +4144,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v55 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v56 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
