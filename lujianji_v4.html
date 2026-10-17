@@ -2931,7 +2931,7 @@ function renderAIPage(){
     var sb2 = statBrain(cur, learnPool);
     var sbT2 = sb2.hu + sb2.long + sb2.ru + sb2.chu;
     if (sbT2 > 0){
-      var pctOf = function(k){ return Math.round(sb2[k]/sbT2*100); };
+      var pctOf = function(k){ return sp4 && sp4.probs && sp4.probs[k] !== undefined ? sp4.probs[k] : Math.round(sb2[k]/sbT2*100); };
       var sortedSb = Object.keys(sb2).sort(function(a,b){ return sb2[b]-sb2[a]; });
       var bestK = sortedSb[0];
       // 主推按流转策略（8大AI自由更换）：用当前策略替换默认推荐
@@ -3936,11 +3936,23 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     updateRecommend();
   }
 
+  // 统一预测：记录页主推/实时对错/高亮全用同一策略（流转策略），避免显示与对错不一致
+  function predictMain(curArr, filtered){
+    var name = currentName();
+    var sp = null;
+    try { sp = strategyPredict(name, filtered, state.aiStrategy || 'ai'); } catch(e){}
+    if (sp && sp.main){
+      var top = sp.top3 && sp.top3.length ? sp.top3 : [sp.main];
+      return { top: top, main: sp.main };
+    }
+    var top2 = predictTop2(curArr, filtered);
+    return { top: top2, main: top2[0] };
+  }
   // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
   function updateRecommend(pred){
     document.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('top1','top2'); });
     const filtered = getFiltered();
-    const top = pred && pred.length ? pred : predictTop2(state.current, filtered);
+    const top = pred && pred.length ? pred : predictMain(state.current, filtered).top;
     if (!top.length) return;
     const map = {hu:'.pbtn-hu', long:'.pbtn-long', ru:'.pbtn-ru', chu:'.pbtn-chu'};
     const b1 = document.querySelector(map[top[0]]);
@@ -3955,14 +3967,14 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   function pushSymbol(s){
     if (state.current.length >= 12){ alert('本组已满 12 格，先点「保存本组」开新组'); return; }
     // 实时打对错：先用当前已录手数 AI 预测下一手（主推+次推），录入这手立即标 ✓/×
-    var pred = predictTop2(state.current, getFiltered());
+    var pred = predictMain(state.current, getFiltered());
     state.current.push(s);
     if (!state.currentMarks) state.currentMarks = [];
     var mk = -1;
-    if (pred.length){ mk = pred.indexOf(s) >= 0 ? 1 : 0; }
+    if (pred.top.length){ mk = pred.top.indexOf(s) >= 0 ? 1 : 0; }
     state.currentMarks.push(mk);
     save(); renderGrid();
-    updateRecommend(pred);
+    updateRecommend(pred.top);
   }
 
   // 打对错：推荐3门=整组热门3门。开热门✓，开冷门×（热门=该组出现最多的3门）
@@ -4159,6 +4171,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v57 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v58 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
