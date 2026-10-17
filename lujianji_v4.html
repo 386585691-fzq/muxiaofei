@@ -2671,6 +2671,12 @@ function renderAIPage(){
     const yest = new Date(); yest.setDate(yest.getDate()-1);
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
     let all = state.groups.filter(g => names.indexOf(g.name) >= 0);
+    // 新名字无历史 → 参考当天实时全局规律（可能是同人换游戏名）
+    if (!all.length){
+      const base = timeFilter === 'yesterday' ? yestStr : todayStr;
+      all = state.groups.filter(g => g.time && g.time.startsWith(base));
+      if (!all.length) all = state.groups.slice();
+    }
     if (timeFilter === 'today') return all.filter(g => g.time && g.time.startsWith(todayStr));
     if (timeFilter === 'yesterday') return all.filter(g => g.time && g.time.startsWith(yestStr));
     return all;
@@ -4139,6 +4145,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v54 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v55 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
