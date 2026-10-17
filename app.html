@@ -45,7 +45,12 @@
     border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column}
   .slot .num{position:absolute;top:2px;left:4px;font-size:8px;color:#6b74a0}
   .slot .ch{font-size:17px;font-weight:800;color:#fff}
-  .slot .mark{position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%}
+  .slot .mark{position:absolute;top:0;right:4px;font-size:12px;font-weight:900;line-height:1;z-index:3;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.slot .mark.okm{color:#fff}
+.slot .mark.badm{color:#0d0d12}
+.mt .mm{font-style:normal;font-size:9px;font-weight:900;margin-left:2px;line-height:1}
+.mt .mm.okm{color:#ff5252}
+.mt .mm.badm{color:#1d2338}
   .slot .mark.ok{background:#ff5252;box-shadow:0 0 0 1px #fff}
   .slot .mark.no{background:#1d2338;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
   .slot .pct{font-size:8px;color:#fff;opacity:.92}
@@ -341,8 +346,8 @@
   var CHAR2ID = {'入':'ru','虎':'hu','出':'chu','龙':'long'};
 
   /* ===== Supabase 云端同步（登记即写云，换设备不丢） ===== */
-  var CLOUD_URL = 'https://rnembqlwqwwionyuilpy.supabase.co';
-  var CLOUD_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuZW1icWx3cXd3aW9ueXVpbHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0Nzk4NjcsImV4cCI6MjEwNzA1NTg2N30.3Gu8OhnZlLo_HMiU91ZerU8i_eklAO2oIfK3TCcC5NY';
+  var CLOUD_URL = 'https://bjlleyblusgffgmfvsjw.supabase.co';
+  var CLOUD_ANON = 'sb_publishable_MnsHFMCvr2rq5eXLSmXRkQ_5z4zKWN6';
   var CLOUD_TBL = 'jipai';
   var _cloudRemoteKeys = null;
   function cloudToast(msg){
@@ -352,7 +357,7 @@
     clearTimeout(d._t); d._t = setTimeout(function(){ d.style.display = 'none'; }, 3500);
   }
   function normTiles(t){ if(Array.isArray(t)) return t; if(typeof t === 'string'){ try{ var a = JSON.parse(t); return Array.isArray(a) ? a : []; }catch(e){} return []; } return []; }
-  function cloudGroupKey(g){ var t = normTiles(g.tiles); return (g.name||'')+'|'+(g.time||0)+'|'+t.join(','); }
+  function cloudGroupKey(g){ var t = normTiles(g.tiles); return (g.name||'')+'|'+timeToStr(g.time)+'|'+t.join(','); }
   function cloudReq(path, opts, cb){
     var xhr = new XMLHttpRequest();
     xhr.open((opts && opts.method) || 'GET', CLOUD_URL + '/rest/v1/' + path, true);
@@ -362,6 +367,8 @@
     if(opts && opts.prefer) xhr.setRequestHeader('Prefer', opts.prefer);
     xhr.onload = function(){ cb(null, xhr); };
     xhr.onerror = function(){ cb(new Error('net')); };
+    xhr.timeout = 20000;
+    xhr.ontimeout = function(){ cb(new Error('timeout')); };
     xhr.send((opts && opts.body) || null);
   }
   function cloudPushRows(rows, cb){
@@ -376,12 +383,16 @@
     })();
   }
   function cloudFetchAllRows(cb){
-    cloudReq(CLOUD_TBL + '?select=name,time,tiles&order=time.asc', null, function(err, xhr){
-      var rows = [];
-      if(!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
-      rows.forEach(function(r){ r.tiles = normTiles(r.tiles); });
-      cb(rows);
-    });
+    var all = [], off = 0, limit = 1000;
+    (function page(){
+      cloudReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&offset=' + off + '&limit=' + limit, null, function(err, xhr){
+        var rows = [];
+        if(!err && xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
+        rows.forEach(function(r){ r.tiles = normTiles(r.list).map(idToZh); });
+        all = all.concat(rows);
+        if(rows.length === limit){ off += limit; page(); } else { cb(all); }
+      });
+    })();
   }
   /* 启动/导入后：本地与云端合并（本地缺的上传、云端缺的并入） */
   function cloudSyncAll(cb){
@@ -418,11 +429,11 @@
   function cloudPushOne(g){
     var k = cloudGroupKey(g);
     if(_cloudRemoteKeys && _cloudRemoteKeys[k]) return;
-    cloudReq(CLOUD_TBL + '?select=id&name=eq.' + encodeURIComponent(g.name||'') + '&time=eq.' + (g.time||0), null, function(err, xhr){
+    cloudReq(CLOUD_TBL + '?select=id&name=eq.' + encodeURIComponent(g.name||'') + '&time=eq.' + encodeURIComponent(timeToStr(g.time)), null, function(err, xhr){
       var exists = false;
       if(!err && xhr.status === 200){ try{ exists = JSON.parse(xhr.responseText).length > 0; }catch(e){} }
       if(exists){ if(_cloudRemoteKeys) _cloudRemoteKeys[k] = 1; return; }
-      cloudReq(CLOUD_TBL, {method:'POST', prefer:'return=minimal', body: JSON.stringify([{name:g.name||'', tiles:JSON.stringify(normTiles(g.tiles)), time:g.time||0}])}, function(err2, xhr2){
+      cloudReq(CLOUD_TBL, {method:'POST', prefer:'return=minimal', body: JSON.stringify([{name:g.name||'', list:JSON.stringify(normTiles(g.tiles).map(idFromZh)), time:timeToStr(g.time)}])}, function(err2, xhr2){
         if(!err2 && (xhr2.status === 201 || xhr2.status === 200 || xhr2.status === 204)){
           if(_cloudRemoteKeys) _cloudRemoteKeys[k] = 1;
           cloudToast('☁ 已同步到云端');
@@ -431,7 +442,7 @@
     });
   }
   function cloudPushMissingLocal(){
-    if(_cloudRemoteKeys){ var m = []; state.groups.forEach(function(g){ if(!_cloudRemoteKeys[cloudGroupKey(g)]) m.push(g); }); if(m.length){ var rows = m.map(function(g){ return {name:g.name, tiles:JSON.stringify(normTiles(g.tiles)), time:g.time||0}; }); cloudPushRows(rows, function(n){ cloudToast('☁ 已上传 ' + n + ' 组到云端'); }); } }
+    if(_cloudRemoteKeys){ var m = []; state.groups.forEach(function(g){ if(!_cloudRemoteKeys[cloudGroupKey(g)]) m.push(g); }); if(m.length){ var rows = m.map(function(g){ return {name:g.name, list:JSON.stringify(normTiles(g.tiles).map(idFromZh)), time:timeToStr(g.time)}; }); cloudPushRows(rows, function(n){ cloudToast('☁ 已上传 ' + n + ' 组到云端'); }); } }
     else { cloudSyncAll(); }
   }
 
@@ -490,7 +501,10 @@
   var aiEl = document.getElementById('aiPanel');
 
   function pad(n){ return n<10?'0'+n:''+n; }
-  function fmt(t){ var d=new Date(t); return pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
+  function fmt(t){ if(typeof t === 'string') return t; var d=new Date(t); return pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
+  function timeToStr(t){ if(typeof t === 'string') return t; var d=new Date(t); function p(n){ return (n<10?'0':'')+n; } return p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  function idFromZh(ch){ return CHAR2ID[ch] || null; }
+  function idToZh(id){ return byId[id] ? byId[id].label : id; }
 
   function buildSlots(){
     slotsEl.innerHTML = '';
@@ -825,6 +839,7 @@
         else if(p && !p.hit) s.classList.add('bad');
         inner += '<span class="ch">'+ch+'</span>';
         if(p){
+          inner += '<span class="mark '+(p.hit?'okm':'badm')+'">'+(p.hit?'✓':'×')+'</span>';
           inner += '<span class="pct">'+Math.round(p.pct*100)+'%</span>';
         }
       }
@@ -974,7 +989,7 @@
       var tiles = '<div class="grow-tiles">';
       g.tiles.forEach(function(ch, j){
         var id = CHAR2ID[ch];
-        if(id){ tiles += '<span class="mt mt-'+byId[id].cls+(marks[j]?' ok':'')+'">'+ch+(marks[j]?'':'<i class="no"></i>')+'</span>'; }
+        if(id){ tiles += '<span class="mt mt-'+byId[id].cls+(marks[j]?' ok':'')+'">'+ch+'<i class="mm '+(marks[j]?'okm':'badm')+'">'+(marks[j]?'✓':'×')+'</i></span>'; }
       });
       tiles += '</div>';
       var foot = '<div class="grow-count">命中 '+hits+'/'+g.tiles.length+' · 虎 '+cnt.hu+' · 龙 '+cnt.long+' · 入 '+cnt.ru+' · 出 '+cnt.chu+'</div>';
