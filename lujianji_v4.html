@@ -232,6 +232,7 @@
   <button class="navbtn" data-page="ai">🎯 AI关注</button>
   <button class="navbtn" data-page="analyze">📊 分析</button>
   <button class="navbtn" data-page="cloud">☁️ 云端分析</button>
+  <button class="navbtn" data-page="lure">🔗 连对规律</button>
   <button class="navbtn" data-page="history">📚 历史</button>
 </div>
 
@@ -302,6 +303,9 @@
     </div>
     <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;">
   </div>
+</div>
+<div class="page" id="page-lure">
+  <div id="lureContent" style="padding:10px;"></div>
 </div>
 <div class="page" id="page-history">
   <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
@@ -455,6 +459,7 @@
       var hasC = ccC && ccC.innerHTML && ccC.innerHTML.indexOf('AI胜率预测') >= 0;
       if (ccC && ccC.style.display === 'none') showCloudPanel(); else cloudAnalyze(hasC);
     }
+    if (p === 'lure') renderLurePage();
     if (p === 'history'){ renderTags(); renderHistory(); }
     window.scrollTo(0,0);
   }
@@ -797,6 +802,16 @@ function renderAIPage(){
       } else {
         shtml += '<div style="font-size:11px;color:#94a3b8;padding:6px 0;">暂无异常人（每人需≥8手才评）</div>';
       }
+      // 连对诱单模式（开头连对后段全单蹦）
+      var lure = calcLurePattern(fg);
+      if (lure.length){
+        shtml += '<div style="font-size:11px;color:#f87171;font-weight:700;margin:6px 0 4px;">🔗 连对诱单模式（开头连对，后段全单蹦）</div>';
+        lure.slice(0,5).forEach(function(it){
+          shtml += '<div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:4px 8px;margin-bottom:3px;font-size:11px;">'
+            + '<span style="color:#fef3c7;font-weight:700;">' + escapeHtml(it.name) + '</span>'
+            + ' <span style="color:#f87171;">' + it.pair + '开局 · 后' + it.tail + '手无连对</span></div>';
+        });
+      }
       // 框架借用快报
       var frHtml = renderFrameBorrow(state.groups);
       if (frHtml.indexOf('暂无') < 0){
@@ -824,6 +839,54 @@ function renderAIPage(){
       lh += '<div style="font-size:11px;padding:5px 8px;margin-bottom:3px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.12);border-radius:6px;"><span style="color:#fef3c7;font-weight:700;">'+it.n+'</span> 虎'+it.info.p.hu+'% 龙'+it.info.p.long+'% 入'+it.info.p.ru+'% 出'+it.info.p.chu+'% '+tag+'</div>';
     });
     $('aiFocusList').innerHTML = lh;
+  }
+
+  // ===== 连对规律：开头连对 + 后段全单蹦（心理诱单） =====
+  function calcLurePattern(groups){
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var out = [];
+    (groups || []).forEach(function(g){
+      var lst = g.list || [];
+      if (lst.length < 6) return;
+      if (lst[0] === undefined || lst[0] !== lst[1]) return;
+      var hasMorePair = false;
+      for (var i=2; i<lst.length; i++){
+        if (lst[i] === lst[i-1]){ hasMorePair = true; break; }
+      }
+      if (hasMorePair) return;
+      out.push({name: g.name || '', pair: DRN[lst[0]] + DRN[lst[0]], len: lst.length, tail: lst.length - 2});
+    });
+    return out;
+  }
+  function renderLurePage(){
+    var box = $('lureContent');
+    var lure = calcLurePattern(state.groups);
+    var html = '<div style="font-size:13px;color:#fbbf24;font-weight:900;margin-bottom:4px;">🔗 连对规律 · 心理诱单识别</div>';
+    html += '<div style="font-size:10px;color:#64748b;margin-bottom:8px;">规律：开头连出同门（如<b>虎虎</b>），之后整组<b>再无任何连对</b>（龙龙/入入/出出都没有），后面全是单蹦交替——先给一个"连"的假象，实际全是单蹦，典型心理诱导。</div>';
+    if (lure.length){
+      html += '<div style="font-size:11px;color:#f87171;font-weight:700;margin:4px 0;">⚠️ 诱单模式 ' + lure.length + ' 组（开头连对 + 后段全单蹦）</div>';
+      lure.forEach(function(it){
+        html += '<div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:6px 9px;margin-bottom:4px;">'
+          + '<span style="color:#fef3c7;font-weight:700;font-size:12px;">' + escapeHtml(it.name) + '</span>'
+          + ' <span style="color:#f87171;font-size:10px;">' + it.pair + '开局 → 后' + it.tail + '手全单蹦</span>'
+          + '<div style="color:#94a3b8;font-size:10px;">共' + it.len + '手 · 只有开头这一对连 · ⚠️心理诱单</div>'
+          + '</div>';
+      });
+    } else {
+      html += '<div style="font-size:11px;color:#94a3b8;padding:8px 0;">暂无「开头连对+后段全单蹦」的组（数据需≥6手）</div>';
+    }
+    var pc = {hu:0,long:0,ru:0,chu:0}; var totG = 0;
+    (state.groups || []).forEach(function(g){
+      var lst = g.list || [];
+      if (lst.length < 6) return;
+      totG++;
+      for (var i=1;i<lst.length;i++){
+        if (lst[i] === lst[i-1] && pc[lst[i]] !== undefined) pc[lst[i]]++;
+      }
+    });
+    html += '<div style="font-size:11px;color:#38bdf8;font-weight:700;margin:10px 0 4px;">📊 全库连对出现次数（'+totG+'组≥6手）</div>';
+    html += '<div style="font-size:11px;color:#94a3b8;">虎虎 '+pc.hu+' 组 · 龙龙 '+pc.long+' 组 · 入入 '+pc.ru+' 组 · 出出 '+pc.chu+' 组</div>';
+    box.innerHTML = html;
   }
 
   // ===== 单品分析：把某个组名/游戏名当单品，AI 打标签 =====
@@ -4032,6 +4095,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v50 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v51 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
