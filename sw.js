@@ -1,4 +1,4 @@
-const CACHE = 'lujianji-v54';
+const CACHE = 'lujianji-v55';
 const ASSETS = ['./lujianji_v4.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon.png'];
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); }).then(function(){ return self.skipWaiting(); }));
