@@ -1290,9 +1290,14 @@ function renderAIPage(){
         return {
           groups: o.groups || [],
           current: o.current || [],
+          currentMarks: o.currentMarks || [],
           gameName: o.gameName || '路单',
           groupNum: o.groupNum || 1,
-          updatedAt: o.updatedAt || 0
+          updatedAt: o.updatedAt || 0,
+          aiStrategy: o.aiStrategy || 'ai',
+          accuracy: o.accuracy || {total:0,correct:0},
+          predictHistory: o.predictHistory || [],
+          names: o.names || []
         };
       }
     } catch(e){}
@@ -4176,6 +4181,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v59 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v60 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
