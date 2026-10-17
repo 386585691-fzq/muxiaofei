@@ -609,16 +609,20 @@
   }
   function sbReq(path, opts, cb){
     var xhr = new XMLHttpRequest();
+    var fired = false;
+    function fin(err, res){ if (fired) return; fired = true; cb(err, res); }
     xhr.open((opts && opts.method) || 'GET', CLOUD_URL + '/rest/v1/' + path, true);
     xhr.setRequestHeader('apikey', CLOUD_KEY);
     xhr.setRequestHeader('Authorization', 'Bearer ' + CLOUD_KEY);
     xhr.setRequestHeader('Content-Type', 'application/json');
     if (opts && opts.prefer) xhr.setRequestHeader('Prefer', opts.prefer);
     xhr.timeout = (opts && opts.timeout) || 20000;
-    xhr.ontimeout = function(){ cb(new Error('timeout')); };
-    xhr.onload = function(){ cb(null, xhr); };
-    xhr.onerror = function(){ cb(new Error('net')); };
+    xhr.ontimeout = function(){ fin(new Error('timeout')); };
+    xhr.onload = function(){ fin(null, xhr); };
+    xhr.onerror = function(){ fin(new Error('net')); };
     xhr.send((opts && opts.body) || null);
+    // 保险：无论上面哪个回调是否触发，超时后强制结束，避免一直卡在"正在拉取"
+    setTimeout(function(){ fin(new Error('timeout')); }, ((opts && opts.timeout) || 20000) + 4000);
   }
   // 时间归一化（'10-04'->'10-4'，容忍无前导零），用于去重/排序
   function _nt(s){
@@ -639,21 +643,36 @@
     return ((m*31+d)*24+h)*60+mi;
   }
   // 拉云端全部行（分页拉全，避免超过1000条漏数据/误判缺失重复推送；按时间解析排序）
-  function sbFetchAll(cb){
+  function sbFetchAll(cb, onProg){
     var all = [];
-    (function page(off){
-      sbReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
-        if (err){ cb(err); return; }
-        var rows = [];
-        if (xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
-        all = all.concat(rows);
-        if (rows.length >= 1000) page(off + 1000);
-        else {
-          all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
-          cb(null, all);
-        }
-      });
-    })(0);
+    var inFlight = 0, doneBatch = 0, nextOff = 0;
+    var MAX_OFF = 20000; // 最多拉 20 批（2万组上限）
+    function pull(){
+      while (inFlight < 3 && nextOff <= MAX_OFF){
+        var off = nextOff; nextOff += 1000; inFlight++;
+        (function(off){
+          sbReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
+            inFlight--;
+            if (err){
+              if (!all.length){ cb(err); return; }
+            } else {
+              var rows = [];
+              if (xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
+              all = all.concat(rows);
+              doneBatch++;
+              if (onProg) onProg(doneBatch);
+            }
+            if (inFlight === 0){
+              all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
+              cb(null, all);
+            } else {
+              pull();
+            }
+          });
+        })(off);
+      }
+    }
+    pull();
   }
   // 批量插入缺失行（200 条一批）
   function sbPushRows(rows, cb){
@@ -2604,9 +2623,15 @@ function cell(k, rank){
   // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
   function cloudAnalyze(){
     var box = $('cloudContent');
-    box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…</div>';
+    box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
     sbFetchAll(function(err, rows){
-      if (err){ box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试</div>'; return; }
+      if (err){
+        var lc = state.groups.length;
+        box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试' + (lc > 0 ? '<br><br><button id="cloudLocalBtn" style="padding:8px 16px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;">先看本地分析（本机 '+lc+' 组）</button>' : '') + '</div>';
+        var lb = document.getElementById('cloudLocalBtn');
+        if (lb) lb.addEventListener('click', function(){ renderCloudFromLocal(); });
+        return;
+      }
       if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; return; }
       var groups = rows.map(function(r){
         var list = r.list;
@@ -2706,7 +2731,7 @@ function cell(k, rank){
         var doorColor = { hu:'#dc2626', long:'#2563eb', ru:'#16a34a', chu:'#64748b' };
         // 逗号组名拆分：一局多人各自独立统计
         function splitNames(nm){ return String(nm).split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean); }
-        // 1) 全局四门基准（从全部数据学习）
+        // 1, function(bn){ if(box) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（已拉 ' + bn + ' 批，首次约10秒）</div>'; }) 全局四门基准（从全部数据学习）
         var gTotal = {hu:0,long:0,ru:0,chu:0,all:0};
         groups.forEach(function(g){
           if (!g || !g.list) return;
@@ -2728,8 +2753,6 @@ function cell(k, rank){
             g.list.forEach(function(x){ arr.push(x); });
             if (arr.length > 15) arr.splice(0, arr.length - 15);
           });
-          g.list.forEach(function(x){ arr.push(x); });
-          if (arr.length > 15) arr.splice(0, arr.length - 15);
         });
         // 3) 学习规律（个人 vs 全局基准 + 专走三门 + 近期动态）
         var focus = [];
@@ -2761,6 +2784,7 @@ function cell(k, rank){
             tags.push({t:'专走'+DOOR_NAME[sp2[0]]+DOOR_NAME[sp2[1]]+' · 从不出'+DOOR_NAME[oth2[0]]+DOOR_NAME[oth2[1]], c:'#fb923c'});
           }
           // 近15手专走两门（近期一直只跑2门）
+          var arr = near[n] || [];
           if (arr.length >= 10){
             var tc = {hu:0,long:0,ru:0,chu:0};
             arr.forEach(function(x){ if (tc[x]!==undefined) tc[x]++; });
@@ -2806,7 +2830,6 @@ function cell(k, rank){
           });
           if (best >= 6) tags.push({t:'最长连'+DOOR_NAME[bestDoor]+' '+best+'手', c:'#c084fc'});
           // 近15手不走某门（近期动态）
-          var arr = near[n] || [];
           if (arr.length >= 10){
             doorsArr.forEach(function(x){ if (arr.indexOf(x) < 0) tags.push({t:'近15手不走'+DOOR_NAME[x]+'门', c:'#fb923c'}); });
           }
@@ -2890,6 +2913,54 @@ function cell(k, rank){
       setTimeout(step, 0);
     });
   }
+  // 本地降级分析（云端拉取失败时，用本机数据先看）
+  function renderCloudFromLocal(){
+    var box = $('cloudContent');
+    var groups = (state.groups || []).filter(function(g){ return g && g.name && (g.list||[]).length; }).map(function(g){ return { name: g.name, time: g.time || '', list: g.list }; });
+    if (!groups.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">本地暂无数据，先在「记录」页登记</div>'; return; }
+    var dayMap = {};
+    groups.forEach(function(g){ var dd = String(g.time || '').split(' ')[0]; if (dd) dayMap[dd] = (dayMap[dd] || 0) + 1; });
+    var nm = {};
+    groups.forEach(function(g){
+      if (!nm[g.name]) nm[g.name] = { name: g.name, groups: 0, hands: 0 };
+      nm[g.name].groups++; nm[g.name].hands += g.list.length;
+    });
+    function calcRate(name){
+      var gs = groups.filter(function(g){ return g.name === name; });
+      if (gs.length < 2) return null;
+      var hit = 0, total = 0;
+      gs.forEach(function(g, gi){
+        var others = gs.filter(function(_, j){ return j !== gi; });
+        var cur = [];
+        for (var kk = 0; kk < g.list.length; kk++){
+          var sorted = predictTop2(cur, others);
+          if (sorted.length){ total++; if (sorted.indexOf(g.list[kk]) >= 0) hit++; }
+          cur.push(g.list[kk]);
+        }
+      });
+      return { hit: hit, total: total, rate: total ? Math.round(hit/total*100) : 0 };
+    }
+    var names = Object.keys(nm);
+    var rates = {};
+    names.forEach(function(n){ rates[n] = calcRate(n); });
+    var html = '<div style="font-size:12px;color:#34d399;font-weight:700;margin-bottom:4px;">本地降级分析（云端暂时拉不到，先用本机数据）</div>';
+    var days = Object.keys(dayMap).sort();
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">每日记录量</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+    days.forEach(function(dd){ html += '<span style="background:rgba(52,211,153,.12);color:#a7f3d0;padding:2px 7px;border-radius:6px;font-size:10px;">' + dd + ' · ' + dayMap[dd] + '组</span>'; });
+    html += '</div>';
+    var hot = names.map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（本机）</div>';
+    html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+    hot.forEach(function(m){
+      var r = rates[m.name];
+      var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
+      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
+    });
+    html += '</table>';
+    html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">数据源：本机本地 ' + groups.length + ' 组 · ' + names.length + ' 人名。云端恢复后点右上角刷新可看全量</div>';
+    box.innerHTML = html;
+  }
+
 
   function render(){
     renderGrid();
