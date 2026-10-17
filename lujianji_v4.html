@@ -388,7 +388,7 @@
         else html += '<div class="aihint-ok">暂无异常规律</div>';
       });
     } else {
-      html += '<div style="font-size:11px;color:#94a3b8;">输入人名查看四门规律与诱单警示（如：顺顺、牡丹）</div>';
+      html += '<div style="font-size:11px;color:#94a3b8;">👆 在上面输入名字（如：顺顺、牡丹），或点下面的人名，看 TA 爱出什么门、有没有套路</div>';
     }
     body.innerHTML = html;
     var names = [];
@@ -399,7 +399,7 @@
       if (info) items.push({n:n, info:info});
     });
     items.sort(function(a,b){ return b.info.tags.length - a.info.tags.length; });
-    var lh = '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:10px 0 4px;">关注列表（'+items.length+'人 · ≥8手）</div>';
+    var lh = '<div style="font-size:12px;color:#fbbf24;font-weight:700;margin:10px 0 4px;">👀 关注列表（'+items.length+'人 · 记录≥8手才上榜）</div>';
     if (!items.length) lh += '<div style="font-size:11px;color:#64748b;">数据还不够，先记录一些组（每人≥8手）</div>';
     items.slice(0,30).forEach(function(it){
       var tag = it.info.tags.length ? '<span style="color:#f87171;font-weight:700;">⚠️'+it.info.tags.slice(0,3).join('、')+'</span>' : '<span style="color:#94a3b8;">暂无异常</span>';
@@ -2512,12 +2512,12 @@ function cell(k, rank){
     var top = 'hu', topV = c.hu;
     ['long','ru','chu'].forEach(function(k){ if(c[k]>topV){topV=c[k];top=k;} });
     var tags = [];
-    if (total > 0) tags.push('主' + SYMBOLS[top] + Math.round(topV/total*100) + '%');
+    if (total > 0) tags.push('最常出' + SYMBOLS[top] + ' ' + Math.round(topV/total*100) + '%');
     var cont2 = 0, rev2 = 0;
     for (var i=1;i<total;i++){ if(g.list[i]===g.list[i-1]) cont2++; else rev2++; }
     if (cont2+rev2 > 0){
       var cp = Math.round(cont2/(cont2+rev2)*100);
-      tags.push(cp>=60 ? '连出'+cp+'%' : (cp<=40 ? '爱反转'+(100-cp)+'%' : '连反均'+cp+'%'));
+      tags.push(cp>=60 ? '爱连出'+cp+'%' : (cp<=40 ? '爱变门'+(100-cp)+'%' : '连变各半'+cp+'%'));
     }
     var a3c = 0, a3r = 0;
     for (var i=3;i<total;i++){
@@ -2525,7 +2525,7 @@ function cell(k, rank){
         if (g.list[i]===g.list[i-1]) a3c++; else a3r++;
       }
     }
-    if (a3c+a3r >= 2) tags.push('3连反' + Math.round(a3r/(a3c+a3r)*100) + '%');
+    if (a3c+a3r >= 2) tags.push('三连后变' + Math.round(a3r/(a3c+a3r)*100) + '%');
     return {c:c, total:total, top:top, topPct: total?Math.round(topV/total*100):0, tags:tags};
   }
 
