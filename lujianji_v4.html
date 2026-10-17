@@ -2595,7 +2595,9 @@ function renderAIPage(){
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', () => {
+        _lastPicked = t.dataset.name;
         $('groupName').value = t.dataset.name;
+        try { $('groupName').select(); } catch(e){}
         renderLiveHint();
         updateAIHint();
       });
@@ -3046,7 +3048,9 @@ function cell(k, rank){
     box.style.display = 'block';
     box.querySelectorAll('.suggest-item').forEach(el => {
       el.addEventListener('click', () => {
+        _lastPicked = el.dataset.n;
         $('groupName').value = el.dataset.n;
+        try { $('groupName').select(); } catch(e){}
         box.style.display = 'none';
         renderLiveHint();
         updateAIHint();
@@ -4080,12 +4084,21 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
    });
 
       var sgTimer = null;
+    var _lastPicked = '';   // 最近一次点选的名字：点选后直接打字自动替换旧名
+    function _dropOldName(inp){
+      if (_lastPicked && inp.value.indexOf(_lastPicked) === 0 && inp.value.length > _lastPicked.length){
+        inp.value = inp.value.slice(_lastPicked.length);
+      }
+      _lastPicked = '';
+    }
     $('groupName').addEventListener('input', function(e){
       if (e.isComposing) return;
+      _dropOldName(this);
       clearTimeout(sgTimer);
       sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 200);
     });
     $('groupName').addEventListener('compositionend', function(){
+      _dropOldName(this);
       clearTimeout(sgTimer);
       renderLiveHint(); renderSuggest(); updateAIHint();
     });
@@ -4192,6 +4205,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v61 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v62 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
