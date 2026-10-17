@@ -2401,40 +2401,6 @@
       var sortedSb = Object.keys(sb2).sort(function(a,b){ return sb2[b]-sb2[a]; });
       var bestK = sortedSb[0];
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
-      
-  
-
-  // 人名联想：输一个字跳出匹配人选
-  function renderSuggest(){
-    const box = $('nameSuggest');
-    const q = $('groupName').value.trim();
-    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    const names = [];
-    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
-    const hit = names.filter(n => n.includes(q)).slice(0, 12);
-    if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    let html = '';
-    hit.forEach(n => { html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '">' + escapeHtml(n) + '</div>'; });
-    box.innerHTML = html;
-    box.style.display = 'block';
-    box.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('click', () => {
-        $('groupName').value = el.dataset.n;
-        box.style.display = 'none';
-        renderLiveHint();
-        updateAIHint();
-      });
-    });
-  }
-
-  // 点击别处收起联想
-  document.addEventListener('click', function(e){
-    const box = $('nameSuggest');
-    const inp = $('groupName');
-    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== inp){
-      box.style.display = 'none';
-    }
-  });
 
 function cell(k, rank){
         if (!k) return '<div style="padding:6px 0;"></div>';
@@ -2513,6 +2479,44 @@ function cell(k, rank){
     box.innerHTML = html;
     bindMiniBtns();
   }
+  // 人名联想：输一个字跳出匹配人选
+  function renderSuggest(){
+    const box = $('nameSuggest');
+    const q = $('groupName').value.trim();
+    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    const names = [];
+    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
+    const hit = names.filter(n => n.includes(q)).slice(0, 12);
+    if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    let html = '';
+    hit.forEach(n => {
+      const cnt = state.groups.filter(g => g.name === n).length;
+      html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;">'
+        + '<span style="color:#fbbf24;font-weight:700;">' + escapeHtml(n) + '</span>'
+        + '<span style="font-size:10px;color:#64748b;flex-shrink:0;">' + cnt + '组</span>'
+        + '</div>';
+    });
+    box.innerHTML = html;
+    box.style.display = 'block';
+    box.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('click', () => {
+        $('groupName').value = el.dataset.n;
+        box.style.display = 'none';
+        renderLiveHint();
+        updateAIHint();
+      });
+    });
+  }
+
+  // 点击别处收起联想
+  document.addEventListener('click', function(e){
+    const box = $('nameSuggest');
+    const inp = $('groupName');
+    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== inp){
+      box.style.display = 'none';
+    }
+  });
+
 // 记录时实时AI提示：算某人的规律标签
   function nmSplit(nm){ return String(nm).split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean); }
   function calcAIForName(nm){
