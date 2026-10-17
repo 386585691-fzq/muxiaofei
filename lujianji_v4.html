@@ -240,6 +240,7 @@
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20" style="flex:1;min-width:0;">
     <button id="groupNameQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
+    <button id="recordRefresh" onclick="recordRefresh()" style="padding:6px 12px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;white-space:nowrap;">🔄 刷新</button>
     <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
@@ -973,7 +974,39 @@ function renderAIPage(){
   }
   bindNameSuggest('aiNameInput', 'aiNameSuggest', renderAIPage);
 
-  // 通用提示条
+    // 记录页刷新：重新拉云端并全量重渲染
+  window.recordRefresh = function(){
+    if (typeof toast === 'function') toast('🔄 正在刷新…');
+    sbFetchAll(function(err, rows){
+      if (err){ if (typeof toast === 'function') toast('⚠️ 刷新失败（网络慢/超时），可稍后再试'); return; }
+      var before = state.groups.length;
+      var groups = rows.map(function(r){
+        var list = r.list;
+        if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
+        if (!Array.isArray(list)) list = [];
+        return { name: r.name || '', time: r.time || '', list: list };
+      });
+      var OLD = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
+      groups = groups.filter(function(g){
+        var t = String(g.time || '');
+        if (t.indexOf('9-') === 0) return false;
+        if (!t && OLD.indexOf(g.name) >= 0) return false;
+        return g.name && g.list.length;
+      });
+      mergeGroups(state.groups, groups);
+      if (typeof saveLocal === 'function') saveLocal();
+      if (typeof renderGrid === 'function') renderGrid();
+      if (typeof renderLiveHint === 'function') renderLiveHint();
+      if (typeof updateAIHint === 'function') updateAIHint();
+      if (typeof renderAIPage === 'function') renderAIPage();
+      if (typeof renderHistory === 'function') renderHistory();
+      if (typeof renderCloudFromLocal === 'function') renderCloudFromLocal();
+      var added = state.groups.length - before;
+      if (typeof toast === 'function') toast(added > 0 ? '✅ 已刷新，新收录 ' + added + ' 组' : '✅ 已刷新（无新数据）');
+    });
+  };
+
+// 通用提示条
   function toast(msg){
     var t = document.getElementById('toast');
     if (!t){
@@ -3886,11 +3919,16 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
      if (sug.style.display === 'block' && !sug.contains(e.target) && e.target !== inp){ sug.style.display = 'none'; }
    });
 
-  $('groupName').addEventListener('input', () => {
-    renderLiveHint();
-    renderSuggest();
-    updateAIHint();
-  });
+      var sgTimer = null;
+    $('groupName').addEventListener('input', function(e){
+      if (e.isComposing) return;
+      clearTimeout(sgTimer);
+      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 200);
+    });
+    $('groupName').addEventListener('compositionend', function(){
+      clearTimeout(sgTimer);
+      renderLiveHint(); renderSuggest(); updateAIHint();
+    });
 
   $('clearAllBtn').addEventListener('click', () => {
     if (!confirm('清空所有历史和当前记录？')) return;
@@ -3994,6 +4032,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v48 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v49 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
