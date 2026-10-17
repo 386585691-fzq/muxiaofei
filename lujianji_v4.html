@@ -993,8 +993,9 @@ function renderAIPage(){
         if (!t && OLD.indexOf(g.name) >= 0) return false;
         return g.name && g.list.length;
       });
-      mergeGroups(state.groups, groups);
+      state.groups = mergeGroups(state.groups, groups);
       if (typeof saveLocal === 'function') saveLocal();
+      if (typeof backfillMarks === 'function') backfillMarks();
       if (typeof renderGrid === 'function') renderGrid();
       if (typeof renderLiveHint === 'function') renderLiveHint();
       if (typeof updateAIHint === 'function') updateAIHint();
@@ -1104,6 +1105,7 @@ function renderAIPage(){
         st.textContent = '📡 新收录 ' + added + ' 组，已更新分析';
         st.style.color = '#fbbf24';
         setTimeout(function(){ st.textContent = '自动抓云端新登记·每60秒'; st.style.color = '#64748b'; }, 4000);
+        if (typeof backfillMarks === 'function') backfillMarks();
         if (typeof renderAIPage === 'function') renderAIPage();
       }
     });
@@ -3838,8 +3840,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
 
   // 打对错：推荐3门=整组热门3门。开热门✓，开冷门×（热门=该组出现最多的3门）
   function backfillMarks(){
-    if (state._markV2) return;
-    state._markV2 = true;
     var changed = false;
     state.groups.forEach(function(g){
       var st = {hu:0,long:0,ru:0,chu:0};
@@ -3883,7 +3883,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     state.currentMarks = [];
     state.groupNum++;
     // 保留人名不清空，方便连续记录同一个人
-    save(); render();
+    save(); render(); backfillMarks();
   });
 
    $('searchBox').addEventListener('input', e => {
@@ -3990,7 +3990,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     if (!confirm('将导入' + newGroups.length + '组，和现有数据合并。继续？')) return;
     state.groups = state.groups.concat(newGroups);
     state.groupNum = state.groups.length + 1;
-    save(); render();
+    save(); render(); backfillMarks();
     alert('导入成功，共' + newGroups.length + '组');
   });
 
@@ -4013,7 +4013,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         state.currentMarks = [];
         state.groupNum++;
         // 保留人名不清空
-        save(); render();
+        save(); render(); backfillMarks();
       }
     }
   });
@@ -4032,6 +4032,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v49 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v50 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
