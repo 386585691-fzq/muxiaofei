@@ -241,6 +241,10 @@
     <button class="pbtn pbtn-ru" data-s="ru">入</button>
     <button class="pbtn pbtn-chu" data-s="chu">出</button>
   </div>
+  <div style="display:flex;gap:4px;margin-bottom:6px;">
+    <input id="manualInput" type="text" placeholder="手动输入：虎龙入出（或 hu/long/ru/chu，可整行一次添加）" style="flex:1;min-width:0;background:rgba(255,255,255,.08);border:1px solid rgba(251,191,36,.3);color:#fbbf24;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:700;outline:none;font-family:inherit;">
+    <button id="manualAdd" style="padding:6px 14px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:13px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;">添加</button>
+  </div>
   <div class="action-row">
     <button class="abtn abtn-undo" id="undoBtn">撤销</button>
     <button class="abtn abtn-done" id="doneBtn">完成本组并开新组</button>
@@ -2883,6 +2887,38 @@ function cell(k, rank){
     b.addEventListener('click', () => {
       pushSymbol(b.dataset.s);
     });
+  });
+
+  // 手动输入：中文（虎龙入出）/拼音（hu long ru chu）/字母（h l r c），支持整行一次添加
+  function parseManual(s){
+    var map = {虎:'hu',龙:'long',入:'ru',出:'chu',hu:'hu',long:'long',ru:'ru',chu:'chu',h:'hu',l:'long',r:'ru',c:'chu'};
+    var str = String(s).trim();
+    var out = [];
+    if (!str) return out;
+    if (/[虎龙入出]/.test(str)){
+      for (var i=0;i<str.length;i++){ if (map[str[i]]) out.push(map[str[i]]); }
+    } else {
+      var t = str.toLowerCase().replace(/[，,、\s]+/g,'');
+      var buf = '';
+      for (var i=0;i<t.length;i++){
+        buf += t[i];
+        if (map[buf]){ out.push(map[buf]); buf = ''; }
+        else if (buf.length > 4) break;
+      }
+    }
+    return out;
+  }
+  function doManualAdd(){
+    var inp = $('manualInput');
+    var lst = parseManual(inp.value);
+    if (!lst.length){ inp.value=''; return; }
+    lst.forEach(function(s){ pushSymbol(s); });
+    inp.value = '';
+    inp.focus();
+  }
+  $('manualAdd').addEventListener('click', doManualAdd);
+  $('manualInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ e.preventDefault(); doManualAdd(); }
   });
 
 
