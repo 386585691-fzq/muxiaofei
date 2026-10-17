@@ -763,11 +763,39 @@ function renderAIPage(){
       html += '<div style="font-size:11px;color:#94a3b8;">👆 在上面输入名字（如：顺顺、牡丹），或点下面的人名，看 TA 爱出什么门、有没有套路</div>';
     }
     if (aiView === 'sum'){
-      body.innerHTML = html
-        + '<div style="border-top:1px dashed rgba(148,163,184,.25);margin:8px 0;"></div>'
-        + renderDoorPatterns(state.groups)
-        + '<div style="border-top:1px dashed rgba(148,163,184,.25);margin:8px 0;"></div>'
-        + renderFrameBorrow(state.groups);
+      // AI总结：从个人规律/四门规律/框架借用数据提炼结论，不是拼接
+      var namesAll = [];
+      fg.forEach(function(g){ if (g.name && namesAll.indexOf(g.name) < 0) namesAll.push(g.name); });
+      var anom = [];
+      namesAll.forEach(function(n){
+        var info = calcFocusNearName(n, fg);
+        if (info && info.tags.length) anom.push({n:n, info:info});
+      });
+      anom.sort(function(a,b){ return b.info.tags.length - a.info.tags.length; });
+      var shtml = '<div style="font-size:13px;color:#fbbf24;font-weight:900;margin-bottom:6px;">🧠 AI 总结 · 自动汇总</div>';
+      shtml += '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">全局平均：虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（当前筛选 '+fg.length+' 组）</div>';
+      if (anom.length){
+        shtml += '<div style="font-size:11px;color:#f87171;font-weight:700;margin:6px 0 4px;">⚠️ 异常关注 Top' + Math.min(5, anom.length) + '（规律最多）</div>';
+        anom.slice(0,5).forEach(function(it){
+          var tg = it.info.tags.slice(0,2).join('、');
+          shtml += '<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);border-radius:8px;padding:5px 8px;margin-bottom:4px;">'
+            + '<span style="color:#fef3c7;font-weight:700;font-size:12px;">'+it.n+'</span>'
+            + ' <span style="color:#94a3b8;font-size:10px;">虎'+it.info.p.hu+'% 龙'+it.info.p.long+'% 入'+it.info.p.ru+'% 出'+it.info.p.chu+'%</span>'
+            + '<div style="color:#f87171;font-size:10px;margin-top:2px;">⚠️ '+tg+'</div>'
+            + '</div>';
+        });
+      } else {
+        shtml += '<div style="font-size:11px;color:#94a3b8;padding:6px 0;">暂无异常人（每人需≥8手才评）</div>';
+      }
+      // 框架借用快报
+      var frHtml = renderFrameBorrow(state.groups);
+      if (frHtml.indexOf('暂无') < 0){
+        shtml += '<div style="font-size:11px;color:#38bdf8;font-weight:700;margin:6px 0 4px;">📡 框架借用快报（同天多人同框架）</div>' + frHtml;
+      }
+      shtml += '<div style="font-size:9px;color:#475569;margin-top:6px;">👉 想细看某个人/完整规律，点上面「个人规律 / 四门规律 / 框架借用」</div>';
+      body.innerHTML = shtml;
+      $('aiFocusList').innerHTML = '';
+      return;
     } else {
       body.innerHTML = html;
     }
@@ -3371,6 +3399,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v38 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v39 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
