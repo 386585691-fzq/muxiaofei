@@ -52,7 +52,7 @@
   }
   #groupName::placeholder { color: #b8a87a; font-weight: 600; }
 
-  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 6px; }
   .cell {
     background: linear-gradient(180deg, #fef9e7 0%, #f5e9c8 100%);
     border: 1px solid #d4c59a;
@@ -1774,17 +1774,20 @@
     const g = $('grid');
     const cur = state.current;
     const marks = state.currentMarks || [];
+    const N = 12;
     let html = '';
-    for (let i=0; i<cur.length; i++){
+    for (let i=0; i<N; i++){
       const s = cur[i];
       const isLast = i === cur.length - 1;
       const m = marks[i];
-      const markHtml = (m === 1 || m === 0) ? `<span class="cell-mark ${m?'ok':'bad'}">${m?'✓':'×'}</span>` : '';
-      html += `<div class="cell ${s}${isLast?' last':''}" data-idx="${i}">${SYMBOLS[s]}${markHtml}</div>`;
-    }
-    // 补几个空槽（显示下一个编号提示）
-    for (let i=cur.length; i<cur.length+COLS; i++){
-      html += `<div class="cell empty" data-idx="${i}">${i+1}</div>`;
+      let inner = '';
+      if (s){
+        inner = SYMBOLS[s];
+        if (m === 1 || m === 0) inner += `<span class="cell-mark ${m?'ok':'bad'}">${m?'✓':'×'}</span>`;
+      } else {
+        inner = (i+1);
+      }
+      html += `<div class="cell ${s||'empty'}${isLast?' last':''}" data-idx="${i}">${inner}</div>`;
     }
     g.innerHTML = html;
     g.querySelectorAll('.cell').forEach(c => {
@@ -2842,6 +2845,7 @@ function cell(k, rank){
 
   // 公共：记录一手牌（点按钮或键盘），同时把AI预测对错记到 currentMarks
   function pushSymbol(s){
+    if (state.current.length >= 12){ alert('本组已满 12 格，先点「保存本组」开新组'); return; }
     var filtered = getFiltered();
     var top3 = predictTop2(state.current, filtered);
     var mark = -1;
