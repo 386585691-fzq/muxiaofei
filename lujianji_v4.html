@@ -218,14 +218,18 @@
   <button class="navbtn" data-page="history">📚 历史</button>
 </div>
 <div id="globalAI" style="padding:6px 8px;background:rgba(251,191,36,.04);border-bottom:1px solid rgba(251,191,36,.12);">
-  <input id="globalAIName" type="text" placeholder="🎯 输名字/选人，下方直接显示四门规律与诱单警示（如：顺顺）" maxlength="20" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:13px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+<div style="display:flex;gap:4px;align-items:center;">
+  <input id="globalAIName" type="text" placeholder="🎯 输名字/选人，下方直接显示四门规律与诱单警示（如：顺顺）" maxlength="20" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:13px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <button id="globalAIQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
+  </div>
   <div id="globalAISuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:40;min-width:160px;"></div>
   <div id="globalAIHint" style="margin-top:4px;line-height:1.5;"></div>
 </div>
 <div class="current page active" id="page-record">
   <div class="group-name-row" id="sec-ai">
     <label>组名</label>
-    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20">
+    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20" style="flex:1;min-width:0;">
+    <button id="groupNameQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
     <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
@@ -257,7 +261,10 @@
 
 <div class="page" id="page-ai">
   <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🎯 AI关注 · 四门规律（从数据学习）</div>
-  <input id="aiNameInput" type="text" placeholder="输入人名（如 顺顺、牡丹），查看这个人的规律" maxlength="20" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:14px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+<div style="display:flex;gap:4px;align-items:center;">
+  <input id="aiNameInput" type="text" placeholder="输入人名（如 顺顺、牡丹），查看这个人的规律" maxlength="20" style="flex:1;min-width:0;padding:9px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:14px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <button id="aiQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
+  </div>
   <div id="aiNameSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:40;min-width:160px;"></div>
   <div id="aiFocusBody" style="margin-top:6px;"></div>
   <div id="aiFocusList" style="margin-top:8px;"></div>
@@ -279,7 +286,8 @@
 </div>
 <div class="page" id="page-history">
   <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
-    <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)...">
+    <input id="searchBox" type="text" placeholder="搜组名(输一个字跳出人名)..." style="flex:1;min-width:0;">
+    <button id="searchQueryBtn" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
   </div>
   <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
   <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
@@ -492,6 +500,26 @@
   }
   bindNameSuggest('globalAIName', 'globalAISuggest', updateGlobalAI);
   bindNameSuggest('aiNameInput', 'aiNameSuggest', renderAIPage);
+
+  // 通用提示条
+  function toast(msg){
+    var t = document.getElementById('toast');
+    if (!t){
+      t = document.createElement('div');
+      t.id = 'toast';
+      t.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(34,197,94,.95);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;z-index:99;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.style.display = 'none'; }, 1600);
+  }
+  // 每个搜索框的查询按钮：执行查询 + 显示查询成功
+  $('globalAIQuery').addEventListener('click', function(){ updateGlobalAI(); toast('✅ 查询成功'); });
+  $('aiQuery').addEventListener('click', function(){ renderAIPage(); toast('✅ 查询成功'); });
+  $('searchQueryBtn').addEventListener('click', function(){ searchQuery = $('searchBox').value.trim(); activeTag = ''; render(); toast('✅ 查询成功'); });
+  $('groupNameQuery').addEventListener('click', function(){ renderLiveHint(); updateAIHint(); toast('✅ 查询成功'); });
 
 
 
@@ -2246,7 +2274,118 @@
       var bestK = sortedSb[0];
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
       
-  // 记录时实时AI提示：算某人的规律标签
+  
+
+  // 人名联想：输一个字跳出匹配人选
+  function renderSuggest(){
+    const box = $('nameSuggest');
+    const q = $('groupName').value.trim();
+    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    const names = [];
+    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
+    const hit = names.filter(n => n.includes(q)).slice(0, 12);
+    if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    let html = '';
+    hit.forEach(n => { html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '">' + escapeHtml(n) + '</div>'; });
+    box.innerHTML = html;
+    box.style.display = 'block';
+    box.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('click', () => {
+        $('groupName').value = el.dataset.n;
+        box.style.display = 'none';
+        renderLiveHint();
+        updateAIHint();
+      });
+    });
+  }
+
+  // 点击别处收起联想
+  document.addEventListener('click', function(e){
+    const box = $('nameSuggest');
+    const inp = $('groupName');
+    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== inp){
+      box.style.display = 'none';
+    }
+  });
+
+function cell(k, rank){
+        if (!k) return '<div style="padding:6px 0;"></div>';
+        var m = META[k];
+        var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
+        return '<div style="padding:8px 0;border-radius:6px;text-align:center;background:'+m[1]+';color:'+m[2]+';'+sh+'">'
+          + '<div style="font-size:30px;font-weight:900;line-height:1.2;">'+m[0]+'</div>'
+          + '</div>';
+      }
+      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
+        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
+        + cell(sortedSb[0],0)
+        + cell(sortedSb[1],1)
+        + cell(sortedSb[2],2)
+        + '</div>'
+        + '</div>';
+    }
+    // 最近12次预测对错（放在预测板外面，确保每次都更新）
+    if (state.predictHistory && state.predictHistory.length){
+      var histHtml = state.predictHistory.map(function(h, i){
+        var color = h ? '#22c55e' : '#ef4444';
+        var mark = h ? '√' : 'X';
+        return '<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:'+color+';color:#fff;font-size:13px;font-weight:900;margin-right:4px;">'+mark+'</span>';
+      }).join('');
+      html += '<div style="background:#1a1a1a;border-radius:6px;padding:6px 8px;margin-bottom:6px;text-align:center;border:1px solid #333;">'+histHtml+'</div>';
+    }
+    const matches = filtered;
+    function prefixScore(g){
+      if (!cur.length) return 0;
+      let n = 0;
+      for (let i=0; i<Math.min(cur.length, g.list.length); i++){
+        if (g.list[i] === cur[i]) n++; else break;
+      }
+      return n;
+    }
+    matches.sort((a,b) => {
+      var sa = prefixScore(a), sb = prefixScore(b);
+      if (sa !== sb) return sb - sa;
+      // 相同匹配度，时间最新的排前面
+      var ta = a.time || '', tb = b.time || '';
+      return tb > ta ? 1 : (tb < ta ? -1 : 0);
+    });
+    // 每组单独一块，最新在上，用麻将牌格子显示
+    for (let i = 0; i < matches.length; i++){
+      const g = matches[i];
+      const rows = Math.ceil(g.list.length / COLS);
+      const score = prefixScore(g);
+      const isMatch = cur.length && score >= cur.length;
+      let gridHtml = '';
+      for (let r = 0; r < rows; r++){
+        const startNum = r*COLS + 1;
+        const endNum = Math.min((r+1)*COLS, g.list.length);
+        gridHtml += `<div style="display:grid;grid-template-columns:20px repeat(6,1fr) 20px;gap:2px;align-items:center;margin-bottom:2px;">
+          <span style="font-size:10px;color:#888;text-align:center;">${startNum}</span>`;
+        for (let c = 0; c < COLS; c++){
+          const idx = r*COLS + c;
+          if (idx < g.list.length){
+            const s = g.list[idx];
+            const gm = (g.marks || [])[idx];
+            const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}" style="width:9px;height:9px;font-size:6px;">${gm?'✓':'×'}</span>` : '';
+            gridHtml += `<div class="hcell ${s}" style="font-size:14px;">${SYMBOLS[s]}${gmHtml}</div>`;
+          } else {
+            gridHtml += `<div style="aspect-ratio:1/1;"></div>`;
+          }
+        }
+        gridHtml += `<span style="font-size:10px;color:#888;text-align:center;">${endNum}</span></div>`;
+      }
+      html += `<div style="border-top:1px solid ${isMatch?'#4ade80':'#444'};padding-top:4px;margin-top:4px;${isMatch?'background:#1a3a2a;border-radius:6px;padding:6px 8px;':''}">
+        <div style="color:#888;font-size:11px;margin-bottom:2px;">${g.time || ''}${isMatch?' <span style="color:#4ade80;font-weight:700;">✓ 同走势</span>':''}</div>
+        ${gridHtml}
+      </div>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+    bindMiniBtns();
+  }
+// 记录时实时AI提示：算某人的规律标签
   function nmSplit(nm){ return String(nm).split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean); }
   function calcAIForName(nm){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
@@ -2384,115 +2523,6 @@
     box.style.display = 'block';
   }
 
-  // 人名联想：输一个字跳出匹配人选
-  function renderSuggest(){
-    const box = $('nameSuggest');
-    const q = $('groupName').value.trim();
-    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    const names = [];
-    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
-    const hit = names.filter(n => n.includes(q)).slice(0, 12);
-    if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    let html = '';
-    hit.forEach(n => { html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '">' + escapeHtml(n) + '</div>'; });
-    box.innerHTML = html;
-    box.style.display = 'block';
-    box.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('click', () => {
-        $('groupName').value = el.dataset.n;
-        box.style.display = 'none';
-        renderLiveHint();
-        updateAIHint();
-      });
-    });
-  }
-
-  // 点击别处收起联想
-  document.addEventListener('click', function(e){
-    const box = $('nameSuggest');
-    const inp = $('groupName');
-    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== inp){
-      box.style.display = 'none';
-    }
-  });
-
-function cell(k, rank){
-        if (!k) return '<div style="padding:6px 0;"></div>';
-        var m = META[k];
-        var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
-        return '<div style="padding:8px 0;border-radius:6px;text-align:center;background:'+m[1]+';color:'+m[2]+';'+sh+'">'
-          + '<div style="font-size:30px;font-weight:900;line-height:1.2;">'+m[0]+'</div>'
-          + '</div>';
-      }
-      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
-        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
-        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
-        + cell(sortedSb[0],0)
-        + cell(sortedSb[1],1)
-        + cell(sortedSb[2],2)
-        + '</div>'
-        + '</div>';
-    }
-    // 最近12次预测对错（放在预测板外面，确保每次都更新）
-    if (state.predictHistory && state.predictHistory.length){
-      var histHtml = state.predictHistory.map(function(h, i){
-        var color = h ? '#22c55e' : '#ef4444';
-        var mark = h ? '√' : 'X';
-        return '<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:'+color+';color:#fff;font-size:13px;font-weight:900;margin-right:4px;">'+mark+'</span>';
-      }).join('');
-      html += '<div style="background:#1a1a1a;border-radius:6px;padding:6px 8px;margin-bottom:6px;text-align:center;border:1px solid #333;">'+histHtml+'</div>';
-    }
-    const matches = filtered;
-    function prefixScore(g){
-      if (!cur.length) return 0;
-      let n = 0;
-      for (let i=0; i<Math.min(cur.length, g.list.length); i++){
-        if (g.list[i] === cur[i]) n++; else break;
-      }
-      return n;
-    }
-    matches.sort((a,b) => {
-      var sa = prefixScore(a), sb = prefixScore(b);
-      if (sa !== sb) return sb - sa;
-      // 相同匹配度，时间最新的排前面
-      var ta = a.time || '', tb = b.time || '';
-      return tb > ta ? 1 : (tb < ta ? -1 : 0);
-    });
-    // 每组单独一块，最新在上，用麻将牌格子显示
-    for (let i = 0; i < matches.length; i++){
-      const g = matches[i];
-      const rows = Math.ceil(g.list.length / COLS);
-      const score = prefixScore(g);
-      const isMatch = cur.length && score >= cur.length;
-      let gridHtml = '';
-      for (let r = 0; r < rows; r++){
-        const startNum = r*COLS + 1;
-        const endNum = Math.min((r+1)*COLS, g.list.length);
-        gridHtml += `<div style="display:grid;grid-template-columns:20px repeat(6,1fr) 20px;gap:2px;align-items:center;margin-bottom:2px;">
-          <span style="font-size:10px;color:#888;text-align:center;">${startNum}</span>`;
-        for (let c = 0; c < COLS; c++){
-          const idx = r*COLS + c;
-          if (idx < g.list.length){
-            const s = g.list[idx];
-            const gm = (g.marks || [])[idx];
-            const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}" style="width:9px;height:9px;font-size:6px;">${gm?'✓':'×'}</span>` : '';
-            gridHtml += `<div class="hcell ${s}" style="font-size:14px;">${SYMBOLS[s]}${gmHtml}</div>`;
-          } else {
-            gridHtml += `<div style="aspect-ratio:1/1;"></div>`;
-          }
-        }
-        gridHtml += `<span style="font-size:10px;color:#888;text-align:center;">${endNum}</span></div>`;
-      }
-      html += `<div style="border-top:1px solid ${isMatch?'#4ade80':'#444'};padding-top:4px;margin-top:4px;${isMatch?'background:#1a3a2a;border-radius:6px;padding:6px 8px;':''}">
-        <div style="color:#888;font-size:11px;margin-bottom:2px;">${g.time || ''}${isMatch?' <span style="color:#4ade80;font-weight:700;">✓ 同走势</span>':''}</div>
-        ${gridHtml}
-      </div>`;
-    }
-    html += '</div>';
-    box.innerHTML = html;
-    bindMiniBtns();
-  }
 
   function bindMiniBtns(){
     document.querySelectorAll('#liveHint .mini-btn').forEach(b => {
