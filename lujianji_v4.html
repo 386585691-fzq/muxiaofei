@@ -3928,10 +3928,13 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // 公共：记录一手牌（点按钮或键盘），同时把AI预测对错记到 currentMarks
   function pushSymbol(s){
     if (state.current.length >= 12){ alert('本组已满 12 格，先点「保存本组」开新组'); return; }
-    // 对错标记在完成本组后按“整组热门3门”统一计算，记录时先不标
+    // 实时打对错：先用当前已录手数 AI 预测下一手（主推+次推），录入这手立即标 ✓/×
+    var pred = predictTop2(state.current, getFiltered());
     state.current.push(s);
     if (!state.currentMarks) state.currentMarks = [];
-    state.currentMarks.push(-1);
+    var mk = -1;
+    if (pred.length){ mk = pred.indexOf(s) >= 0 ? 1 : 0; }
+    state.currentMarks.push(mk);
     save(); render();
     updateAIHint();
   }
@@ -4130,6 +4133,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v52 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v53 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
