@@ -2811,6 +2811,12 @@ function renderAIPage(){
       var pctOf = function(k){ return Math.round(sb2[k]/sbT2*100); };
       var sortedSb = Object.keys(sb2).sort(function(a,b){ return sb2[b]-sb2[a]; });
       var bestK = sortedSb[0];
+      // 主推按流转策略（8大AI自由更换）：用当前策略替换默认推荐
+      var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'ai');
+      if (sp4 && sp4.main){
+        bestK = sp4.main;
+        sortedSb = sp4.top3.length ? sp4.top3 : sortedSb.slice(0,3);
+      }
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
 
 function cell(k, rank){
@@ -2823,7 +2829,7 @@ function cell(k, rank){
       }
       html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
         + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">统计AI推荐 <span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
-        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
+        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】（'+sp4.name+'）</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
         + cell(sortedSb[0],0)
         + cell(sortedSb[1],1)
@@ -3125,6 +3131,167 @@ function cell(k, rank){
     return {c:c, total:total, top:top, topPct: total?Math.round(topV/total*100):0, tags:tags};
   }
 
+  // ===== 8大 AI 胜率预测策略（独立体系，留一手验证） =====
+  function cntArr(arr){ var o = {hu:0,long:0,ru:0,chu:0}; arr.forEach(function(x){ if (o[x]!==undefined) o[x]++; }); return o; }
+  function topN(o, n){
+    var ks = ['hu','long','ru','chu'].filter(function(k){ return o[k] > 0; });
+    if (!ks.length) return [];
+    ks.sort(function(a,b){ return o[b]-o[a]; });
+    return ks.slice(0, n);
+  }
+  function bottomN(o, n){
+    var ks = ['hu','long','ru','chu'].slice();
+    ks.sort(function(a,b){ return o[a]-o[b]; });
+    return ks.slice(0, n);
+  }
+  function topExcept(o, except){
+    var ks = ['hu','long','ru','chu'].filter(function(k){ return o[k] > 0 && (!except || except.indexOf(k) < 0); });
+    if (!ks.length) return [];
+    ks.sort(function(a,b){ return o[b]-o[a]; });
+    return [ks[0]];
+  }
+  function calcStrategyRates(groups){
+    var S = [
+      {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
+      {id:'hot2', name:'🎯 热门2门', desc:'押最常出的2门，中1个算对'},
+      {id:'follow', name:'🔁 顺势跟庄', desc:'上把出什么，下把还押什么'},
+      {id:'reverse', name:'🔄 反势博弈', desc:'押上把没出的门（对称补缺）'},
+      {id:'near', name:'📊 近15手主走', desc:'只看最近15手，押最热1门'},
+      {id:'cold', name:'🧊 冷门反买', desc:'押TA最少出的门（防诱单）'},
+      {id:'stop', name:'🛑 走过即停', desc:'押后半场还在走的门'},
+      {id:'ai', name:'🤖 综合AI', desc:'近期记录加权投票（现有模型）'},
+    ];
+    S.forEach(function(x){ x.hit = 0; x.total = 0; });
+    groups.forEach(function(g, gi){
+      var lst = g.list || [];
+      if (lst.length < 8) return;
+      var hist = {hu:0,long:0,ru:0,chu:0}; var histN = 0;
+      groups.forEach(function(o, oi){
+        if (oi === gi) return;
+        (o.list||[]).forEach(function(x){ if (hist[x]!==undefined){ hist[x]++; histN++; } });
+      });
+      var rec = {hu:0,long:0,ru:0,chu:0}; var recN = 0;
+      groups.slice(Math.max(0, gi-10), gi).forEach(function(o){
+        (o.list||[]).forEach(function(x){ if (rec[x]!==undefined){ rec[x]++; recN++; } });
+      });
+      var half = Math.floor(lst.length / 2);
+      for (var i=0;i<lst.length;i++){
+        var cur = lst[i];
+        var prev = i>0 ? lst[i-1] : null;
+        var pre15 = lst.slice(Math.max(0,i-15), i);
+        var secondHalf = lst.slice(half, i);
+        var preds = {
+          hot1: histN ? topN(hist, 1) : [],
+          hot2: histN ? topN(hist, 2) : [],
+          follow: prev ? [prev] : [],
+          reverse: histN ? topExcept(hist, [prev]) : [],
+          near: pre15.length >= 5 ? topN(cntArr(pre15), 1) : [],
+          cold: histN ? bottomN(hist, 1) : [],
+          stop: secondHalf.length >= 3 ? topN(cntArr(secondHalf), 1) : [],
+          ai: recN ? topN(rec, 1) : (histN ? topN(hist, 1) : [])
+        };
+        S.forEach(function(x){
+          var p = preds[x.id];
+          if (!p || !p.length) return;
+          x.total++;
+          if (p.indexOf(cur) >= 0) x.hit++;
+        });
+      }
+    });
+    S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit / x.total * 100) : 0; });
+    S.sort(function(a,b){ return b.rate - a.rate || b.total - a.total; });
+    return S;
+  }
+  // 全局策略表 + 流转
+  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', ai:'综合AI'};
+  var STRAT_ORDER = ['hot1','hot2','follow','reverse','near','cold','stop','ai'];
+  function strategyPredict(n, fg, sid){
+    var drs2 = ['hu','long','ru','chu'];
+    var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
+    var lst = []; gr.forEach(function(g){ lst = lst.concat(g.list||[]); });
+    var hist = cntArr(lst);
+    var sp = drs2.filter(function(k){ return hist[k] > 0; }).sort(function(a,b){ return hist[b]-hist[a]; });
+    var probs = {};
+    drs2.forEach(function(k){ probs[k] = lst.length ? Math.round(hist[k]/lst.length*100) : 25; });
+    var top3 = [], main = null;
+    var prev = lst.length ? lst[lst.length-1] : null;
+    if (sid === 'follow'){
+      main = prev || sp[0];
+      top3 = [main].concat(sp.slice(0,2));
+    } else if (sid === 'reverse'){
+      var rev = topExcept(hist, [prev]);
+      main = rev[0] || sp[0];
+      top3 = [main].concat(sp.slice(0,2));
+    } else if (sid === 'near'){
+      var nearL = lst.slice(-15);
+      var nh = cntArr(nearL);
+      var nsp = drs2.filter(function(k){ return nh[k] > 0; }).sort(function(a,b){ return nh[b]-nh[a]; });
+      main = nsp[0] || sp[0];
+      top3 = nsp.length ? nsp.slice(0,3) : sp.slice(0,3);
+      drs2.forEach(function(k){ probs[k] = nearL.length ? Math.round(nh[k]/nearL.length*100) : 25; });
+    } else if (sid === 'cold'){
+      var csp = drs2.slice().sort(function(a,b){ return hist[a]-hist[b]; });
+      main = csp[0];
+      top3 = [csp[0]].concat(sp.slice(0,2));
+    } else if (sid === 'stop'){
+      var lastG = gr.length ? gr[gr.length-1] : null;
+      var lg = (lastG && lastG.list && lastG.list.length) ? lastG.list : lst;
+      var half2 = Math.floor(lg.length/2);
+      var tail2 = lg.slice(half2);
+      var th = cntArr(tail2);
+      var tsp = drs2.filter(function(k){ return th[k] > 0; }).sort(function(a,b){ return th[b]-th[a]; });
+      main = tsp[0] || sp[0];
+      top3 = tsp.length ? tsp.slice(0,3) : sp.slice(0,3);
+    } else if (sid === 'hot2'){
+      top3 = sp.slice(0,3); main = sp[0];
+    } else if (sid === 'hot1'){
+      main = sp[0]; top3 = sp.slice(0,3);
+    } else {
+      var recL = []; gr.slice(-10).forEach(function(g){ recL = recL.concat(g.list||[]); });
+      var rh = cntArr(recL);
+      var rsp = drs2.filter(function(k){ return rh[k] > 0; }).sort(function(a,b){ return rh[b]-rh[a]; });
+      main = rsp[0] || sp[0];
+      top3 = rsp.length ? rsp.slice(0,3) : sp.slice(0,3);
+      drs2.forEach(function(k){ probs[k] = recL.length ? Math.round(rh[k]/recL.length*100) : probs[k]; });
+    }
+    while (top3.length < 3){
+      var miss = drs2.filter(function(k){ return top3.indexOf(k) < 0; })[0];
+      if (miss === undefined) break;
+      top3.push(miss);
+    }
+    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid};
+  }
+  window.cycleStrategy = function(){
+    var cur = state.aiStrategy || 'ai';
+    var idx = STRAT_ORDER.indexOf(cur);
+    var next = STRAT_ORDER[(idx+1) % STRAT_ORDER.length];
+    state.aiStrategy = next;
+    if (typeof saveLocal === 'function') saveLocal();
+    var b = $('stratCycle');
+    if (b) b.textContent = '🔄 当前推荐：' + STRAT_NAMES[next] + '（点我流转）';
+    if (typeof renderLiveHint === 'function') renderLiveHint();
+    if (typeof renderAIPage === 'function') renderAIPage();
+  };
+  function renderStrategyBoard(groups){
+    var S = calcStrategyRates(groups);
+    var curS = state.aiStrategy || 'ai';
+    var html = '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap;">'
+      + '<button id="stratCycle" onclick="cycleStrategy()" style="padding:3px 10px;border-radius:8px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.4);cursor:pointer;">🔄 当前推荐：' + STRAT_NAMES[curS] + '（点我流转）</button>'
+      + '<span style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
+      + '</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 8大策略对比（留一手验证 · 全部'+groups.length+'组）</div>';
+    html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th></tr>';
+    S.forEach(function(x, idx){
+      var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
+      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + (idx===0?'🥇 ':'') + x.name + '</td><td style="color:#94a3b8;font-size:10px;">' + x.desc + '</td><td>' + x.hit + '/' + x.total + '</td><td style="color:' + col + ';font-weight:700;">' + x.rate + '%</td></tr>';
+    });
+    html += '</table>';
+    if (S.length && S[0].total >= 30){
+      html += '<div style="font-size:10px;color:#fbbf24;margin-top:4px;">💡 目前最准：<b>' + S[0].name + '</b>（' + S[0].rate + '%）· 数据越多越接近真实规律</div>';
+    }
+    return html;
+  }
+
   // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
   function cloudAnalyze(){
     var box = $('cloudContent');
@@ -3230,7 +3397,8 @@ function cell(k, rank){
           html += '</table>';
         }
         
-                      html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
+                              html += renderStrategyBoard(groups);
+html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
       }
       setTimeout(step, 0);
@@ -3280,6 +3448,7 @@ function cell(k, rank){
       html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
     });
     html += '</table>';
+    html += renderStrategyBoard(groups);
     html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">数据源：本机本地 ' + groups.length + ' 组 · ' + names.length + ' 人名。云端恢复后点右上角刷新可看全量</div>';
     box.innerHTML = html;
   }
