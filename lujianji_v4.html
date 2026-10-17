@@ -725,7 +725,8 @@ function renderAIPage(){
       {v:'sum', t:'🧠 AI总结'},
       {v:'one', t:'👤 个人规律'},
       {v:'door', t:'🚪 四门规律'},
-      {v:'frame', t:'📡 框架借用'}
+      {v:'frame', t:'📡 框架借用'},
+      {v:'item', t:'🏷️ 单品分析'}
     ];
     var tb = $('aiViewBar');
     if (tb){
@@ -752,6 +753,7 @@ function renderAIPage(){
     var body = $('aiFocusBody');
     if (aiView === 'door'){ body.innerHTML = renderDoorPatterns(state.groups); $('aiFocusList').innerHTML = ''; return; }
     if (aiView === 'frame'){ body.innerHTML = renderFrameBorrow(state.groups); $('aiFocusList').innerHTML = ''; return; }
+    if (aiView === 'item'){ body.innerHTML = renderItemAnalyze(state.groups); $('aiFocusList').innerHTML = ''; return; }
     var html = '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎯 全局平均 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（从'+fg.length+'组数据学习）</div>';
     if (q){
       var nms = q.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
@@ -820,6 +822,71 @@ function renderAIPage(){
       lh += '<div style="font-size:11px;padding:5px 8px;margin-bottom:3px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.12);border-radius:6px;"><span style="color:#fef3c7;font-weight:700;">'+it.n+'</span> 虎'+it.info.p.hu+'% 龙'+it.info.p.long+'% 入'+it.info.p.ru+'% 出'+it.info.p.chu+'% '+tag+'</div>';
     });
     $('aiFocusList').innerHTML = lh;
+  }
+
+  // ===== 单品分析：把某个组名/游戏名当单品，AI 打标签 =====
+  function renderItemAnalyze(groups){
+    var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+    var drs = ['hu','long','ru','chu'];
+    var fg = timeFilterGroups(groups);
+    var q = ($('aiNameInput').value || '').trim();
+    var html = '<div style="font-size:13px;color:#fbbf24;font-weight:900;margin-bottom:6px;">🏷️ 单品分析 · AI 打标签</div>';
+    html += '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">把某个组名/游戏名当单品，AI 扫它所有记录打特征标签，套路/风险一眼看</div>';
+    // 快捷选名（手数最多的前8）
+    var cnt = {};
+    fg.forEach(function(g){ if (!g || !g.name) return; if (!cnt[g.name]) cnt[g.name] = {g:0,h:0}; cnt[g.name].g++; cnt[g.name].h += (g.list||[]).length; });
+    var names = Object.keys(cnt).map(function(n){ return {n:n, g:cnt[n].g, h:cnt[n].h}; });
+    names.sort(function(a,b){ return b.h - a.h; });
+    var chips = names.slice(0,8).map(function(x){
+      var on = x.n === q;
+      return '<button class="item-chip" data-n="'+x.n+'" style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid '+(on?'rgba(251,191,36,.6)':'rgba(148,163,184,.25)')+';background:'+(on?'rgba(251,191,36,.15)':'rgba(148,163,184,.06)')+';color:'+(on?'#fbbf24':'#94a3b8')+';font-family:inherit;">'+x.n+' ('+x.g+'组)</button>';
+    }).join('') || '<span style="font-size:10px;color:#64748b;">暂无数据</span>';
+    html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">'+chips+'</div>';
+    setTimeout(function(){
+      document.querySelectorAll('.item-chip').forEach(function(b){
+        b.addEventListener('click', function(){
+          $('aiNameInput').value = b.dataset.n;
+          var sg = $('aiNameSuggest'); if (sg) sg.style.display = 'none';
+          renderAIPage();
+        });
+      });
+    }, 0);
+    if (!q){
+      html += '<div style="font-size:11px;color:#94a3b8;padding:8px 0;">👆 在上面输入名字，或点上面的人名，AI 给这个「单品」打标签</div>';
+      return html;
+    }
+    var nms = q.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
+    nms.forEach(function(n){
+      var info = calcFocusNearName(n, fg);
+      if (!info){ html += '<div class="aihint-ok" style="margin-top:6px;">'+n+'：暂无数据（需≥8手）</div>'; return; }
+      var gr = fg.filter(function(g){ return g.name && nmSplit(g.name).indexOf(n) >= 0; });
+      var gs = gr.length; var hs = 0; gr.forEach(function(g){ hs += (g.list||[]).length; });
+      // 特征标签（蓝）+ 异常标签（红/橙）
+      var tags = info.tags.slice();
+      var feat = [];
+      var sp = drs.slice().sort(function(a,b){ return info.p[b] - info.p[a]; });
+      feat.push({t:'主走'+DRN[sp[0]]+'门'+info.p[sp[0]]+'%', c:'#38bdf8'});
+      var mx = info.p[sp[0]];
+      if (mx >= 45) feat.push({t:'单边偏多·'+DRN[sp[0]], c:'#f97316'});
+      else if (mx <= 32 && (info.p[sp[0]] - info.p[sp[3]]) <= 8) feat.push({t:'四门均衡', c:'#34d399'});
+      if (info.p[sp[3]] <= 12) feat.push({t:'冷门·'+DRN[sp[3]]+'很少走', c:'#94a3b8'});
+      // AI 评价等级
+      var lv = tags.length >= 3 ? 'danger' : tags.length >= 1 ? 'warn' : 'ok';
+      var ev = lv === 'danger' ? '⚠️ 高度异常：套路明显，别顺着TA留的门追' : lv === 'warn' ? '⚠️ 有套路：习惯明显，要反着防' : '✅ 暂无异常：四门较均衡';
+      var evc = lv === 'danger' ? '#f87171' : lv === 'warn' ? '#fbbf24' : '#34d399';
+      html += '<div style="background:rgba(148,163,184,.05);border:1px solid rgba(148,163,184,.15);border-radius:10px;padding:8px;margin-bottom:8px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-size:13px;color:#fef3c7;font-weight:700;">'+n+'</span><span style="font-size:10px;color:#64748b;">'+gs+'组 · '+hs+'手</span></div>';
+      var tagHtml = feat.map(function(x){ return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;margin:2px 2px 0 0;background:'+x.c+'22;color:'+x.c+';border:1px solid '+x.c+'55;">'+x.t+'</span>'; }).join('');
+      var tagWarn = tags.map(function(x){ return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;margin:2px 2px 0 0;background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.35);">⚠️ '+x+'</span>'; }).join('');
+      html += '<div>'+tagHtml+tagWarn+'</div>';
+      var bar = '';
+      drs.forEach(function(x){ bar += '<span style="display:inline-block;width:'+info.p[x]+'%;background:'+(x==='hu'?'#dc2626':x==='long'?'#2563eb':x==='ru'?'#16a34a':'#64748b')+';height:6px;border-radius:2px;"></span>'; });
+      html += '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);display:flex;gap:1px;margin:6px 0 3px;">'+bar+'</div>';
+      html += '<div style="font-size:10px;color:#94a3b8;">虎'+info.p.hu+'% 龙'+info.p.long+'% 入'+info.p.ru+'% 出'+info.p.chu+'%</div>';
+      html += '<div style="font-size:11px;font-weight:700;margin-top:5px;color:'+evc+';">'+ev+'</div>';
+      html += '</div>';
+    });
+    return html;
   }
 
   // 分析页：本地全量统计（四门分布/每日记录量/TOP热度）
@@ -3444,6 +3511,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v41 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v42 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
