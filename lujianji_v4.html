@@ -450,8 +450,9 @@
     if (p === 'ai') renderAIPage();
     if (p === 'analyze') renderAnalyzePage();
     if (p === 'cloud'){
-      var cc = document.getElementById('cloudContent');
-      if (cc && cc.style.display === 'none') showCloudPanel(); else cloudAnalyze();
+      var ccC = document.getElementById('cloudContent');
+      var hasC = ccC && ccC.innerHTML && ccC.innerHTML.indexOf('AI胜率预测') >= 0;
+      if (ccC && ccC.style.display === 'none') showCloudPanel(); else cloudAnalyze(hasC);
     }
     if (p === 'history'){ renderTags(); renderHistory(); }
     window.scrollTo(0,0);
@@ -3293,9 +3294,9 @@ function cell(k, rank){
   }
 
   // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
-  function cloudAnalyze(){
+  function cloudAnalyze(silent){
     var box = $('cloudContent');
-    box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
+    if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
     sbFetchAll(function(err, rows){
       if (err){
         var lc = state.groups.length;
@@ -3592,12 +3593,12 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var show = c.style.display === 'none';
     c.style.display = show ? 'block' : 'none';
     $('toggleCloud').textContent = show ? '收起 ▼' : '展开 ▶';
-    if (show) cloudAnalyze(); // 每次展开都重新拉取计算（保证最新）
+    if (show) cloudAnalyze(c && c.innerHTML && c.innerHTML.indexOf('AI胜率预测') >= 0);
   }
   $('toggleCloud').addEventListener('click', showCloudPanel);
    // 默认展开云端分析面板（AI关注直接可见）
    setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
-  $('cloudRefresh').addEventListener('click', function(){ cloudAnalyze(); });
+  $('cloudRefresh').addEventListener('click', function(){ cloudAnalyze(false); });
 
   // 导出备份
   $('exportBtn').addEventListener('click', () => {
