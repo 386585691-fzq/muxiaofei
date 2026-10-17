@@ -212,6 +212,20 @@
     <div style="font-size:11px;color:#64748b;margin-top:12px;" id="lockTip"></div>
   </div>
 </div>
+<div id="loginBar" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:4px;padding:0 2px;">
+  <span id="loginState" style="font-size:11px;color:#94a3b8;"></span>
+  <button id="loginBtn" onclick="showLoginModal()" style="padding:4px 10px;border-radius:6px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;border:1px solid rgba(251,191,36,.3);cursor:pointer;font-family:inherit;">登录</button>
+</div>
+<div id="loginModal" style="position:fixed;inset:0;background:rgba(2,6,23,.75);z-index:9998;display:none;align-items:center;justify-content:center;">
+  <div style="background:rgba(30,41,59,.97);border:1px solid rgba(251,191,36,.25);border-radius:16px;padding:24px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <div style="font-size:19px;font-weight:900;color:#fbbf24;margin-bottom:14px;">账号登录</div>
+    <input id="loginPhone" type="text" placeholder="手机号（11位，1开头）" maxlength="11" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:15px;font-weight:700;text-align:center;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit;">
+    <input id="loginCode" type="text" placeholder="验证码" maxlength="6" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:15px;font-weight:700;text-align:center;outline:none;margin-bottom:6px;box-sizing:border-box;font-family:inherit;">
+    <div style="font-size:10px;color:#64748b;margin-bottom:10px;">🔧 测试版：验证码固定 <span style="color:#fbbf24;font-weight:700;">123456</span>（正式版接短信后变真验证码）</div>
+    <button id="loginOk" onclick="doLogin()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(180deg,#d97706,#b45309);color:#fef08a;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;">登 录</button>
+    <button id="loginCancel" onclick="hideLoginModal()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(148,163,184,.3);background:transparent;color:#94a3b8;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">取 消</button>
+  </div>
+</div>
 <div id="topNav">
   <button class="navbtn active" data-page="record">📝 记录</button>
   <button class="navbtn" data-page="ai">🎯 AI关注</button>
@@ -303,6 +317,63 @@
 <script>
 (function(){
   const PWD_KEY = 'road_pwd_v1';
+  // ===== 账号登录（测试版：手机号 + 固定验证码 123456） =====
+  var LOGIN_KEY = 'road_login_v1';
+  function getLogin(){ try{ var o = JSON.parse(localStorage.getItem(LOGIN_KEY) || 'null'); return o; }catch(e){ return null; } }
+  function setLogin(u){ localStorage.setItem(LOGIN_KEY, JSON.stringify(u)); }
+  function maskPhone(p){ return p ? p.slice(0,3) + '****' + p.slice(7) : ''; }
+  function showLoginModal(){
+    var u = getLogin();
+    if (u && u.phone){ toast('已登录 ' + maskPhone(u.phone)); return; }
+    var m = document.getElementById('loginModal');
+    if (m) m.style.display = 'flex';
+  }
+  function hideLoginModal(){
+    var m = document.getElementById('loginModal');
+    if (m) m.style.display = 'none';
+  }
+  function doLogin(){
+    var phone = (document.getElementById('loginPhone').value || '').trim();
+    var code = (document.getElementById('loginCode').value || '').trim();
+    if (!/^1\d{10}$/.test(phone)){ toast('手机号格式不对（11位，1开头）'); return; }
+    if (code !== '123456'){ toast('验证码错误（测试版固定 123456）'); return; }
+    setLogin({ phone: phone, ts: Date.now() });
+    hideLoginModal();
+    updateLoginUI();
+    toast('✅ 登录成功 ' + maskPhone(phone));
+  }
+  function logout(){
+    localStorage.removeItem(LOGIN_KEY);
+    updateLoginUI();
+    toast('已退出登录');
+  }
+  function updateLoginUI(){
+    var u = getLogin();
+    var st = document.getElementById('loginState');
+    var btn = document.getElementById('loginBtn');
+    if (u && u.phone){
+      if (st) st.textContent = '已登录 ' + maskPhone(u.phone);
+      if (btn){ btn.textContent = '退出'; btn.setAttribute('onclick', 'logout()'); }
+    } else {
+      if (st) st.textContent = '未登录（数据存本机+云端）';
+      if (btn){ btn.textContent = '登录'; btn.setAttribute('onclick', 'showLoginModal()'); }
+    }
+  }
+  // 暴露到 window（HTML onclick 需要全局访问）
+  window.showLoginModal = showLoginModal;
+  window.hideLoginModal = hideLoginModal;
+  window.doLogin = doLogin;
+  window.logout = logout;
+  // PWA：注册 Service Worker（离线缓存 + 添加到主屏幕成 App）
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  }
+  // 页面加载后更新登录状态
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateLoginUI);
+  else updateLoginUI();
+  // 密码锁：解锁后更新登录UI
+  var _ol = window.onload;
+  window.onload = function(){ if (_ol) _ol(); updateLoginUI(); };
   // 密码锁逻辑
   function checkLock(){
     var savedPwd = localStorage.getItem(PWD_KEY);
