@@ -202,6 +202,7 @@
 </style>
 </head>
 <body>
+<div id="updateBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9997;background:linear-gradient(90deg,#fbbf24,#f59e0b);color:#0f172a;text-align:center;padding:9px;font-size:13px;font-weight:900;cursor:pointer;" onclick="location.reload()">🔄 发现新版本，点这里立即更新</div>
 <!-- 密码锁 -->
 <div id="lockScreen" style="position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e1b4b);z-index:9999;display:none;align-items:center;justify-content:center;">
   <div style="background:rgba(30,41,59,.8);backdrop-filter:blur(20px);border:1px solid rgba(251,191,36,.2);border-radius:16px;padding:30px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
@@ -360,9 +361,20 @@
   window.hideLoginModal = hideLoginModal;
   window.doLogin = doLogin;
   window.logout = logout;
-  // PWA：注册 Service Worker（离线缓存 + 添加到主屏幕成 App）
+  // PWA：注册 Service Worker（离线缓存 + 添加到主屏幕成 App）+ 新版本检测
   if ('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').catch(function(){});
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      reg.addEventListener('updatefound', function(){
+        var nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', function(){
+          if (nw.state === 'installed' && navigator.serviceWorker.controller){
+            var ub = document.getElementById('updateBar');
+            if (ub) ub.style.display = 'block';
+          }
+        });
+      });
+    }).catch(function(){});
   }
   // 页面加载后更新登录状态
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateLoginUI);
@@ -3276,5 +3288,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v34 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
