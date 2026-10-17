@@ -278,6 +278,10 @@
     <button class="tbtn" data-tf="month">本月</button>
     <button class="tbtn" data-tf="year">今年</button>
   </div>
+  <div id="rtBar" style="display:flex;align-items:center;gap:6px;margin:2px 0 6px;">
+    <button id="rtBtn" onclick="toggleRT()" style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.4);">🔴 实时监控中</button>
+    <span id="rtStatus" style="font-size:10px;color:#64748b;">自动抓云端新登记·每60秒</span>
+  </div>
   <div id="aiViewBar" style="margin:6px 0 4px;"></div>
   <div id="aiNameSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:40;min-width:160px;"></div>
   <div id="aiFocusBody" style="margin-top:6px;"></div>
@@ -364,7 +368,9 @@
   window.logout = logout;
   // PWA：注册 Service Worker（离线缓存 + 添加到主屏幕成 App）+ 新版本检测
   if ('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      startRT(); // 实时监控默认开（AI关注页自动抓云端新登记）
+
+  navigator.serviceWorker.register('./sw.js').then(function(reg){
       reg.addEventListener('updatefound', function(){
         var nw = reg.installing;
         if (!nw) return;
@@ -959,6 +965,48 @@ function renderAIPage(){
   var CLOUD_TBL = 'jipai';
   var CLOUD = true; // 公开键 + 表权限已配置，直接同步
   var cloudTimer = null;
+  // ===== 实时监控：每60秒抓云端最新登记，有新数据自动更新当前AI分析 =====
+  var rtTimer = null;
+  var rtOn = true;
+  window.toggleRT = function(){
+    rtOn = !rtOn;
+    var b = $('rtBtn');
+    if (rtOn){
+      b.textContent = '🔴 实时监控中';
+      b.style.background = 'rgba(52,211,153,.15)'; b.style.color = '#34d399'; b.style.borderColor = 'rgba(52,211,153,.4)';
+      startRT();
+    } else {
+      b.textContent = '⚪ 实时已关';
+      b.style.background = 'rgba(100,116,139,.15)'; b.style.color = '#94a3b8'; b.style.borderColor = 'rgba(100,116,139,.3)';
+      stopRT();
+    }
+  };
+  function startRT(){
+    if (rtTimer) return;
+    rtTimer = setInterval(function(){ fetchCloudNew(); }, 60000);
+  }
+  function stopRT(){ if (rtTimer){ clearInterval(rtTimer); rtTimer = null; } }
+  window.fetchCloudNew = fetchCloudNew;
+  function fetchCloudNew(){
+    if (!CLOUD || !CLOUD_URL) return;
+    sbReq(CLOUD_TBL + '?select=name,time,list&order=id.desc&limit=100', null, function(err, xhr){
+      if (err || !xhr || xhr.status !== 200) return;
+      var rows = [];
+      try{ rows = JSON.parse(xhr.responseText); }catch(e){ return; }
+      if (!rows || !rows.length) return;
+      var before = state.groups.length;
+      state.groups = mergeGroups(state.groups, rows);
+      if (typeof saveLocal === 'function') saveLocal();
+      var added = state.groups.length - before;
+      if (added > 0){
+        var st = $('rtStatus');
+        st.textContent = '📡 新收录 ' + added + ' 组，已更新分析';
+        st.style.color = '#fbbf24';
+        setTimeout(function(){ st.textContent = '自动抓云端新登记·每60秒'; st.style.color = '#64748b'; }, 4000);
+        if (typeof renderAIPage === 'function') renderAIPage();
+      }
+    });
+  }
 
   // 合并去重：按 人名+牌路 合并两份数据，谁的数据都不丢
   function mergeGroups(a, b){
@@ -3399,6 +3447,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v39 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v40 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
