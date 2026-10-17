@@ -3909,6 +3909,12 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     renderHistory();
     updateRecommend();
   }
+  // 记录按键用轻量渲染：不动历史/标签，避免每次按键重建全部列表卡顿
+  function renderLight(){
+    renderGrid();
+    renderLiveHint();
+    updateRecommend();
+  }
 
   // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
   function updateRecommend(){
@@ -3935,7 +3941,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var mk = -1;
     if (pred.length){ mk = pred.indexOf(s) >= 0 ? 1 : 0; }
     state.currentMarks.push(mk);
-    save(); render();
+    save(); renderLight();
     updateAIHint();
   }
 
@@ -3971,7 +3977,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   $('undoBtn').addEventListener('click', () => {
     state.current.pop();
     if (state.currentMarks && state.currentMarks.length) state.currentMarks.pop();
-    save(); render();
+    save(); renderLight();
   });
 
   $('doneBtn').addEventListener('click', () => {
@@ -4133,6 +4139,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v53 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v54 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
