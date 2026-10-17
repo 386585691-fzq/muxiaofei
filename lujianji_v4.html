@@ -3072,40 +3072,26 @@ function cell(k, rank){
   // 公共：记录一手牌（点按钮或键盘），同时把AI预测对错记到 currentMarks
   function pushSymbol(s){
     if (state.current.length >= 12){ alert('本组已满 12 格，先点「保存本组」开新组'); return; }
-    var filtered = getFiltered();
-    var top3 = predictTop2(state.current, filtered);
-    var mark = -1;
-    if (top3.length){
-      state.accuracy.total++;
-      var hit = top3.indexOf(s) >= 0;
-      if (hit) state.accuracy.correct++;
-      mark = hit ? 1 : 0;
-      state.predictHistory.push(hit ? 1 : 0);
-      if (state.predictHistory.length > 12) state.predictHistory.shift();
-    }
+    // 对错标记在完成本组后按“整组热门3门”统一计算，记录时先不标
     state.current.push(s);
     if (!state.currentMarks) state.currentMarks = [];
-    state.currentMarks.push(mark);
+    state.currentMarks.push(-1);
     save(); render();
     updateAIHint();
   }
 
-  // 补记：给没有对错记录的旧组，用当前AI模型逐手复盘补算（留一手：用前i手预测第i手，不偷看答案）
+  // 打对错：推荐3门=整组热门3门。开热门✓，开冷门×（热门=该组出现最多的3门）
   function backfillMarks(){
-    if (state._backfilled) return;
-    state._backfilled = true;
+    if (state._markV2) return;
+    state._markV2 = true;
     var changed = false;
     state.groups.forEach(function(g){
-      if (g.marks && g.marks.length >= g.list.length) return;
+      var st = {hu:0,long:0,ru:0,chu:0};
+      (g.list || []).forEach(function(x){ if (st[x] !== undefined) st[x]++; });
+      var ks = Object.keys(st).sort(function(a,b){ return st[b]-st[a]; }).slice(0,3);
       var marks = [];
       for (var i=0; i<g.list.length; i++){
-        if (i === 0){ marks.push(-1); continue; } // 第一手无前缀无法预测
-        var prefix = g.list.slice(0, i);
-        var filtered = state.groups.filter(function(x){ return x.name === g.name && x !== g; });
-        // 修复：无同名人历史时不再用全局数据补算，与实时记录保持一致，避免两套标准
-        var top3 = predictTop2(prefix, filtered);
-        if (!top3.length){ marks.push(-1); continue; }
-        marks.push(top3.indexOf(g.list[i]) >= 0 ? 1 : 0);
+        marks.push(ks.indexOf(g.list[i]) >= 0 ? 1 : 0);
       }
       g.marks = marks;
       changed = true;
