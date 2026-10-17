@@ -232,7 +232,6 @@
   <button class="navbtn" data-page="ai">🎯 AI关注</button>
   <button class="navbtn" data-page="analyze">📊 分析</button>
   <button class="navbtn" data-page="cloud">☁️ 云端分析</button>
-  <button class="navbtn" data-page="lure">🔗 连对规律</button>
   <button class="navbtn" data-page="history">📚 历史</button>
 </div>
 
@@ -276,6 +275,7 @@
   <div id="aiTimeBar" style="display:flex;gap:4px;margin:6px 0;flex-wrap:wrap;">
     <button class="tbtn on" data-tf="all">全部</button>
     <button class="tbtn" data-tf="day">今天</button>
+    <button class="tbtn" data-tf="yday">昨天</button>
     <button class="tbtn" data-tf="week">本周</button>
     <button class="tbtn" data-tf="month">本月</button>
     <button class="tbtn" data-tf="year">今年</button>
@@ -301,11 +301,16 @@
         <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">展开 ▶</button>
       </div>
     </div>
+    <div id="cloudTimeBar" style="display:flex;gap:4px;margin:6px 0;flex-wrap:wrap;">
+      <button class="tbtn on" data-tf="all">全部</button>
+      <button class="tbtn" data-tf="day">今天</button>
+      <button class="tbtn" data-tf="yday">昨天</button>
+      <button class="tbtn" data-tf="week">本周</button>
+      <button class="tbtn" data-tf="month">本月</button>
+      <button class="tbtn" data-tf="year">今年</button>
+    </div>
     <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;">
   </div>
-</div>
-<div class="page" id="page-lure">
-  <div id="lureContent" style="padding:10px;"></div>
 </div>
 <div class="page" id="page-history">
   <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
@@ -459,16 +464,24 @@
       var hasC = ccC && ccC.innerHTML && ccC.innerHTML.indexOf('AI胜率预测') >= 0;
       if (ccC && ccC.style.display === 'none') showCloudPanel(); else cloudAnalyze(hasC);
     }
-    if (p === 'lure') renderLurePage();
     if (p === 'history'){ renderTags(); renderHistory(); }
     window.scrollTo(0,0);
   }
   document.querySelectorAll('.navbtn').forEach(function(b){
     b.addEventListener('click', function(){ switchPage(b.dataset.page); });
   });
+  document.querySelectorAll('#cloudTimeBar .tbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      cloudTimeFilter = b.dataset.tf;
+      document.querySelectorAll('#cloudTimeBar .tbtn').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      cloudAnalyze(true);
+    });
+  });
 
   // AI关注页：全局平均 + 个人规律 + 关注列表
   var aiTimeFilter = 'all';
+  var cloudTimeFilter = 'all';
   function parseTime(ts){
     if (ts == null || ts === '') return null;
     if (typeof ts === 'number' || /^\d{10,}$/.test(String(ts).trim())){
@@ -493,6 +506,10 @@
       var t = parseTime(g && g.time);
       if (!t) return false;
       if (aiTimeFilter === 'day') return t.m === cm && t.d === cd;
+      if (aiTimeFilter === 'yday'){
+        var yd = new Date(cy, cm-1, cd-1);
+        return t.y === yd.getFullYear() && t.m === yd.getMonth()+1 && t.d === yd.getDate();
+      }
       if (aiTimeFilter === 'week'){
         var d0 = new Date(t.y, t.m-1, t.d);
         return d0 >= monday && d0 <= now;
@@ -733,7 +750,8 @@ function renderAIPage(){
       {v:'one', t:'👤 个人规律'},
       {v:'door', t:'🚪 四门规律'},
       {v:'frame', t:'📡 框架借用'},
-      {v:'item', t:'🏷️ 单品分析'}
+      {v:'item', t:'🏷️ 单品分析'},
+      {v:'lure', t:'🔗 连对规律'}
     ];
     var tb = $('aiViewBar');
     if (tb){
@@ -761,6 +779,7 @@ function renderAIPage(){
     if (aiView === 'door'){ body.innerHTML = renderDoorPatterns(state.groups); $('aiFocusList').innerHTML = ''; return; }
     if (aiView === 'frame'){ body.innerHTML = renderFrameBorrow(state.groups); $('aiFocusList').innerHTML = ''; return; }
     if (aiView === 'item'){ body.innerHTML = renderItemAnalyze(state.groups); $('aiFocusList').innerHTML = ''; return; }
+    if (aiView === 'lure'){ body.innerHTML = renderLurePage(fg); $('aiFocusList').innerHTML = ''; return; }
     var html = '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎯 全局平均 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（从'+fg.length+'组数据学习）</div>';
     if (q){
       var nms = q.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
@@ -858,9 +877,8 @@ function renderAIPage(){
     });
     return out;
   }
-  function renderLurePage(){
-    var box = $('lureContent');
-    var lure = calcLurePattern(state.groups);
+  function renderLurePage(groups){
+    var lure = calcLurePattern(groups || state.groups);
     var html = '<div style="font-size:13px;color:#fbbf24;font-weight:900;margin-bottom:4px;">🔗 连对规律 · 心理诱单识别</div>';
     html += '<div style="font-size:10px;color:#64748b;margin-bottom:8px;">规律：开头连出同门（如<b>虎虎</b>），之后整组<b>再无任何连对</b>（龙龙/入入/出出都没有），后面全是单蹦交替——先给一个"连"的假象，实际全是单蹦，典型心理诱导。</div>';
     if (lure.length){
@@ -885,8 +903,8 @@ function renderAIPage(){
       }
     });
     html += '<div style="font-size:11px;color:#38bdf8;font-weight:700;margin:10px 0 4px;">📊 全库连对出现次数（'+totG+'组≥6手）</div>';
-    html += '<div style="font-size:11px;color:#94a3b8;">虎虎 '+pc.hu+' 组 · 龙龙 '+pc.long+' 组 · 入入 '+pc.ru+' 组 · 出出 '+pc.chu+' 组</div>';
-    box.innerHTML = html;
+    html += '<div style="font-size:11px;color:#94a3b8;">虎虎 '+pc.hu+' 次 · 龙龙 '+pc.long+' 次 · 入入 '+pc.ru+' 次 · 出出 '+pc.chu+' 次</div>';
+    return html;
   }
 
   // ===== 单品分析：把某个组名/游戏名当单品，AI 打标签 =====
@@ -3731,6 +3749,23 @@ function cell(k, rank){
         if (!t && OLD.indexOf(g.name) >= 0) return false;
         return g.name && g.list.length;
       });
+      // 时间筛选（全部/今天/昨天/本周/本月/今年）
+      if (cloudTimeFilter !== 'all'){
+        var now2 = new Date();
+        var cy2 = now2.getFullYear(), cm2 = now2.getMonth()+1, cd2 = now2.getDate();
+        var wd2 = now2.getDay(); if (wd2 === 0) wd2 = 7;
+        var monday2 = new Date(cy2, cm2-1, cd2-(wd2-1));
+        groups = groups.filter(function(g){
+          var t = parseTime(g.time);
+          if (!t) return false;
+          if (cloudTimeFilter === 'day') return t.m === cm2 && t.d === cd2;
+          if (cloudTimeFilter === 'yday'){ var yd = new Date(cy2, cm2-1, cd2-1); return t.y === yd.getFullYear() && t.m === yd.getMonth()+1 && t.d === yd.getDate(); }
+          if (cloudTimeFilter === 'week'){ var d0 = new Date(t.y, t.m-1, t.d); return d0 >= monday2 && d0 <= now2; }
+          if (cloudTimeFilter === 'month') return t.m === cm2;
+          if (cloudTimeFilter === 'year') return t.y === cy2;
+          return true;
+        });
+      }
       // 每日记录量（日期补零归一）
       function normDay(d){ var p = d.split('-'); if (p.length === 2) return p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0'); return d; }
       var dayMap = {};
@@ -4095,6 +4130,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v51 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v52 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
