@@ -219,6 +219,7 @@
 </div>
 <div id="globalAI" style="padding:6px 8px;background:rgba(251,191,36,.04);border-bottom:1px solid rgba(251,191,36,.12);">
   <input id="globalAIName" type="text" placeholder="🎯 输名字/选人，下方直接显示四门规律与诱单警示（如：顺顺）" maxlength="20" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:13px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <div id="globalAISuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:40;min-width:160px;"></div>
   <div id="globalAIHint" style="margin-top:4px;line-height:1.5;"></div>
 </div>
 <div class="current page active" id="page-record">
@@ -253,6 +254,7 @@
 <div class="page" id="page-ai">
   <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🎯 AI关注 · 四门规律（从数据学习）</div>
   <input id="aiNameInput" type="text" placeholder="输入人名（如 顺顺、牡丹），查看这个人的规律" maxlength="20" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:14px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit;">
+  <div id="aiNameSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:40;min-width:160px;"></div>
   <div id="aiFocusBody" style="margin-top:6px;"></div>
   <div id="aiFocusList" style="margin-top:8px;"></div>
 </div>
@@ -458,6 +460,34 @@
     box.innerHTML = html;
   }
   $('globalAIName').addEventListener('input', updateGlobalAI);
+
+  // 通用人名联想：输一个字跳出可选人名（全局查询框 + AI关注页）
+  function bindNameSuggest(inpId, sugId, onPick){
+    var inp = document.getElementById(inpId), sug = document.getElementById(sugId);
+    if (!inp || !sug) return;
+    inp.addEventListener('input', function(){
+      var q = inp.value.trim();
+      if (!q){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
+      var names = [];
+      state.groups.forEach(function(g){ if (g.name && names.indexOf(g.name) < 0) names.push(g.name); });
+      var hits = names.filter(function(n){ return n.indexOf(q) >= 0; }).slice(0, 10);
+      if (!hits.length){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
+      sug.innerHTML = hits.map(function(n){ return '<div class="suggest-item" data-n="' + n.replace(/"/g,'&quot;') + '">' + n.replace(/</g,'&lt;') + '</div>'; }).join('');
+      sug.style.display = 'block';
+      sug.querySelectorAll('.suggest-item').forEach(function(el){
+        el.addEventListener('click', function(){
+          inp.value = el.dataset.n;
+          sug.style.display = 'none'; sug.innerHTML = '';
+          if (onPick) onPick();
+        });
+      });
+    });
+    document.addEventListener('click', function(e){
+      if (sug.style.display === 'block' && !sug.contains(e.target) && e.target !== inp){ sug.style.display = 'none'; }
+    });
+  }
+  bindNameSuggest('globalAIName', 'globalAISuggest', updateGlobalAI);
+  bindNameSuggest('aiNameInput', 'aiNameSuggest', renderAIPage);
 
 
 
