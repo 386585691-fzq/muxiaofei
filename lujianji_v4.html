@@ -2936,9 +2936,10 @@ function renderAIPage(){
       var bestK = sortedSb[0];
       // 主推按流转策略（8大AI自由更换）：用当前策略替换默认推荐
       var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'ai');
-      if (sp4 && sp4.main){
-        bestK = sp4.main;
-        sortedSb = sp4.top3.length ? sp4.top3 : sortedSb.slice(0,3);
+      var pm = predictMain(cur, learnPool);
+      if (pm && pm.main){
+        bestK = pm.main;
+        sortedSb = pm.top.length ? pm.top : sortedSb.slice(0,3);
       }
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
 
@@ -3941,11 +3942,15 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var name = currentName();
     var sp = null;
     try { sp = strategyPredict(name, filtered, state.aiStrategy || 'ai'); } catch(e){}
+    var top2 = predictTop2(curArr, filtered);   // 动态：随当前已录手数变化（前缀/上一手/位置）
     if (sp && sp.main){
-      var top = sp.top3 && sp.top3.length ? sp.top3 : [sp.main];
-      return { top: top, main: sp.main };
+      // 融合：动态预测优先（推荐会跟随当前走势动），确认策略补位兜底
+      var merged = [];
+      (top2 || []).forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
+      if (merged.indexOf(sp.main) < 0) merged.push(sp.main);
+      if (merged.length < 3 && sp.top3) sp.top3.forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
+      return { top: merged.slice(0,3), main: merged[0] };
     }
-    var top2 = predictTop2(curArr, filtered);
     return { top: top2, main: top2[0] };
   }
   // 记录时高亮AI推荐的门（主推+次推），让你看到推荐依据
@@ -4171,6 +4176,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v58 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v59 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
