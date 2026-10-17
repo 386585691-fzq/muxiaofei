@@ -565,6 +565,32 @@
               tags.push({t:'近15手专走'+DOOR_NAME[tsp[0]]+DOOR_NAME[tsp[1]]+' · 从不出'+DOOR_NAME[toth[0]]+DOOR_NAME[toth[1]], c:'#fb923c'});
             }
           }
+          // 走过即停：某门开头走完、后半场不再出（用户观察：走了入后续不再入）
+          var allLst = [];
+          groups.forEach(function(g){
+            if (!g || !g.list) return;
+            if (splitNames(g.name).indexOf(n) < 0) return;
+            allLst = allLst.concat(g.list);
+          });
+          if (allLst.length >= 10){
+            var half = Math.ceil(allLst.length/2);
+            var head = allLst.slice(0, half);
+            var tail2 = allLst.slice(half);
+            doorsArr.forEach(function(x){
+              if (head.indexOf(x) >= 0 && tail2.indexOf(x) < 0) tags.push({t:'走过即停：'+DOOR_NAME[x]+'开头走完，后半不再出', c:'#fb923c'});
+            });
+            // 后半场只跑2门到结束
+            if (tail2.length >= 6){
+              var tc3 = {hu:0,long:0,ru:0,chu:0};
+              tail2.forEach(function(x){ if (tc3[x]!==undefined) tc3[x]++; });
+              var alive2 = doorsArr.filter(function(x){ return tc3[x] > 0; });
+              if (alive2.length === 2) tags.push({t:'后半场只跑'+DOOR_NAME[alive2[0]]+DOOR_NAME[alive2[1]]+'到结束', c:'#fbbf24'});
+            }
+          }
+          // 实际主走2门（放宽 top2≥65%，≥10手。用户观察：实际都是2门）
+          if (s.total >= 10 && p[sp[0]]+p[sp[1]] >= 65){
+            tags.push({t:'实际主走'+DOOR_NAME[sp[0]]+DOOR_NAME[sp[1]]+'两门'+String(p[sp[0]]+p[sp[1]])+'%', c:'#38bdf8'});
+          }
           // 后半场收敛：去掉前4手后只跑2门到结束
           var converge = [];
           groups.forEach(function(g){
@@ -2841,6 +2867,29 @@ function cell(k, rank){
       var toth = drs.filter(function(x){ return x!==tsp[0] && x!==tsp[1]; });
       if (tp[tsp[0]]+tp[tsp[1]] >= 85 && (tc[toth[0]]+tc[toth[1]]) <= near.length*0.10) tags.push('近15手专走'+DRN[tsp[0]]+DRN[tsp[1]]+'·从不出'+DRN[toth[0]]+DRN[toth[1]]);
     }
+    // 走过即停：某门这组开头走完、后半场整段不再出（用户观察：走了入后续不再入）
+    var allLst = [];
+    grps.forEach(function(g){ allLst = allLst.concat(g.list || []); });
+    if (allLst.length >= 10){
+      var half = Math.ceil(allLst.length / 2);
+      var head = allLst.slice(0, half);
+      var tail = allLst.slice(half);
+      drs.forEach(function(x){
+        if (head.indexOf(x) >= 0 && tail.indexOf(x) < 0) tags.push('走过即停：'+DRN[x]+'开头走完，后半不再出');
+      });
+      // 后半场只跑2门到结束（后半段实际就2门）
+      if (tail.length >= 6){
+        var tc2 = {}; drs.forEach(function(x){ tc2[x] = 0; });
+        tail.forEach(function(x){ if (tc2[x] !== undefined) tc2[x]++; });
+        var alive2 = drs.filter(function(x){ return tc2[x] > 0; });
+        if (alive2.length === 2) tags.push('后半场只跑'+DRN[alive2[0]]+DRN[alive2[1]]+'到结束');
+      }
+    }
+    // 实际主走2门（放宽：top2≥65%，≥10手。用户观察：实际都是2门）
+    var sp3 = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
+    if (s.total >= 10 && p[sp3[0]]+p[sp3[1]] >= 65){
+      tags.push('实际主走'+DRN[sp3[0]]+DRN[sp3[1]]+'两门'+String(p[sp3[0]]+p[sp3[1]])+'%');
+    }
     drs.forEach(function(x){ if (p[x] >= 60) tags.push(DRN[x]+'门'+p[x]+'%'); });
     var sp2 = drs.slice().sort(function(a,b){ return p[b]-p[a]; });
     var o2 = drs.filter(function(x){ return x!==sp2[0] && x!==sp2[1]; });
@@ -3322,6 +3371,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v37 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v38 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
