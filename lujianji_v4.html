@@ -457,7 +457,15 @@
     var nb = document.querySelector('.navbtn[data-page="' + p + '"]');
     if (nb) nb.classList.add('active');
     if (p === 'record') render();
-    if (p === 'ai') renderAIPage();
+    if (p === 'ai'){
+      renderAIPage();
+      // 点AI关注即静默同步云端最新数据（5秒内不重复拉）
+      var nowMs = Date.now();
+      if (nowMs - _lastAiSync > 5000){
+        _lastAiSync = nowMs;
+        if (typeof fetchCloudNew === 'function') fetchCloudNew();
+      }
+    }
     if (p === 'analyze') renderAnalyzePage();
     if (p === 'cloud'){
       var ccC = document.getElementById('cloudContent');
@@ -481,6 +489,7 @@
 
   // AI关注页：全局平均 + 个人规律 + 关注列表
   var aiTimeFilter = 'all';
+  var _lastAiSync = 0;
   var cloudTimeFilter = 'all';
   function parseTime(ts){
     if (ts == null || ts === '') return null;
@@ -4205,6 +4214,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v62 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v63 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
