@@ -295,8 +295,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:12px;color:#34d399;font-weight:700;">云端分析 · 实时热度/胜率</span>
       <div style="display:flex;gap:4px;">
-        <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">
-        <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">
+        <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">🔄 重跑AI胜率</button>
+        <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">展开 ▶</button>
       </div>
     </div>
     <div id="cloudContent" style="display:none;margin-top:4px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:8px;max-height:560px;overflow-y:auto;">
@@ -3356,15 +3356,12 @@ function cell(k, rank){
     var show = c.style.display === 'none';
     c.style.display = show ? 'block' : 'none';
     $('toggleCloud').textContent = show ? '收起 ▼' : '展开 ▶';
-    if (show && !cloudRendered){ cloudRendered = true; cloudAnalyze(); }
+    if (show) cloudAnalyze(); // 每次展开都重新拉取计算（保证最新）
   }
   $('toggleCloud').addEventListener('click', showCloudPanel);
    // 默认展开云端分析面板（AI关注直接可见）
    setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
-  $('cloudRefresh').addEventListener('click', function(){
-    cloudRendered = true;
-    cloudAnalyze();
-  });
+  $('cloudRefresh').addEventListener('click', function(){ cloudAnalyze(); });
 
   // 导出备份
   $('exportBtn').addEventListener('click', () => {
@@ -3447,6 +3444,6 @@ function cell(k, rank){
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v40 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v41 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
