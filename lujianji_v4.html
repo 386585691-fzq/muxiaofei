@@ -3238,24 +3238,32 @@ function cell(k, rank){
     if (!q){
       // 组名空：显示全局概览（AI关注常显，记录时永远看得到）
       var gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
-      state.groups.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
+      var nw0 = new Date(), pd0 = function(x){ return String(x).padStart(2,'0'); }, ts0 = (nw0.getMonth()+1) + '-' + pd0(nw0.getDate());
+      var gd0 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts0) === 0; });
+      var pool0 = gd0.length ? gd0 : state.groups;
+      pool0.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
       var gp0 = {};
       ['hu','long','ru','chu'].forEach(function(x){ gp0[x] = gT0.all ? Math.round(gT0[x]/gT0.all*100) : 25; });
-      box.innerHTML = '<div style="font-size:9px;color:#64748b;margin-bottom:2px;">🎯 AI关注 · 全局平均 虎'+gp0.hu+'% 龙'+gp0.long+'% 入'+gp0.ru+'% 出'+gp0.chu+'%（从'+state.groups.length+'组数据学习）</div>'
+      var lab0 = gd0.length ? '当天' + gd0.length + '组' : '全部' + state.groups.length + '组';
+      box.innerHTML = '<div style="font-size:9px;color:#64748b;margin-bottom:2px;">🎯 AI关注 · 当天分析 虎'+gp0.hu+'% 龙'+gp0.long+'% 入'+gp0.ru+'% 出'+gp0.chu+'%（'+lab0+'）</div>'
         + '<div style="font-size:11px;color:#94a3b8;">点上面快捷选名 / 输入组名，查看这个人的四门规律与诱单警示</div>';
       box.style.display = 'block';
       return;
     }
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
-    // 全局四门平均（从全部数据学习，作为基准）
+    // 当天四门平均（当天数据作基准，无当天数据才用全部）
     var gT = {hu:0,long:0,ru:0,chu:0,all:0};
-    state.groups.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
+    var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, ts1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
+    var gd1 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts1) === 0; });
+    var pool1 = gd1.length ? gd1 : state.groups;
+    pool1.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
     var gp = {};
     drs.forEach(function(x){ gp[x] = gT.all ? Math.round(gT[x]/gT.all*100) : 25; });
     const nms = nmSplit(q);
     let html = '';
-    html += '<div style="font-size:9px;color:#64748b;margin-bottom:3px;">🎯 AI关注 · 全局平均 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（从数据学习）</div>';
+    var lab1 = gd1.length ? '当天' + gd1.length + '组' : '全部' + state.groups.length + '组';
+    html += '<div style="font-size:9px;color:#64748b;margin-bottom:3px;">🎯 AI关注 · 当天分析 虎'+gp.hu+'% 龙'+gp.long+'% 入'+gp.ru+'% 出'+gp.chu+'%（'+lab1+'）</div>';
     nms.forEach(n => {
       const info = calcFocusNearName(n);
       if (!info){
@@ -4311,6 +4319,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v73 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v74 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
