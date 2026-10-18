@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -298,6 +298,7 @@
       <span style="font-size:12px;color:#34d399;font-weight:700;">云端分析 · 实时热度/胜率</span>
       <div style="display:flex;gap:4px;">
         <button id="cloudRefresh" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">🔄 重跑AI胜率</button>
+        <button id="cloudDedupeBtn" onclick="cloudDedupe()" style="padding:2px 8px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:11px;border:1px solid rgba(251,191,36,.3);cursor:pointer;">🧹 云端去重</button>
         <button id="toggleCloud" style="padding:2px 8px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;border:1px solid rgba(52,211,153,.3);cursor:pointer;">展开 ▶</button>
       </div>
     </div>
@@ -1330,7 +1331,7 @@ function renderAIPage(){
       sbFetchAll(function(err, remoteRows){
         if (err){ saveLocal(); return; }
         var remoteKeys = {};
-        remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + _nt(r.time) + '|' + JSON.stringify(r.list || [])] = 1; });
+        remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + JSON.stringify(r.list || [])] = 1; });
         // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
         var cleanGroups = state.groups.filter(function(g){
           if (!g) return false;
@@ -1341,9 +1342,15 @@ function renderAIPage(){
         });
         state.groups = cleanGroups;
         state.groupNum = cleanGroups.length + 1;
+        // 先本地按 name+list 去重（防止本地重复组被反复推送）
+        var seenLocal = {};
+        var uniqGroups = cleanGroups.filter(function(g){
+          var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
+          if (seenLocal[k]) return false; seenLocal[k] = 1; return true;
+        });
         var missing = [];
-        cleanGroups.forEach(function(g){
-          var k = _nt(g.name) + '|' + _nt(g.time) + '|' + JSON.stringify(g.list || []);
+        uniqGroups.forEach(function(g){
+          var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
           if (!remoteKeys[k]) missing.push({name: g.name, time: String(g.time || ''), list: g.list || []});
         });
         if (missing.length) sbPushRows(missing, function(){});
@@ -3785,6 +3792,50 @@ function cell(k, rank){
   }
 
   // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
+  // 云端去重：拉全量 → 算重复(同name+time+list) → 保留最小id → 删除其余
+  window.cloudDedupe = function(){
+    if (!CLOUD) return;
+    var btn = $('cloudDedupeBtn');
+    if (btn){ btn.textContent = '🧹 去重中…'; btn.disabled = true; }
+    sbFetchAll(function(err, rows){
+      if (err || !rows || !rows.length){
+        alert('拉取云端失败，请检查网络'); if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; } return;
+      }
+      var groups = {}; var delIds = [];
+      rows.forEach(function(r){
+        var k = _nt(r.name) + '|' + _nt(r.time) + '|' + JSON.stringify(r.list || []);
+        if (groups[k] !== undefined){
+          if (r.id < groups[k]){ delIds.push(groups[k]); groups[k] = r.id; }
+          else delIds.push(r.id);
+        } else { groups[k] = r.id; }
+      });
+      if (!delIds.length){
+        alert('云端没有重复数据 ✓');
+        if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
+        if (typeof fetchCloudNew === 'function') fetchCloudNew();
+        return;
+      }
+      var i = 0, B = 50, done = 0;
+      (function next(){
+        if (i >= delIds.length){
+          alert('去重完成：删除 ' + delIds.length + ' 条重复（保留每组最早一条）');
+          if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
+          if (typeof fetchCloudNew === 'function') fetchCloudNew();
+          return;
+        }
+        var batch = delIds.slice(i, i + B); i += B;
+        sbReq(CLOUD_TBL + '?id=in.(' + batch.join(',') + ')', {method:'DELETE', prefer:'return=minimal'}, function(err, xhr){
+          if (err || (xhr.status !== 204 && xhr.status !== 200)){
+            alert('删除批次失败 HTTP=' + (xhr ? xhr.status : '网络') + '，请重试');
+            if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
+            return;
+          }
+          done += batch.length;
+          next();
+        });
+      })();
+    });
+  };
   function cloudAnalyze(silent){
     var box = $('cloudContent');
     if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
@@ -4231,6 +4282,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v65 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v66 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
