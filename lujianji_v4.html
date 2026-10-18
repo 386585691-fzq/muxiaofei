@@ -434,6 +434,7 @@
   checkLock();
 
   const STORE_KEY = 'road_groups_v2';
+  const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
   const IMPORTED_FLAG = 'imported_v1';
   const SYMBOLS = { hu:'虎', long:'龙', ru:'入', chu:'出' };
   const NEXT = { hu:'long', long:'ru', ru:'chu', chu:null };
@@ -1304,7 +1305,9 @@ function renderAIPage(){
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const o = JSON.parse(raw);
-        return {
+        var curO = null;
+        try { var curRaw = localStorage.getItem(CUR_KEY); if (curRaw) curO = JSON.parse(curRaw); } catch(e){}
+        var st = {
           groups: o.groups || [],
           current: o.current || [],
           currentMarks: o.currentMarks || [],
@@ -1316,6 +1319,12 @@ function renderAIPage(){
           predictHistory: o.predictHistory || [],
           names: o.names || []
         };
+        // 录手即时小写比完整快照新且有内容时优先恢复当前组（刷新不丢）
+        if (curO && curO.updatedAt && curO.current && curO.current.length && (!o.updatedAt || curO.updatedAt > o.updatedAt)){
+          st.current = curO.current;
+          st.currentMarks = curO.currentMarks || [];
+        }
+        return st;
       }
     } catch(e){}
     return { groups: [], current: [], gameName: '路单', groupNum: 1, updatedAt: 0 };
@@ -1339,6 +1348,10 @@ function renderAIPage(){
       try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
       pushCloud();
     }, 300);
+  }
+  // 当前组即时小写：每手只写当前组（几KB，手机快），刷新不丢；完整快照低频写
+  function saveCur(){
+    try { localStorage.setItem(CUR_KEY, JSON.stringify({ current: state.current.slice(), currentMarks: state.currentMarks ? state.currentMarks.slice() : [], updatedAt: Date.now() })); } catch(e){}
   }
   // 防抖推云端：连续点牌合并为一次上传
   var cloudBusy = false, cloudPending = false;
@@ -4049,6 +4062,7 @@ function cell(k, rank){
       }
       state.currentMarks = nm;
       if (typeof saveLocal === 'function') saveLocal();
+      if (typeof saveCur === 'function') saveCur();
     }
     var b = $('stratCycle');
     if (b) b.textContent = '✅ 已确认：' + STRAT_NAMES[state.aiStrategy] + '（点我流转）';
@@ -4360,7 +4374,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var mk = -1;
     if (pred.top.length){ mk = pred.top.indexOf(s) >= 0 ? 1 : 0; }
     state.currentMarks.push(mk);
-    saveDebounced(); renderGrid();
+    saveCur(); saveDebounced(); renderGrid();
     updateRecommend(pred.top);
     // 防抖更新AI推荐提示板（录入后跟着刷新）
     if (window._hintTimer) clearTimeout(window._hintTimer);
@@ -4405,7 +4419,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   $('undoBtn').addEventListener('click', () => {
     state.current.pop();
     if (state.currentMarks && state.currentMarks.length) state.currentMarks.pop();
-    save(); renderLight();
+    saveCur(); save(); renderLight();
   });
 
   $('doneBtn').addEventListener('click', () => {
@@ -4420,7 +4434,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     state.groupNum++;
     // 保留人名不清空（方便连续记录同一人）；但下一次打字会自动替换旧名，不再粘在一起
     _lastPicked = doneName;
-    save(); render(); backfillMarks();
+    save(); try { localStorage.removeItem(CUR_KEY); } catch(e){}
+    render(); backfillMarks();
   });
 
    $('searchBox').addEventListener('input', e => {
@@ -4583,6 +4598,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v85 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v86 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
