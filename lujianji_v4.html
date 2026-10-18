@@ -1329,6 +1329,17 @@ function renderAIPage(){
   function saveLocal(){
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
   }
+  // 录手防抖落盘：连续点牌合并 300ms 写一次（手机每手全量 JSON.stringify 几百组是卡顿主因）
+  var saveTimer = null;
+  function saveDebounced(){
+    state.updatedAt = Date.now();
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      saveTimer = null;
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+      pushCloud();
+    }, 300);
+  }
   // 防抖推云端：连续点牌合并为一次上传
   var cloudBusy = false, cloudPending = false;
   function sbFetchAllStrict(cb){ sbFetchAll(cb, null, true); }
@@ -4349,7 +4360,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var mk = -1;
     if (pred.top.length){ mk = pred.top.indexOf(s) >= 0 ? 1 : 0; }
     state.currentMarks.push(mk);
-    save(); renderGrid();
+    saveDebounced(); renderGrid();
     updateRecommend(pred.top);
     // 防抖更新AI推荐提示板（录入后跟着刷新）
     if (window._hintTimer) clearTimeout(window._hintTimer);
@@ -4572,6 +4583,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v84 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v85 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
