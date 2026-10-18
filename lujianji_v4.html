@@ -1254,9 +1254,9 @@ function renderAIPage(){
     return ((m*31+d)*24+h)*60+mi;
   }
   // 拉云端全部行（分页拉全，避免超过1000条漏数据/误判缺失重复推送；按时间解析排序）
-  function sbFetchAll(cb, onProg){
+  function sbFetchAll(cb, onProg, strict){
     var all = [];
-    var inFlight = 0, doneBatch = 0, nextOff = 0;
+    var inFlight = 0, doneBatch = 0, nextOff = 0, failed = false;
     var MAX_OFF = 20000; // 最多拉 20 批（2万组上限）
     function pull(){
       while (inFlight < 3 && nextOff <= MAX_OFF){
@@ -1265,7 +1265,7 @@ function renderAIPage(){
           sbReq(CLOUD_TBL + '?select=id,name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
             inFlight--;
             if (err){
-              if (!all.length){ cb(err); return; }
+              if (strict) failed = true; else if (!all.length) failed = true;
             } else {
               var rows = [];
               if (xhr.status === 200){ try{ rows = JSON.parse(xhr.responseText); }catch(e){} }
@@ -1274,6 +1274,7 @@ function renderAIPage(){
               if (onProg) onProg(doneBatch);
             }
             if (inFlight === 0){
+              if (failed){ cb(err || {message:'云端拉取不完整，请重试'}); return; }
               all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
               cb(null, all);
             } else {
@@ -1329,14 +1330,21 @@ function renderAIPage(){
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
   }
   // 防抖推云端：连续点牌合并为一次上传
+  var cloudBusy = false, cloudPending = false;
+  function sbFetchAllStrict(cb){ sbFetchAll(cb, null, true); }
   function pushCloud(){
     if (!CLOUD) return;
     if (cloudTimer) clearTimeout(cloudTimer);
     cloudTimer = setTimeout(function(){
-      // 先读云端最新 → 合并去重 → 只插入云端没有的（不删除、不覆盖）
-      sbFetchAll(function(err, remoteRows){
-        if (err){ saveLocal(); return; }
+      if (cloudBusy){ cloudPending = true; return; }
+      cloudBusy = true;
+      // 先读云端最新（必须完整） → 合并去重 → 只插入云端没有的（不删除、不覆盖）
+      sbFetchAllStrict(function(err, remoteRows){
+        cloudBusy = false;
+        if (err){ saveLocal(); if (cloudPending){ cloudPending = false; pushCloud(); } return; }
         var remoteKeys = {};
+        // 推送完成后的尾部处理：解锁并处理挂起
+        function finishCloud(){ if (cloudPending){ cloudPending = false; pushCloud(); } }
         remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + JSON.stringify(r.list || [])] = 1; });
         // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
         var cleanGroups = state.groups.filter(function(g){
@@ -1361,6 +1369,8 @@ function renderAIPage(){
         });
         if (missing.length) sbPushRows(missing, function(){});
         saveLocal();
+        cloudBusy = false;
+        if (cloudPending){ cloudPending = false; pushCloud(); }
       });
     }, 600);
   }
@@ -4319,6 +4329,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v74 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v75 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
