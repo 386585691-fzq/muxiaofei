@@ -2496,9 +2496,9 @@ function renderAIPage(){
     localStorage.setItem('imported_v5', '1');
   }
   save();
-  let searchQuery = '';
-  let activeTag = '';
-  let timeFilter = 'all';  // all / today / yesterday
+  var searchQuery = '';
+  var activeTag = '';
+  var timeFilter = 'all';  // all / today / yesterday
   let matchMode = 'prefix'; // prefix / contains
 
   function $(id){ return document.getElementById(id); }
@@ -2583,7 +2583,10 @@ function renderAIPage(){
       return;
     }
     let html = '';
-    for (let i = groups.length-1; i >= 0; i--){
+    // 性能：无搜索时只渲染最近 60 组（历史页 DOM 太大是卡顿主因），搜索时全量渲染便于查找
+    const limitAll = !q;
+    const startIdx = limitAll ? Math.max(0, groups.length - 60) : 0;
+    for (let i = groups.length-1; i >= startIdx; i--){
       const g = groups[i];
       const realIdx = state.groups.indexOf(g);
       html += `<div class="history-item">
@@ -2605,6 +2608,7 @@ function renderAIPage(){
       html += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
       html += `</div>`;
     }
+    if (startIdx > 0) html += '<div style="font-size:11px;color:#64748b;text-align:center;padding:8px;">仅显示最近 60 组（共 '+groups.length+' 组），点搜索可查全部</div>';
     box.innerHTML = html;
     box.querySelectorAll('.history-del').forEach(b => {
       b.addEventListener('click', () => {
@@ -2746,22 +2750,30 @@ function renderAIPage(){
   }
 
   // ===== 统计学习AI大脑（第二信号源）：马尔可夫转移 + 条件概率 + 位置分布 =====
-  function statBrain(curArr, filtered){
+  function statBrain(curArr, filtered, agg){
     var KEYS = ['hu','long','ru','chu'];
     var s = {hu:0,long:0,ru:0,chu:0};
     if (!filtered.length) return s;
     // 全局字符频率（用作平滑先验，避免样本少时零概率）
-    var prior = {hu:0,long:0,ru:0,chu:0}, priorT = 0;
-    filtered.forEach(function(g){ g.list.forEach(function(x){ prior[x]++; priorT++; }); });
+    var prior, priorT;
+    if (agg){ prior = agg.pr; priorT = agg.prT; }
+    else {
+      prior = {hu:0,long:0,ru:0,chu:0}; priorT = 0;
+      filtered.forEach(function(g){ g.list.forEach(function(x){ prior[x]++; priorT++; }); });
+    }
     // 一阶马尔可夫：P(下一手 | 当前最后一手)，拉普拉斯平滑 + 先验混合
     if (curArr.length >= 1){
       var last = curArr[curArr.length-1];
-      var tr = {hu:0,long:0,ru:0,chu:0}, trT = 0;
-      filtered.forEach(function(g){
-        for (var i=0;i<g.list.length-1;i++){
-          if (g.list[i] === last){ tr[g.list[i+1]]++; trT++; }
-        }
-      });
+      var tr, trT = 0;
+      if (agg){ tr = agg.t1[last] || {hu:0,long:0,ru:0,chu:0}; KEYS.forEach(function(k){ trT += tr[k]||0; }); }
+      else {
+        tr = {hu:0,long:0,ru:0,chu:0};
+        filtered.forEach(function(g){
+          for (var i=0;i<g.list.length-1;i++){
+            if (g.list[i] === last){ tr[g.list[i+1]]++; trT++; }
+          }
+        });
+      }
       var a1 = 2;
       KEYS.forEach(function(k){
         s[k] += (tr[k] + a1*(prior[k]+1)/(priorT+4)) / (trT + a1);
@@ -2770,12 +2782,16 @@ function renderAIPage(){
     // 二阶马尔可夫：P(下一手 | 最近两手)，权重加倍
     if (curArr.length >= 2){
       var last2 = curArr.slice(-2);
-      var tr2 = {hu:0,long:0,ru:0,chu:0}, tr2T = 0;
-      filtered.forEach(function(g){
-        for (var i=0;i<g.list.length-2;i++){
-          if (g.list[i]===last2[0] && g.list[i+1]===last2[1]){ tr2[g.list[i+2]]++; tr2T++; }
-        }
-      });
+      var tr2, tr2T = 0;
+      if (agg){ tr2 = agg.t2[last2[0]+'|'+last2[1]] || {hu:0,long:0,ru:0,chu:0}; KEYS.forEach(function(k){ tr2T += tr2[k]||0; }); }
+      else {
+        tr2 = {hu:0,long:0,ru:0,chu:0};
+        filtered.forEach(function(g){
+          for (var i=0;i<g.list.length-2;i++){
+            if (g.list[i]===last2[0] && g.list[i+1]===last2[1]){ tr2[g.list[i+2]]++; tr2T++; }
+          }
+        });
+      }
       var a2 = 1.5;
       KEYS.forEach(function(k){
         s[k] += 2 * (tr2[k] + a2*(prior[k]+1)/(priorT+4)) / (tr2T + a2);
@@ -2783,8 +2799,12 @@ function renderAIPage(){
     }
     // 位置分布：当前第 N 手位置上，历史上各符号出现频率
     var pos = curArr.length;
-    var pc = {hu:0,long:0,ru:0,chu:0}, pcT = 0;
-    filtered.forEach(function(g){ if (g.list.length > pos){ pc[g.list[pos]]++; pcT++; } });
+    var pc, pcT = 0;
+    if (agg){ pc = agg.pos[pos] || {hu:0,long:0,ru:0,chu:0}; KEYS.forEach(function(k){ pcT += pc[k]||0; }); }
+    else {
+      pc = {hu:0,long:0,ru:0,chu:0};
+      filtered.forEach(function(g){ if (g.list.length > pos){ pc[g.list[pos]]++; pcT++; } });
+    }
     if (pcT > 0){
       KEYS.forEach(function(k){ s[k] += (pc[k] + 0.5) / (pcT + 2); });
     }
@@ -2804,7 +2824,52 @@ function renderAIPage(){
       if (parts[1]){ var hm=parts[1].split(':'); h=parseInt(hm[0]); mi=parseInt(hm[1]); }
       return new Date(y,mo,da,h,mi).getTime();
     }
-    var times = filtered.map(parseT);
+    function buildAgg(fg){
+      var A = { g1:{}, g2:{}, g3:{}, g4:{}, c2:{}, c3:{}, pos:{}, gF:{hu:0,long:0,ru:0,chu:0}, pr:{hu:0,long:0,ru:0,chu:0}, prT:0, t1:{}, t2:{} };
+      fg.forEach(function(g, gi){
+        var L = g.list.length;
+        for (var i=0;i<L;i++){
+          var x = g.list[i], w = wg(g, gi, i);
+          A.gF[x] += w; A.pr[x]++; A.prT++;
+          (A.pos[i] = A.pos[i] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+          if (i>=1){
+            var a = g.list[i-1];
+            (A.g1[a] = A.g1[a] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+            (A.t1[a] = A.t1[a] || {hu:0,long:0,ru:0,chu:0})[x]++;
+            if (i>=2 && g.list[i-1]===g.list[i-2]){
+              (A.c2[a] = A.c2[a] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+            }
+            if (i>=3 && g.list[i-1]===g.list[i-2] && g.list[i-2]===g.list[i-3]){
+              (A.c3[a] = A.c3[a] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+            }
+          }
+          if (i>=2){
+            var k2 = g.list[i-2] + '|' + g.list[i-1];
+            (A.g2[k2] = A.g2[k2] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+            (A.t2[k2] = A.t2[k2] || {hu:0,long:0,ru:0,chu:0})[x]++;
+          }
+          if (i>=3){
+            var k3 = g.list[i-3] + '|' + g.list[i-2] + '|' + g.list[i-1];
+            (A.g3[k3] = A.g3[k3] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+          }
+          if (i>=4){
+            var k4 = g.list[i-4] + '|' + g.list[i-3] + '|' + g.list[i-2] + '|' + g.list[i-1];
+            (A.g4[k4] = A.g4[k4] || {hu:0,long:0,ru:0,chu:0})[x] += w;
+          }
+        }
+      });
+      return A;
+    }
+    var tk = '';
+    for (var ti=0; ti<filtered.length; ti++) tk += '|' + (filtered[ti].time||'') + ':' + (filtered[ti].list||[]).length;
+    var tc = window.__ptTimes || (window.__ptTimes = {});
+    var times, agg;
+    if (tc[tk] && tc[tk].n === filtered.length){ times = tc[tk].t; agg = tc[tk].agg; }
+    else {
+      times = filtered.map(parseT);
+      agg = buildAgg(filtered);
+      tc[tk] = { n: filtered.length, t: times, agg: agg };
+    }
     var maxT = Math.max.apply(null, times);
     // 时间加权（增强版）：越新的组权重越高；老数据快速衰减，避免淹没新习惯
     function w(i){
@@ -2833,28 +2898,22 @@ function renderAIPage(){
     // 上一手（1-gram）
     if (curArr.length>=1){
       var last1 = curArr[curArr.length-1];
-      var c1 = {hu:0,long:0,ru:0,chu:0};
-      filtered.forEach(function(g, gi){ for(var i=0;i<g.list.length-1;i++){ if(g.list[i]===last1) c1[g.list[i+1]] += wg(g, gi, i+1); } });
+      var c1 = agg.g1[last1] || {hu:0,long:0,ru:0,chu:0};
       ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c1[k]*1.5; });
     }
     // 位置统计
     var pos = curArr.length;
-    filtered.forEach(function(g, gi){ if(g.list.length>pos) score[g.list[pos]] += wg(g, gi, pos); });
+    var pc = agg.pos[pos] || {hu:0,long:0,ru:0,chu:0};
+    ['hu','long','ru','chu'].forEach(function(k){ score[k] += pc[k]; });
     // 连出2个后规律
     if (curArr.length>=2 && curArr[curArr.length-1]===curArr[curArr.length-2]){
       var last = curArr[curArr.length-1];
-      var cont = 0, rev = {hu:0,long:0,ru:0,chu:0}, revT = 0;
-      filtered.forEach(function(g, gi){
-        for (var i=1;i<g.list.length-1;i++){
-          if (g.list[i]===last && g.list[i-1]===last){
-            if (g.list[i+1]===last) cont += wg(g, gi, i+1);
-            else { rev[g.list[i+1]] += wg(g, gi, i+1); revT += wg(g, gi, i+1); }
-          }
-        }
-      });
+      var cc = agg.c2[last] || {hu:0,long:0,ru:0,chu:0};
+      var cont = cc[last] || 0;
+      var revT = (cc.hu||0)+(cc.long||0)+(cc.ru||0)+(cc.chu||0) - cont;
       if (cont + revT > 0){
         if (cont >= revT) score[last] += cont * 2;
-        else ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k] += rev[k] * 2; });
+        else ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k] += (cc[k]||0) * 2; });
       } else {
         ['hu','long','ru','chu'].forEach(function(k){ if(k!==last) score[k]+=0.5; });
       }
@@ -2862,38 +2921,23 @@ function renderAIPage(){
     // 2-gram
     if (curArr.length>=2){
       var last2 = curArr.slice(-2);
-      var c2 = {hu:0,long:0,ru:0,chu:0};
-      filtered.forEach(function(g, gi){
-        for(var i=0;i<g.list.length-2;i++){
-          if(g.list[i]===last2[0] && g.list[i+1]===last2[1]) c2[g.list[i+2]] += wg(g, gi, i+2);
-        }
-      });
-      var t2 = c2.hu+c2.long+c2.ru+c2.chu;
-      if (t2>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c2[k]*4; });
+      var c2 = agg.g2[last2[0] + '|' + last2[1]] || {hu:0,long:0,ru:0,chu:0};
+      var t2 = (c2.hu||0)+(c2.long||0)+(c2.ru||0)+(c2.chu||0);
+      if (t2>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=(c2[k]||0)*4; });
     }
     // 3-gram
     if (curArr.length>=3){
       var last3 = curArr.slice(-3);
-      var c3 = {hu:0,long:0,ru:0,chu:0};
-      filtered.forEach(function(g, gi){
-        for(var i=0;i<g.list.length-3;i++){
-          if(g.list[i]===last3[0] && g.list[i+1]===last3[1] && g.list[i+2]===last3[2]) c3[g.list[i+3]] += wg(g, gi, i+3);
-        }
-      });
-      var t3 = c3.hu+c3.long+c3.ru+c3.chu;
-      if (t3>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c3[k]*6; });
+      var c3 = agg.g3[last3[0] + '|' + last3[1] + '|' + last3[2]] || {hu:0,long:0,ru:0,chu:0};
+      var t3 = (c3.hu||0)+(c3.long||0)+(c3.ru||0)+(c3.chu||0);
+      if (t3>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=(c3[k]||0)*6; });
     }
     // 4-gram
     if (curArr.length>=4){
       var last4 = curArr.slice(-4);
-      var c4 = {hu:0,long:0,ru:0,chu:0};
-      filtered.forEach(function(g, gi){
-        for(var i=0;i<g.list.length-4;i++){
-          if(g.list[i]===last4[0] && g.list[i+1]===last4[1] && g.list[i+2]===last4[2] && g.list[i+3]===last4[3]) c4[g.list[i+4]] += wg(g, gi, i+4);
-        }
-      });
-      var t4 = c4.hu+c4.long+c4.ru+c4.chu;
-      if (t4>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=c4[k]*8; });
+      var c4 = agg.g4[last4[0] + '|' + last4[1] + '|' + last4[2] + '|' + last4[3]] || {hu:0,long:0,ru:0,chu:0};
+      var t4 = (c4.hu||0)+(c4.long||0)+(c4.ru||0)+(c4.chu||0);
+      if (t4>=1) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=(c4[k]||0)*8; });
     }
     // 冷热指数
     ['hu','long','ru','chu'].forEach(function(k){
@@ -2920,27 +2964,20 @@ function renderAIPage(){
     // 连出3个后规律
     if (curArr.length>=3 && curArr[curArr.length-1]===curArr[curArr.length-2] && curArr[curArr.length-2]===curArr[curArr.length-3]){
       var last3s = curArr[curArr.length-1];
-      var cont3 = 0, rev3 = {hu:0,long:0,ru:0,chu:0}, rev3T = 0;
-      filtered.forEach(function(g, gi){
-        for (var i=2;i<g.list.length-1;i++){
-          if (g.list[i]===last3s && g.list[i-1]===last3s && g.list[i-2]===last3s){
-            if (g.list[i+1]===last3s) cont3 += wg(g, gi, i+1);
-            else { rev3[g.list[i+1]] += wg(g, gi, i+1); rev3T += wg(g, gi, i+1); }
-          }
-        }
-      });
+      var cc3 = agg.c3[last3s] || {hu:0,long:0,ru:0,chu:0};
+      var cont3 = cc3[last3s] || 0;
+      var rev3 = cc3, rev3T = (cc3.hu||0)+(cc3.long||0)+(cc3.ru||0)+(cc3.chu||0) - cont3;
       if (cont3 + rev3T > 0){
         if (cont3 >= rev3T) score[last3s] += cont3 * 1.5;
         else ['hu','long','ru','chu'].forEach(function(k){ if(k!==last3s) score[k] += rev3[k] * 1.5; });
       }
     }
     // 全局频率
-    var cG = {hu:0,long:0,ru:0,chu:0};
-    filtered.forEach(function(g, gi){ g.list.forEach(function(s, idx){cG[s]+=wg(g, gi, idx);}); });
+    var cG = agg.gF;
     var tG = cG.hu+cG.long+cG.ru+cG.chu;
     if (tG>0) ['hu','long','ru','chu'].forEach(function(k){ score[k]+=cG[k]/tG*2; });
     // 统计学习AI大脑融合（主导信号）：马尔可夫+条件概率+位置分布归一化后加权
-    var sb = statBrain(curArr, filtered);
+    var sb = statBrain(curArr, filtered, agg);
     var sbT = sb.hu + sb.long + sb.ru + sb.chu;
     if (sbT > 0){
       ['hu','long','ru','chu'].forEach(function(k){ score[k] += sb[k] / sbT * 6; });
@@ -3170,7 +3207,18 @@ function cell(k, rank){
     return tags;
   }
   // AI关注（组名位置常显）：算当前人四门规律，记录时直接可见
+  var __cfnCache = {};
   function calcFocusNearName(nm, srcGroups){
+    var grps0 = (srcGroups || state.groups);
+    var fk = nm;
+    for (var fi=0; fi<grps0.length; fi++) fk += '|' + (grps0[fi].time||'') + ':' + (grps0[fi].list||[]).length;
+    var c = __cfnCache[fk];
+    if (c) return c;
+    var r = _calcFocusNearNameImpl(nm, srcGroups);
+    __cfnCache[fk] = r;
+    return r;
+  }
+  function _calcFocusNearNameImpl(nm, srcGroups){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
     var grps = (srcGroups || state.groups).filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
@@ -3264,11 +3312,18 @@ function cell(k, rank){
     const q = $('groupName').value.trim();
     if (!q){
       // 组名空：显示全局概览（AI关注常显，记录时永远看得到）
-      var gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
       var nw0 = new Date(), pd0 = function(x){ return String(x).padStart(2,'0'); }, ts0 = (nw0.getMonth()+1) + '-' + pd0(nw0.getDate());
-      var gd0 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts0) === 0; });
-      var pool0 = gd0.length ? gd0 : state.groups;
-      pool0.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
+      var dayKey0 = ts0 + '|' + state.groups.length;
+      var dc0 = window.__dayCache0 || (window.__dayCache0 = {});
+      var gd0, gT0, pool0;
+      if (dc0.k === dayKey0){ gd0 = dc0.gd; gT0 = dc0.gt; pool0 = gd0.length ? gd0 : state.groups; }
+      else {
+        gd0 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts0) === 0; });
+        gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
+        pool0 = gd0.length ? gd0 : state.groups;
+        pool0.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
+        dc0.k = dayKey0; dc0.gd = gd0; dc0.gt = gT0;
+      }
       var gp0 = {};
       ['hu','long','ru','chu'].forEach(function(x){ gp0[x] = gT0.all ? Math.round(gT0[x]/gT0.all*100) : 25; });
       var lab0 = gd0.length ? '当天' + gd0.length + '组' : '全部' + state.groups.length + '组';
@@ -3280,11 +3335,18 @@ function cell(k, rank){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
     // 当天四门平均（当天数据作基准，无当天数据才用全部）
-    var gT = {hu:0,long:0,ru:0,chu:0,all:0};
     var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, ts1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
-    var gd1 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts1) === 0; });
-    var pool1 = gd1.length ? gd1 : state.groups;
-    pool1.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
+    var dayKey = ts1 + '|' + state.groups.length;
+    var dc = window.__dayCache || (window.__dayCache = {});
+    var gd1, gT, pool1;
+    if (dc.k === dayKey){ gd1 = dc.gd; gT = dc.gt; pool1 = gd1.length ? gd1 : state.groups; }
+    else {
+      gd1 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts1) === 0; });
+      gT = {hu:0,long:0,ru:0,chu:0,all:0};
+      pool1 = gd1.length ? gd1 : state.groups;
+      pool1.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
+      dc.k = dayKey; dc.gd = gd1; dc.gt = gT;
+    }
     var gp = {};
     drs.forEach(function(x){ gp[x] = gT.all ? Math.round(gT[x]/gT.all*100) : 25; });
     const nms = nmSplit(q);
@@ -3649,7 +3711,17 @@ function cell(k, rank){
   // 全局策略表 + 流转
   var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', m3:'三阶马尔可夫', n5:'近5手', n10:'近10手', n20:'近20手', tw:'时间加权', es:'指数平滑', dm:'双马混合', vote:'多策略投票', boot:'自举模拟', gap:'间隔回补', dev:'均值偏离', brk:'连断预判', ai:'综合AI'};
   var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','m3','n5','n10','n20','tw','es','dm','vote','boot','gap','dev','brk','ai'];
+  var __spCache = {};
   function strategyPredict(n, fg, sid){
+    var fk = n;
+    for (var fi=0; fi<fg.length; fi++) fk += '|' + (fg[fi].time||'') + ':' + (fg[fi].list||[]).length;
+    var c = __spCache[fk];
+    if (c && c.sid === sid) return c.r;
+    var r = _strategyPredictImpl(n, fg, sid);
+    __spCache[fk] = { sid: sid, r: r };
+    return r;
+  }
+  function _strategyPredictImpl(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
     var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
     var lst = []; gr.forEach(function(g){ lst = lst.concat(g.list||[]); });
@@ -4284,7 +4356,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     window._hintTimer = setTimeout(function(){
       if (typeof renderLiveHint === 'function') renderLiveHint();
       if (typeof updateAIHint === 'function') updateAIHint();
-    }, 300);
+    }, 450);
   }
 
   // 打对错：只给没有对错记录的组补（老组/导入组用整组热门3门回顾）；
@@ -4500,6 +4572,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v80 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v84 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
