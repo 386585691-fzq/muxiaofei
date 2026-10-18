@@ -1077,6 +1077,12 @@ function renderAIPage(){
         if (!Array.isArray(list)) list = [];
         return { name: r.name || '', time: r.time || '', list: list };
       });
+      // 统计前先去重（云端曾出现重复上传，重复组不再算进胜率/手数）
+      var seenCloud = {};
+      groups = groups.filter(function(g){
+        var k = g.name + '|' + g.time + '|' + JSON.stringify(g.list);
+        if (seenCloud[k]) return false; seenCloud[k] = 1; return true;
+      });
       var OLD = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
       groups = groups.filter(function(g){
         var t = String(g.time || '');
@@ -1256,7 +1262,7 @@ function renderAIPage(){
       while (inFlight < 3 && nextOff <= MAX_OFF){
         var off = nextOff; nextOff += 1000; inFlight++;
         (function(off){
-          sbReq(CLOUD_TBL + '?select=name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
+          sbReq(CLOUD_TBL + '?select=id,name,time,list&order=id.asc&limit=1000&offset=' + off, null, function(err, xhr){
             inFlight--;
             if (err){
               if (!all.length){ cb(err); return; }
@@ -4289,6 +4295,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v68 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v69 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
