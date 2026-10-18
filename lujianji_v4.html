@@ -4119,11 +4119,13 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     const now = new Date();
     const pad = n => String(n).padStart(2,'0');
     const timeStr = (now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
-    state.groups.push({ name: currentName(), list: state.current.slice(), time: timeStr, marks: (state.currentMarks||[]).slice() });
+    var doneName = currentName();
+    state.groups.push({ name: doneName, list: state.current.slice(), time: timeStr, marks: (state.currentMarks||[]).slice() });
     state.current = [];
     state.currentMarks = [];
     state.groupNum++;
-    // 保留人名不清空，方便连续记录同一个人
+    // 保留人名不清空（方便连续记录同一人）；但下一次打字会自动替换旧名，不再粘在一起
+    _lastPicked = doneName;
     save(); render(); backfillMarks();
   });
 
@@ -4282,6 +4284,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v66 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v67 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
