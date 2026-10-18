@@ -2939,8 +2939,13 @@ function renderAIPage(){
     if (timeFilter === 'today') filtered = allMatches.filter(g => g.time && g.time.startsWith(todayStr));
     else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => g.time && g.time.startsWith(yestStr));
 
-    // 只看这个人自己的历史，没数据就提示，不拿别人凑数
-    if (!filtered.length){ box.innerHTML = "<div style=\"padding:10px;color:#94a3b8;font-size:12px;text-align:center;\">暂无个人历史 · AI 参考当天实时全局规律（可能是同人换名）</div>"; return; }
+    // 无个人历史 → 参考当天实时全局规律（可能是同人换名），照样出推荐
+    let usedGlobal = false;
+    if (!filtered.length){
+      var tgl = state.groups.filter(g => g && g.time && String(g.time).indexOf(todayStr) === 0);
+      filtered = tgl.length ? tgl : state.groups;
+      usedGlobal = true;
+    }
     let hu=0, long=0, ru=0, chu=0;
     filtered.forEach(g => g.list.forEach(s => {
       if (s==='hu') hu++; else if (s==='long') long++;
@@ -2948,7 +2953,7 @@ function renderAIPage(){
     }));
     let html = `<div style="background:#2b2b2b;border-radius:6px;padding:8px 10px;font-size:12px;color:#ccc;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <div style="font-weight:700;color:#fbbf24;">${escapeHtml(name)} · ${filtered.length}组</div>
+        <div style="font-weight:700;color:#fbbf24;">${escapeHtml(name)} · ${usedGlobal ? '无个人历史·参考当天全局' + filtered.length + '组' : filtered.length + '组'}</div>
         <div style="display:flex;gap:4px;">
           <button class="mini-btn ${timeFilter==='all'?'on':''}" data-tf="all">全部</button>
           <button class="mini-btn ${timeFilter==='today'?'on':''}" data-tf="today">今天</button>
@@ -3142,7 +3147,12 @@ function cell(k, rank){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
     var grps = (srcGroups || state.groups).filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
-    if (!grps.length) return null;
+    if (!grps.length){
+      // 无个人历史 → 参考当天实时全局规律（可能是同人换名）
+      var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, td1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
+      var tp1 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td1) === 0; });
+      grps = tp1.length ? tp1 : (srcGroups || state.groups);
+    }
     var s = {hu:0,long:0,ru:0,chu:0,total:0};
     var near = [];
     grps.forEach(function(g){
@@ -3150,7 +3160,19 @@ function cell(k, rank){
       near = near.concat(g.list||[]);
       if (near.length > 15) near.splice(0, near.length - 15);
     });
-    if (s.total < 8) return null;
+    if (s.total < 8){
+      // 个人不足8手 → 参考当天实时全局规律
+      var nw2 = new Date(), pd2 = function(x){ return String(x).padStart(2,'0'); }, td2 = (nw2.getMonth()+1) + '-' + pd2(nw2.getDate());
+      var tp2 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td2) === 0; });
+      grps = tp2.length ? tp2 : (srcGroups || state.groups);
+      s = {hu:0,long:0,ru:0,chu:0,total:0}; near = [];
+      grps.forEach(function(g){
+        (g.list||[]).forEach(function(x){ if (s[x] !== undefined){ s[x]++; s.total++; } });
+        near = near.concat(g.list||[]);
+        if (near.length > 15) near.splice(0, near.length - 15);
+      });
+      if (s.total < 8) return null;
+    }
     var p = {};
     drs.forEach(function(x){ p[x] = Math.round(s[x]/s.total*100); });
     var tags = [];
@@ -4289,6 +4311,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v72 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v73 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
