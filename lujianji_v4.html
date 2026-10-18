@@ -4119,15 +4119,18 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     }, 300);
   }
 
-  // 打对错：推荐3门=整组热门3门。开热门✓，开冷门×（热门=该组出现最多的3门）
+  // 打对错：只给没有对错记录的组补（老组/导入组用整组热门3门回顾）；
+  // 已有完整对错的组（实时录入时用流转策略打的✓/×）一律不覆盖，保证只有一个对错系统
   function backfillMarks(){
     var changed = false;
     state.groups.forEach(function(g){
+      var L = (g.list || []).length;
+      if (g.marks && g.marks.length === L && g.marks.indexOf(-1) < 0) return;
       var st = {hu:0,long:0,ru:0,chu:0};
       (g.list || []).forEach(function(x){ if (st[x] !== undefined) st[x]++; });
       var ks = Object.keys(st).sort(function(a,b){ return st[b]-st[a]; }).slice(0,3);
       var marks = [];
-      for (var i=0; i<g.list.length; i++){
+      for (var i=0; i<L; i++){
         marks.push(ks.indexOf(g.list[i]) >= 0 ? 1 : 0);
       }
       g.marks = marks;
@@ -4329,6 +4332,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v75 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v76 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
