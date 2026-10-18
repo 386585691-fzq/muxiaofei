@@ -3530,6 +3530,37 @@ function cell(k, rank){
         var ev = drs2.slice().sort(function(a,b){ return Math.abs((hist[a]||0)/Math.max(1,histN)-0.25) - Math.abs((hist[b]||0)/Math.max(1,histN)-0.25); });
         var evenK = [ev[0]].concat(h3.filter(function(k){ return k !== ev[0]; }).slice(0,2));
         var sleepK = secondHalf.length>=3 ? bottomN(cntArr(secondHalf),3) : h3;
+        // 新增12策略的预测（与 strategyPredict 同思路）
+        var n5T = i>0 ? topN(cntArr(lst.slice(Math.max(0,i-5), i)), 3) : [];
+        var n10T = i>0 ? topN(cntArr(lst.slice(Math.max(0,i-10), i)), 3) : [];
+        var n20T = i>0 ? topN(cntArr(lst.slice(Math.max(0,i-20), i)), 3) : [];
+        var n5K = n5T.length ? n5T.slice(0,1) : [];
+        var n10K = n10T.length ? n10T.slice(0,1) : [];
+        var n20K = n20T.length ? n20T.slice(0,1) : [];
+        var twK = recN ? [topN(rec,1)[0]] : (histN ? [topN(hist,1)[0]] : []);
+        var twT = rec3.length ? rec3 : (recN ? topN(rec,3) : h3);
+        var esK = p3.length ? [p3[0]] : [];
+        var esT = p3.length ? p3 : h3;
+        var dmT = trk.concat((orderK||[]).filter(function(k){ return trk.indexOf(k) < 0; })).slice(0,3);
+        var dmK = dmT.length ? dmT.slice(0,1) : [];
+        var voteT = [];
+        [histN ? topN(hist,1)[0] : null, prev || null, meanN.length ? meanN[0] : null, p3.length ? p3[0] : null].forEach(function(k){ if (k && voteT.indexOf(k) < 0) voteT.push(k); });
+        if (!voteT.length) voteT = h3;
+        var voteK = voteT.slice(0,1);
+        var bootK = monoK.length ? monoK.slice(0,1) : [];
+        var bootT = monoK.slice(0,3);
+        var gapT = drs2.slice().sort(function(a,b){
+          var pre = lst.slice(0, i);
+          var la = -1, lb = -1;
+          for (var gai=pre.length-1; gai>=0; gai--){ if (pre[gai]===a){ la = gai; break; } }
+          for (var gbi=pre.length-1; gbi>=0; gbi--){ if (pre[gbi]===b){ lb = gbi; break; } }
+          return la - lb;
+        }).slice(0,3);
+        var gapK = gapT.length ? gapT.slice(0,1) : [];
+        var devT = drs2.slice().sort(function(a,b){ return (histN ? (hist[a]||0)/histN : 0) - (histN ? (hist[b]||0)/histN : 0); }).slice(0,3);
+        var devK = devT.length ? devT.slice(0,1) : [];
+        var brkT = (streak >= 3 && prev) ? drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); }).slice(0,3) : cutK.slice(0,3);
+        var brkK = brkT.length ? brkT.slice(0,1) : [];
         var preds = {
           hot1: histN ? topN(hist,1) : [],
           hot2: histN ? topN(hist,2) : [],
@@ -3562,6 +3593,9 @@ function cell(k, rank){
           grp30: g30K,
           even: evenK,
           sleep: sleepK,
+          m3: (orderK||[]).length ? (orderK||[]).slice(0,1) : [],
+          n5: n5K, n10: n10K, n20: n20K,
+          tw: twK, es: esK, dm: dmK, vote: voteK, boot: bootK, gap: gapK, dev: devK, brk: brkK,
           ai: recN ? topN(rec,1) : (histN ? topN(hist,1) : [])
         };
         var top3map = {
@@ -3594,6 +3628,9 @@ function cell(k, rank){
           grp30: g30K.slice(0,3),
           even: evenK.slice(0,3),
           sleep: sleepK.slice(0,3),
+          m3: (orderK||[]).length ? (orderK||[]).slice(0,3) : h3,
+          n5: n5T, n10: n10T, n20: n20T,
+          tw: twT, es: esT, dm: dmT, vote: voteT, boot: bootT, gap: gapT, dev: devT, brk: brkT,
           ai: rec3
         };
         S.forEach(function(x){
@@ -4463,6 +4500,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v78 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v79 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
