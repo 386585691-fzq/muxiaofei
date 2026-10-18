@@ -1414,6 +1414,23 @@ function renderAIPage(){
       render();
     }
   }
+  // 本地去重：按 人名+牌路 去重（保留第一份），防止本地重复组越积越多（手机/电脑同步反复产生的重复）
+  {
+    var _seenL = {};
+    var _beforeL = state.groups.length;
+    state.groups = state.groups.filter(function(g){
+      if (!g) return false;
+      var k = (g.name || '') + '|' + JSON.stringify(g.list || []);
+      if (_seenL[k]) return false;
+      _seenL[k] = 1;
+      return true;
+    });
+    if (state.groups.length !== _beforeL){
+      state.groupNum = state.groups.length + 1;
+      save();
+      render();
+    }
+  }
   // Supabase 云同步自动开启，无需配置钥匙
   pullCloud(); // 联网时拉取云端最新数据（file:// 直开时自动跳过）
   if (!state.accuracy) state.accuracy = {correct:0, total:0};
@@ -4446,6 +4463,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v77 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v78 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
