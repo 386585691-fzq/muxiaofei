@@ -4243,10 +4243,10 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     try { sp = strategyPredict(name, filtered, state._previewStrategy || state.aiStrategy || 'ai'); } catch(e){}
     var top2 = predictTop2(curArr, filtered);   // 动态：随当前已录手数变化（前缀/上一手/位置）
     if (sp && sp.main){
-      // 融合：动态预测优先（推荐会跟随当前走势动），确认策略补位兜底
+      // 融合：策略主推优先（面板主推=对错主推=主推一致），动态预测补位3门
       var merged = [];
+      merged.push(sp.main);
       (top2 || []).forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
-      if (merged.indexOf(sp.main) < 0) merged.push(sp.main);
       if (merged.length < 3 && sp.top3) sp.top3.forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
       return { top: merged.slice(0,3), main: merged[0] };
     }
@@ -4500,6 +4500,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v79 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v80 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
