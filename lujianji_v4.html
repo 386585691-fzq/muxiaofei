@@ -3733,6 +3733,10 @@ function cell(k, rank){
     if (c){ c.style.display = 'inline-block'; c.textContent = '✅ 确认采用：' + STRAT_NAMES[next]; }
     var h = $('stratHint');
     if (h) h.textContent = '⏳ 预览中…点「确认采用」记录页主推才换（电脑手机各自确认）';
+    // 预览即时生效：3门提示板+当前组对错按预览策略刷新（界面显示，确认才保存）
+    if (typeof renderLiveHint === 'function') renderLiveHint();
+    if (typeof updateAIHint === 'function') updateAIHint();
+    if (typeof renderGrid === 'function') renderGrid();
   };
   window.confirmStrategy = function(){
     if (state._previewStrategy) state.aiStrategy = state._previewStrategy;
@@ -3977,7 +3981,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   function predictMain(curArr, filtered){
     var name = currentName();
     var sp = null;
-    try { sp = strategyPredict(name, filtered, state.aiStrategy || 'ai'); } catch(e){}
+    try { sp = strategyPredict(name, filtered, state._previewStrategy || state.aiStrategy || 'ai'); } catch(e){}
     var top2 = predictTop2(curArr, filtered);   // 动态：随当前已录手数变化（前缀/上一手/位置）
     if (sp && sp.main){
       // 融合：动态预测优先（推荐会跟随当前走势动），确认策略补位兜底
@@ -4227,6 +4231,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v64 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v65 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
