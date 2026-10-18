@@ -2961,6 +2961,36 @@ function renderAIPage(){
         <span style="color:#fde047;">入${ru}</span>
         <span style="color:#86efac;">出${chu}</span>
       </div>`;
+    // 策略推荐：只用当前策略（8大AI可流转）判断，与记录页同一引擎
+    const cur = state.current;
+    var learnPool = filtered;
+    var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'ai');
+    var pm = predictMain(cur, learnPool);
+    var hasData = pm && pm.top && pm.top.length;
+    if (hasData){
+      var pctOf = function(k){ return sp4 && sp4.probs && sp4.probs[k] !== undefined ? sp4.probs[k] : 0; };
+      var sortedSb = pm.top.slice(0,3);
+      var bestK = pm.main || sortedSb[0];
+      var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
+
+function cell(k, rank){
+        if (!k) return '<div style="padding:6px 0;"></div>';
+        var m = META[k];
+        var sh = rank === 0 ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
+        return '<div style="padding:8px 0;border-radius:6px;text-align:center;background:'+m[1]+';color:'+m[2]+';'+sh+'">'
+          + '<div style="font-size:30px;font-weight:900;line-height:1.2;">'+m[0]+'</div>'
+          + '</div>';
+      }
+      html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
+        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">策略推荐（'+sp4.name+'）<span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
+        + cell(sortedSb[0],0)
+        + cell(sortedSb[1],1)
+        + cell(sortedSb[2],2)
+        + '</div>'
+        + '</div>';
+    }
     // 最近12次预测对错（放在预测板外面，确保每次都更新）
     if (state.predictHistory && state.predictHistory.length){
       var histHtml = state.predictHistory.map(function(h, i){
@@ -4259,6 +4289,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v71 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v72 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
