@@ -3379,6 +3379,18 @@ function cell(k, rank){
       {id:'grp30', name:'🕰️ 近30手主走', desc:'只看最近30手，押最热'},
       {id:'even', name:'⚖️ 均衡平门', desc:'押占比最接近四分之一的门'},
       {id:'sleep', name:'💤 反走过即停', desc:'押后半场少走的门'},
+      {id:'m3', name:'🔺 三阶马尔可夫', desc:'看前2手推第3手'},
+      {id:'n5', name:'5️⃣ 近5手', desc:'只看最近5手频率'},
+      {id:'n10', name:'🔟 近10手', desc:'只看最近10手频率'},
+      {id:'n20', name:'2️⃣0️⃣ 近20手', desc:'只看最近20手频率'},
+      {id:'tw', name:'⏱️ 时间加权', desc:'最近一组权重更高'},
+      {id:'es', name:'📉 指数平滑', desc:'越近权重越大衰减'},
+      {id:'dm', name:'🔗 双马混合', desc:'一阶+二阶马尔可夫加权'},
+      {id:'vote', name:'🗳️ 多策略投票', desc:'热门+顺势+均值回归+近门投票'},
+      {id:'boot', name:'🎲 自举模拟', desc:'重采样100次按比例'},
+      {id:'gap', name:'🕳️ 间隔回补', desc:'最久没出的门优先'},
+      {id:'dev', name:'⚖️ 均值偏离', desc:'比平均少的门回补'},
+      {id:'brk', name:'✂️ 连断预判', desc:'连出越长越押断开'},
       {id:'ai', name:'🤖 综合AI', desc:'近期记录加权投票（现有模型）'},
     ];
     S.forEach(function(x){ x.hit=0; x.total=0; x.hit3=0; x.total3=0; });
@@ -3581,8 +3593,8 @@ function cell(k, rank){
     return S;
   }
   // 全局策略表 + 流转
-  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', ai:'综合AI'};
-  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','ai'];
+  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', m3:'三阶马尔可夫', n5:'近5手', n10:'近10手', n20:'近20手', tw:'时间加权', es:'指数平滑', dm:'双马混合', vote:'多策略投票', boot:'自举模拟', gap:'间隔回补', dev:'均值偏离', brk:'连断预判', ai:'综合AI'};
+  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','m3','n5','n10','n20','tw','es','dm','vote','boot','gap','dev','brk','ai'];
   function strategyPredict(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
     var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
@@ -3753,6 +3765,108 @@ function cell(k, rank){
     } else if (sid === 'even'){
       main = ev[0] || sp[0];
       top3 = [ev[0]].concat(sp.filter(function(k){ return k !== ev[0]; }).slice(0,2));
+    } else if (sid === 'm3'){
+      // 三阶马尔可夫：看最后2手组合，历史同组合后第3手频率
+      var m3c0 = lst.length ? lst[lst.length-2] : null;
+      var m3c1 = lst.length ? lst[lst.length-1] : null;
+      var m3n = {hu:0,long:0,ru:0,chu:0}, m3t = 0;
+      if (m3c0 !== null && m3c1 !== null){
+        for (var m3i=0; m3i<lst.length-2; m3i++){
+          if (lst[m3i]===m3c0 && lst[m3i+1]===m3c1){
+            var m3x = lst[m3i+2];
+            if (m3n[m3x]!==undefined){ m3n[m3x]++; m3t++; }
+          }
+        }
+      }
+      if (m3t>0){
+        var m3k = drs2.slice().sort(function(x,y){ return m3n[y]-m3n[x]; });
+        main = m3k[0] || sp[0]; top3 = m3k.slice(0,3);
+      }
+    } else if (sid === 'n5'){
+      var n5c = cntArr(lst.slice(-5));
+      var n5k = drs2.slice().sort(function(x,y){ return (n5c[y]||0)-(n5c[x]||0); });
+      main = n5k[0] || sp[0]; top3 = n5k.slice(0,3);
+    } else if (sid === 'n10'){
+      var n10c = cntArr(lst.slice(-10));
+      var n10k = drs2.slice().sort(function(x,y){ return (n10c[y]||0)-(n10c[x]||0); });
+      main = n10k[0] || sp[0]; top3 = n10k.slice(0,3);
+    } else if (sid === 'n20'){
+      var n20c = cntArr(lst.slice(-20));
+      var n20k = drs2.slice().sort(function(x,y){ return (n20c[y]||0)-(n20c[x]||0); });
+      main = n20k[0] || sp[0]; top3 = n20k.slice(0,3);
+    } else if (sid === 'tw'){
+      // 时间加权：最近一组权重更高（*3）
+      var twc = {hu:0,long:0,ru:0,chu:0};
+      gr.forEach(function(g, gi){
+        var w = (gi === gr.length-1) ? 3 : 1;
+        (g.list||[]).forEach(function(x){ if (twc[x]!==undefined) twc[x] += w; });
+      });
+      var twk = drs2.slice().sort(function(x,y){ return (twc[y]||0)-(twc[x]||0); });
+      main = twk[0] || sp[0]; top3 = twk.slice(0,3);
+    } else if (sid === 'es'){
+      // 指数平滑：越近的手权重越高（衰减0.9）
+      var esc = {hu:0,long:0,ru:0,chu:0};
+      for (var esi=0; esi<lst.length; esi++){
+        var esw = Math.pow(0.9, lst.length-1-esi);
+        if (esc[lst[esi]]!==undefined) esc[lst[esi]] += esw;
+      }
+      var esk = drs2.slice().sort(function(x,y){ return (esc[y]||0)-(esc[x]||0); });
+      main = esk[0] || sp[0]; top3 = esk.slice(0,3);
+    } else if (sid === 'dm'){
+      // 双马混合：一阶转移 + 二阶转移 加权
+      var dmc = {hu:0,long:0,ru:0,chu:0};
+      trs.forEach(function(x, xi){ dmc[x] = (dmc[x]||0) + (trs.length-xi)*2; });
+      var dm2 = {hu:0,long:0,ru:0,chu:0};
+      if (lst.length >= 2){
+        var d2a = lst[lst.length-2], d2b = lst[lst.length-1];
+        for (var d2i=0; d2i<lst.length-2; d2i++){
+          if (lst[d2i]===d2a && lst[d2i+1]===d2b && dm2[lst[d2i+2]]!==undefined) dm2[lst[d2i+2]]++;
+        }
+      }
+      var dm2k = drs2.slice().sort(function(x,y){ return (dm2[y]||0)-(dm2[x]||0); });
+      dm2k.forEach(function(x, xi){ dmc[x] = (dmc[x]||0) + (dm2k.length-xi); });
+      var dmk = drs2.slice().sort(function(x,y){ return (dmc[y]||0)-(dmc[x]||0); });
+      main = dmk[0] || sp[0]; top3 = dmk.slice(0,3);
+    } else if (sid === 'vote'){
+      // 多策略投票：热门+顺势+均值回归+近门 各一票
+      var vt = {hu:0,long:0,ru:0,chu:0};
+      if (sp[0]) vt[sp[0]]++;
+      if (trs[0]) vt[trs[0]]++;
+      if (msp[0]) vt[msp[0]]++;
+      if (nsp[0]) vt[nsp[0]]++;
+      var vk = drs2.slice().sort(function(x,y){ return (vt[y]||0)-(vt[x]||0); });
+      main = vk[0] || sp[0]; top3 = vk.slice(0,3);
+    } else if (sid === 'boot'){
+      // 自举模拟：按历史比例抽样100次
+      var bt = {hu:0,long:0,ru:0,chu:0};
+      var btot = Math.max(1, lst.length);
+      for (var bi=0; bi<100; bi++){
+        var br = Math.random()*btot, ba = 0, bk = null;
+        drs2.forEach(function(k){ ba += hist[k]||0; if (br < ba && bk === null) bk = k; });
+        if (bk === null) bk = sp[0] || drs2[0];
+        bt[bk] = (bt[bk]||0)+1;
+      }
+      var btk = drs2.slice().sort(function(x,y){ return (bt[y]||0)-(bt[x]||0); });
+      main = btk[0] || sp[0]; top3 = btk.slice(0,3);
+    } else if (sid === 'gap'){
+      // 间隔回补：最久没出的门优先
+      var gpc = {hu:1e9,long:1e9,ru:1e9,chu:1e9};
+      for (var gpi=0; gpi<lst.length; gpi++){ if (gpc[lst[gpi]]!==undefined) gpc[lst[gpi]] = lst.length-1-gpi; }
+      var gpk = drs2.slice().sort(function(x,y){ return gpc[y]-gpc[x]; });
+      main = gpk[0] || sp[0]; top3 = gpk.slice(0,3);
+    } else if (sid === 'dev'){
+      // 均值偏离：比平均出得少的门优先回补
+      var dv = {hu:0,long:0,ru:0,chu:0};
+      var davg = lst.length ? lst.length/4 : 1;
+      drs2.forEach(function(k){ dv[k] = davg - (hist[k]||0); });
+      var dvk = drs2.slice().sort(function(x,y){ return dv[y]-dv[x]; });
+      main = dvk[0] || sp[0]; top3 = dvk.slice(0,3);
+    } else if (sid === 'brk'){
+      // 连断预判：连出越长越押断开（非当前门中选最热）
+      if (streak >= 3){
+        var brk2 = drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); });
+        main = brk2[0] || sp[0]; top3 = brk2.slice(0,3);
+      }
     } else if (sid === 'sleep'){
       var sk2 = drs2.slice().sort(function(a,b){ return th[a]-th[b]; });
       main = sk2[0] || sp[0];
@@ -4332,6 +4446,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v76 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v77 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
