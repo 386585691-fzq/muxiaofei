@@ -401,6 +401,13 @@
   var _ol = window.onload;
   window.onload = function(){ if (_ol) _ol(); updateLoginUI(); };
   // 密码锁逻辑
+  var __locked = true;  // 锁屏未解锁：暂停重活（渲染/云端分析），解锁后才跑（输入密码不卡）
+  var __unlockHooks = [];
+  function __unlockGo(){
+    __locked = false;
+    (__unlockHooks||[]).forEach(function(f){ try{ f(); }catch(e){} });
+    __unlockHooks = [];
+  }
   function checkLock(){
     var savedPwd = localStorage.getItem(PWD_KEY);
     var lock = document.getElementById('lockScreen');
@@ -415,12 +422,14 @@
         if (p1.length < 4){ msg.textContent = '密码至少4位'; return; }
         localStorage.setItem(PWD_KEY, p1);
         lock.style.display = 'none';
+        __unlockGo();
       };
     } else {
       tip.textContent = '';
       document.getElementById('lockBtn').onclick = function(){
         if (pwdInput.value === savedPwd){
           lock.style.display = 'none';
+          __unlockGo();
         } else {
           msg.textContent = '密码错误';
         }
@@ -4513,8 +4522,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     if (show) cloudAnalyze(c && c.innerHTML && c.innerHTML.indexOf('AI胜率预测') >= 0);
   }
   $('toggleCloud').addEventListener('click', showCloudPanel);
-   // 默认展开云端分析面板（AI关注直接可见）
-   setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
+   // 云端分析面板的默认展开已移到 _boot（解锁后）执行
   $('cloudRefresh').addEventListener('click', function(){ cloudAnalyze(false); });
 
   // 导出备份
@@ -4584,8 +4592,13 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     }
   });
 
-  backfillMarks();
-  render();
+  function _boot(){
+    backfillMarks();
+    render();
+    // 默认展开云端分析面板（解锁后600ms才计算，避免锁屏输入时卡）
+    setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
+  }
+  if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
 
   // 实时时钟
   function tick(){
@@ -4598,6 +4611,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v86 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v87 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
