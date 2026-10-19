@@ -1089,6 +1089,9 @@ function renderAIPage(){
       });
       // 统计前先去重（云端曾出现重复上传，重复组不再算进胜率/手数）
       var seenCloud = {};
+      // 指纹：云端行数 + 最后一行id + 当前时间筛选（变了才重算）
+      var cloudFp = (rows.length) + '|' + (rows.length ? String(rows[rows.length-1].id||'') : '') + '|' + (cloudTimeFilter||'all');
+      if (cached && cached.fp === cloudFp){ return; }   // 数据没变：保持缓存秒开结果
       groups = groups.filter(function(g){
         var k = g.name + '|' + g.time + '|' + JSON.stringify(g.list);
         if (seenCloud[k]) return false; seenCloud[k] = 1; return true;
@@ -4120,7 +4123,7 @@ function cell(k, rank){
       }
       var groups = {}; var delIds = [];
       rows.forEach(function(r){
-        var k = _nt(r.name) + '|' + _nt(r.time) + '|' + JSON.stringify(r.list || []);
+        var k = _nt(r.name) + '|' + JSON.stringify(r.list || []);   // 按名字+序列去重（time不同也算重复）
         if (groups[k] !== undefined){
           if (r.id < groups[k]){ delIds.push(groups[k]); groups[k] = r.id; }
           else delIds.push(r.id);
@@ -4137,7 +4140,7 @@ function cell(k, rank){
         if (i >= delIds.length){
           alert('去重完成：删除 ' + delIds.length + ' 条重复（保留每组最早一条）');
           if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
-          if (typeof cloudAnalyze === 'function') cloudAnalyze(true);
+          if (typeof cloudAnalyze === 'function') cloudAnalyze(false);
           return;
         }
         var batch = delIds.slice(i, i + B); i += B;
@@ -4155,9 +4158,21 @@ function cell(k, rank){
   };
   function cloudAnalyze(silent){
     var box = $('cloudContent');
-    if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
+    // 结果缓存：展开秒开，数据变了才重算（解决云端分析点击卡）
+    var cached = null;
+    try { var _c = localStorage.getItem('cloud_cache_v1'); if (_c) cached = JSON.parse(_c); } catch(e){}
+    if (cached && cached.html){
+      box.innerHTML = cached.html;
+      if (silent) return;   // 已展开过：直接用缓存，不重拉不重算
+    } else {
+      if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
+    }
     sbFetchAll(function(err, rows){
       if (err){
+        if (cached && cached.html){
+          box.innerHTML = cached.html + '<div style="color:#f59e0b;font-size:11px;padding:8px;text-align:center;">⚠️ 云端拉取失败，显示上次结果。点右上角「刷新」重试</div>';
+          return;
+        }
         var lc = state.groups.length;
         box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试' + (lc > 0 ? '<br><br><button id="cloudLocalBtn" style="padding:8px 16px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;">先看本地分析（本机 '+lc+' 组）</button>' : '') + '</div>';
         var lb = document.getElementById('cloudLocalBtn');
@@ -4277,6 +4292,7 @@ function cell(k, rank){
                               html += renderStrategyBoard(groups);
 html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
+        try { localStorage.setItem('cloud_cache_v1', JSON.stringify({ fp: cloudFp, html: html })); } catch(e){}
       }
       setTimeout(step, 0);
     });
@@ -4620,6 +4636,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v88 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v89 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
