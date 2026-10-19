@@ -3027,6 +3027,10 @@ function renderAIPage(){
     const box = $('liveHint');
     const name = $('groupName').value.trim();
     if (!name){ box.innerHTML = ''; return; }
+    // 指纹：名字+筛选+数据量没变不重算（打字不卡）
+    var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + state.current.length + '|' + (state.currentMarks ? state.currentMarks.length : 0);
+    if (window.__lhFp === _fk && box.innerHTML) return;
+    window.__lhFp = _fk;
 
     // 时间筛选
     const now = new Date();
@@ -3163,13 +3167,19 @@ function cell(k, rank){
     const box = $('nameSuggest');
     const q = $('groupName').value.trim();
     if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    const names = [];
-    state.groups.forEach(g => { if (g.name && !names.includes(g.name)) names.push(g.name); });
-    const hit = names.filter(n => n.includes(q)).slice(0, 12);
+    // 名字列表/计数缓存：数据没变只构建一次（数据多时输入不卡）
+    var _nl = window.__nameListCache;
+    if (!_nl || _nl.len !== state.groups.length){
+      var _nm = [], _ct = {};
+      state.groups.forEach(function(g){ if (g.name){ if (_ct[g.name] === undefined){ _ct[g.name] = 0; _nm.push(g.name); } _ct[g.name]++; } });
+      _nl = { len: state.groups.length, names: _nm, cnt: _ct };
+      window.__nameListCache = _nl;
+    }
+    const hit = _nl.names.filter(n => n.includes(q)).slice(0, 12);
     if (!hit.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
     let html = '';
     hit.forEach(n => {
-      const cnt = state.groups.filter(g => g.name === n).length;
+      const cnt = _nl.cnt[n];
       html += '<div class="suggest-item" data-n="' + escapeHtml(n) + '" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;">'
         + '<span style="color:#fbbf24;font-weight:700;">' + escapeHtml(n) + '</span>'
         + '<span style="font-size:10px;color:#64748b;flex-shrink:0;">' + cnt + '组</span>'
@@ -3373,6 +3383,10 @@ function cell(k, rank){
     }
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
+    // 指纹：名字+数据量没变不重算（打字不卡）
+    var _fk2 = q + '|' + state.groups.length + '|' + state.current.length + '|' + (state.currentMarks ? state.currentMarks.length : 0);
+    if (window.__ahFp === _fk2 && box.innerHTML) return;
+    window.__ahFp = _fk2;
     // 当天四门平均（当天数据作基准，无当天数据才用全部）
     var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, ts1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
     var dayKey = ts1 + '|' + state.groups.length;
@@ -4511,7 +4525,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       if (e.isComposing) return;
       _dropOldName(this);
       clearTimeout(sgTimer);
-      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 200);
+      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 500);
     });
     $('groupName').addEventListener('compositionend', function(){
       _dropOldName(this);
@@ -4638,6 +4652,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v90 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v91 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
