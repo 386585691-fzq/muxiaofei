@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v109 · 路单记牌器</title>
+<title>v114 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v109</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v114</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -333,6 +333,9 @@
 </div>
 <script>
 (function(){
+  var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
+  var __spCache = {};
+  var searchQuery = '';
   const PWD_KEY = 'road_pwd_v1';
   // ===== 多账号：主账号 + 子账号（独立密码 + 云端前缀隔离；主账号汇总） =====
   const ACCOUNT_KEY = 'road_account_v1';
@@ -502,6 +505,7 @@
     const show = bar.style.display === 'none';
     bar.style.display = show ? 'flex' : 'none';
     this.textContent = show ? '收起 ▼' : '展开 ▶';
+    if (show && typeof renderNameBar === 'function') renderNameBar();
   });
 
 
@@ -3302,11 +3306,11 @@ function renderAIPage(){
     var learnPool = filtered;
     var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'auto');
     var pm = predictMain(cur, learnPool);
-    var hasData = pm && pm.top && pm.top.length;
+    var hasData = (pm && pm.top && pm.top.length) || (sp4 && sp4.top3 && sp4.top3.length);
     if (hasData){
       var pctOf = function(k){ return sp4 && sp4.probs && sp4.probs[k] !== undefined ? sp4.probs[k] : 0; };
-      var sortedSb = pm.top.slice(0,3);
-      var bestK = pm.main || sortedSb[0];
+      var sortedSb = (pm && pm.top && pm.top.length) ? pm.top.slice(0,3) : sp4.top3.slice(0,3);
+      var bestK = (pm && pm.main) || sortedSb[0];
       var META = { hu:['虎','#7f1d1d','#fecaca'], long:['龙','#1e3a8a','#bfdbfe'], ru:['入','#854d0e','#fef08a'], chu:['出','#14532d','#bbf7d0'] };
 
 function cell(k, rank){
@@ -4010,20 +4014,10 @@ function cell(k, rank){
   var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', m3:'三阶马尔可夫', n5:'近5手', n10:'近10手', n20:'近20手', tw:'时间加权', es:'指数平滑', dm:'双马混合', vote:'多策略投票', boot:'自举模拟', gap:'间隔回补', frame:'趋势框架', dev:'均值偏离', brk:'连断预判', ai:'综合AI', auto:'🧠 智能自适应'};
   var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','m3','n5','n10','n20','tw','es','dm','vote','boot','gap','dev','brk','frame','ai','auto'];
   var __spCache = {};
-  function strategyPredict(n, fg, sid){
-    var fk = n;
-    for (var fi=0; fi<fg.length; fi++) fk += '|' + (fg[fi].time||'') + ':' + (fg[fi].list||[]).length;
-    var c = __spCache[fk];
-    if (c && c.sid === sid) return c.r;
-    var r = _strategyPredictImpl(n, fg, sid);
-    __spCache[fk] = { sid: sid, r: r };
-    return r;
-  }
-  // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
-  var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
-  // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
+  var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
   function behaviorPartsOf(lv, noRot){
     var r = {nm:'', ds:'', rot:''};
+    var _dn = {hu:'虎', long:'龙', ru:'入', chu:'出'};
     if (!lv || lv.length < 8) return r;
     var _c = {};
     lv.forEach(function(y){ _c[y] = (_c[y]||0)+1; });
@@ -4034,21 +4028,20 @@ function cell(k, rank){
     var _lr = _ks.length>2 ? _c[_ks[2]]/_n : 0;
     var _br=1,_bb=1;
     for (var _bi=1;_bi<lv.length;_bi++){ if (lv[_bi]===lv[_bi-1]){ _br++; if (_br>_bb) _bb=_br; } else _br=1; }
-    if (_bb >= 5){ r.nm='连庄王'; r.ds='连'+_bb+'手'+DOOR_NAME[_ks[0]]; }
-    else if (_t1 >= 0.55){ r.nm='独行侠'; r.ds='单门'+DOOR_NAME[_ks[0]]+'占'+Math.round(_t1*100)+'%'; }
-    else if (_t2 >= 0.65){ r.nm='双子星'; r.ds='专走'+DOOR_NAME[_ks[0]]+DOOR_NAME[_ks[1]]+'占'+Math.round(_t2*100)+'%'; }
-    else if (_lr <= 0.15 && _lr > 0){ r.nm='三缺一'; r.ds='留'+DOOR_NAME[_ks[2]]+'门'; }
+    if (_bb >= 5){ r.nm='连庄王'; r.ds='连'+_bb+'手'+_dn[_ks[0]]; }
+    else if (_t1 >= 0.55){ r.nm='独行侠'; r.ds='单门'+_dn[_ks[0]]+'占'+Math.round(_t1*100)+'%'; }
+    else if (_t2 >= 0.65){ r.nm='双子星'; r.ds='专走'+_dn[_ks[0]]+_dn[_ks[1]]+'占'+Math.round(_t2*100)+'%'; }
+    else if (_lr <= 0.15 && _lr > 0){ r.nm='三缺一'; r.ds='留'+_dn[_ks[2]]+'门'; }
     else { r.nm='四平八稳'; r.ds='四门均衡'; }
-    var _all = DOOR_NAME[_ks[0]] + (_ks.length>1 && _c[_ks[1]]>=_c[_ks[0]]*0.6 ? '+' + DOOR_NAME[_ks[1]] : '');
+    var _all = _dn[_ks[0]] + (_ks.length>1 && _c[_ks[1]]>=_c[_ks[0]]*0.6 ? '+' + _dn[_ks[1]] : '');
     var _c15 = lv.slice(-15);
     var _cc = {};
     _c15.forEach(function(y){ _cc[y]=(_cc[y]||0)+1; });
     var _ck = Object.keys(_cc).sort(function(a,b){ return _cc[b]-_cc[a]; });
-    var _now = _ck.length ? DOOR_NAME[_ck[0]] + (_ck.length>1 && _cc[_ck[1]]>=_cc[_ck[0]]*0.6 ? '+' + DOOR_NAME[_ck[1]] : '') : '';
+    var _now = _ck.length ? _dn[_ck[0]] + (_ck.length>1 && _cc[_ck[1]]>=_cc[_ck[0]]*0.6 ? '+' + _dn[_ck[1]] : '') : '';
     if (!noRot && _all && _now && _all !== _now) r.rot = '换汤不换药：'+_all+' → '+_now;
     return r;
   }
-  var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
   function frameTypeOf(lv){
     var ds = ['hu','long','ru','chu'];
     if (!lv || lv.length < 5) return '均衡型';
@@ -4077,6 +4070,18 @@ function cell(k, rank){
     }
     return ft;
   }
+  function strategyPredict(n, fg, sid){
+    var fk = n;
+    for (var fi=0; fi<fg.length; fi++) fk += '|' + (fg[fi].time||'') + ':' + (fg[fi].list||[]).length;
+    var c = __spCache[fk];
+    if (c && c.sid === sid) return c.r;
+    var r = _strategyPredictImpl(n, fg, sid);
+    __spCache[fk] = { sid: sid, r: r };
+    return r;
+  }
+  // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
+  var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
+  // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
   function _strategyPredictImpl(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
     var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
