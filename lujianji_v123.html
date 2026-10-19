@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v131 · 路单记牌器</title>
+<title>v132 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v131</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v132</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3327,6 +3327,15 @@ function renderAIPage(){
         sp4.top3.forEach(function(k){ if (k && _uniqS.indexOf(k) < 0) _uniqS.push(k); });
       }
       sortedSb = _uniqS.slice(0,3);
+      // v132 渲染层：保证3门含冷门策略覆盖（低比例冒出）——与 predictMain 同一逻辑
+      try {
+        var _coldIdsR = ['mean','gap','sleep'];
+        for (var _ciR=0; _ciR<_coldIdsR.length && sortedSb.length<3; _ciR++){
+          var _mPR = _strategyPredictImpl(name, learnPool, _coldIdsR[_ciR]);
+          if (_mPR && _mPR.main && sortedSb.indexOf(_mPR.main) < 0) sortedSb.push(_mPR.main);
+        }
+        if (sortedSb.length < 3) ['hu','long','ru','chu'].forEach(function(k){ if (sortedSb.indexOf(k) < 0 && sortedSb.length < 3) sortedSb.push(k); });
+      } catch(e){}
       // v131 渲染层兜底：到冒出点的冷门只提醒、不进3门显示（与提示同源计算）
       try {
         var _chR = coldHabit(name, learnPool, cur);
@@ -4911,16 +4920,24 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       var _pushM = function(k){ if (k && k !== _due0 && merged.indexOf(k) < 0) merged.push(k); };
       merged.push(sp.main);
       (top2 || []).forEach(_pushM);
-      // v122 冷门冒出补位：比例低的门会时不时冒出来——优先补 均值回归/间隔回补/反走 的预测门（到冒出点的冷门除外）
-      if (merged.length < 3){
+      // v132 低比例门覆盖：比例低的门会时不时冒出来——3门给冷门策略留位（非due非重复），满3时替换第3位
+      try {
         var _coldIds2 = ['mean','gap','sleep'];
-        for (var _ci2=0; _ci2<_coldIds2.length && merged.length<3; _ci2++){
-          try {
-            var _mPr2 = _strategyPredictImpl(name, filtered, _coldIds2[_ci2]);
-            _pushM(_mPr2 && _mPr2.main);
-          } catch(e){}
+        var _coldCover2 = null;
+        for (var _ci2=0; _ci2<_coldIds2.length; _ci2++){
+          var _mPr2 = _strategyPredictImpl(name, filtered, _coldIds2[_ci2]);
+          if (_mPr2 && _mPr2.main && _mPr2.main !== _due0 && merged.indexOf(_mPr2.main) < 0){ _coldCover2 = _mPr2.main; break; }
         }
-      }
+        if (_coldCover2){
+          if (merged.length < 3) merged.push(_coldCover2);
+          else {
+            var _c5v2 = {};
+            curList.slice(-5).forEach(function(x){ _c5v2[x]=(_c5v2[x]||0)+1; });
+            // 第3位近期出过且冷门覆盖门近期没出 → 替换（覆盖低比例冒出）
+            if ((_c5v2[merged[2]]||0) > 0 && (_c5v2[_coldCover2]||0) === 0) merged[2] = _coldCover2;
+          }
+        }
+      } catch(e){}
       // 极端兜底：主推与补位全是冷门被过滤 → 3门保留主推不能空
       if (merged.length === 0) merged.push(sp.main);
       // v131 补充：sp.top3 补位同样排除到冒出点的冷门
