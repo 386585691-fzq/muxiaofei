@@ -210,6 +210,7 @@
     <input id="lockPwd" type="password" placeholder="请输入密码" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(251,191,36,.3);background:rgba(255,255,255,.08);color:#fbbf24;font-size:18px;font-weight:700;text-align:center;outline:none;margin-bottom:12px;">
     <div id="lockMsg" style="color:#ef4444;font-size:12px;margin-bottom:10px;min-height:16px;"></div>
     <button id="lockBtn" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(180deg,#d97706,#b45309);color:#fef08a;font-size:16px;font-weight:900;cursor:pointer;">进 入</button>
+    <div id="lockReset" style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;cursor:pointer;">忘记密码？点此重置本机密码</div>
     <div style="font-size:11px;color:#64748b;margin-top:12px;" id="lockTip"></div>
   </div>
 </div>
@@ -345,7 +346,7 @@
   function isMyRow(n){ if (!n) return true; if (curAccount !== 'main') return String(n).indexOf(curAccount + '@') === 0; var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (String(n).indexOf(sp[i]) === 0) return false; } return true; }
   function toCloudName(n){ if (curAccount === 'main') return n; if (n.indexOf(curAccount + '@') === 0) return n; return curAccount + '@' + n; }
   function toLocalName(n){ if (!n) return n; if (curAccount !== 'main'){ if (n.indexOf(curAccount + '@') === 0) return n.slice(curAccount.length + 1); return n; } var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (n.indexOf(sp[i]) === 0) return n.slice(sp[i].length); } return n; }
-  function acctLabel(){ return curAccount === 'main' ? '主账号' : curAccount; }
+  function acctLabel(a){ a = a || curAccount; return a === 'main' ? '15024484009（主账号）' : a; }
   // ===== 账号登录（测试版：手机号 + 固定验证码 123456） =====
   var LOGIN_KEY = 'road_login_v1';
   function getLogin(){ try{ var o = JSON.parse(localStorage.getItem(LOGIN_KEY) || 'null'); return o; }catch(e){ return null; } }
@@ -454,6 +455,10 @@
     pwdInput.addEventListener('keydown', function(e){
       if (e.key === 'Enter') document.getElementById('lockBtn').click();
     });
+    var rs = document.getElementById('lockReset');
+    if (rs) rs.onclick = function(){
+      if (confirm('重置 ' + acctLabel() + ' 的本机密码？重置后需重新设置')){ try { localStorage.removeItem(acctPwdKey()); } catch(e){} location.reload(); }
+    };
     lock.style.display = 'flex';
   }
   checkLock();
@@ -1165,7 +1170,7 @@ function renderAIPage(){
   function renderAcct(){
     var sel = $('acctSel'); if (!sel) return;
     var h = '';
-    accountList.forEach(function(a){ h += '<option value="' + a + '"' + (a === curAccount ? ' selected' : '') + '>' + (a === 'main' ? '主账号' : a) + '</option>'; });
+    accountList.forEach(function(a){ h += '<option value="' + a + '"' + (a === curAccount ? ' selected' : '') + '>' + acctLabel(a) + '</option>'; });
     h += '<option value="__add__">＋ 添加账号</option>';
     sel.innerHTML = h;
   }
@@ -1173,7 +1178,7 @@ function renderAIPage(){
     saveLocal();
     state = load();
     render();
-    toast('已切换账号：' + (v === 'main' ? '主账号' : v));
+    toast('已切换账号：' + acctLabel(v));
     setTimeout(pullCloud, 400);
   }
   renderAcct();
@@ -1196,7 +1201,7 @@ function renderAIPage(){
     // 切换前校验目标账号密码（每个账号独立密码，互相不能随便看）
     var _needPwd = localStorage.getItem(v === 'main' ? PWD_KEY : 'road_pwd_' + v);
     if (_needPwd){
-      var _gotPwd = prompt('请输入 ' + (v === 'main' ? '主账号' : v) + ' 的密码');
+      var _gotPwd = prompt('请输入 ' + acctLabel(v) + ' 的密码');
       if (!_gotPwd || _gotPwd !== _needPwd){ toast('密码错误，未切换'); renderAcct(); return; }
     }
     try { localStorage.setItem(ACCOUNT_KEY, v); } catch(e){}
@@ -4715,6 +4720,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v93 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v94 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
