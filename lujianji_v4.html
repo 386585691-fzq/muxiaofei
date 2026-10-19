@@ -3169,7 +3169,7 @@ function cell(k, rank){
           + '</div>';
       }
       html += '<div style="background:linear-gradient(135deg,#1a0a2e,#0f172a);border:1px solid #a855f7;border-radius:6px;padding:6px 8px;margin-bottom:6px;">'
-        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">策略推荐（'+sp4.name+(sp4.frame?'·'+sp4.frame:'')+'）<span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
+        + '<div style="font-size:12px;color:#c084fc;font-weight:700;margin-bottom:4px;">策略推荐（'+sp4.name+(sp4.frame?'·'+sp4.frame:'')+(sp4.via?'→'+STRAT_NAMES[sp4.via]:'')+'）<span style="font-size:11px;color:#888;font-weight:400;">· 学了'+learnPool.length+'组 · 仅供参考</span></div>'
         + '<div style="font-size:13px;color:#93c5fd;font-weight:700;margin:4px 0;">'+sortedSb.slice(0,3).map(function(k){ return {hu:'虎',long:'龙',ru:'入',chu:'出'}[k]+pctOf(k)+'%'; }).join(' ')+' · 主推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[bestK]+'】</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">'
         + cell(sortedSb[0],0)
@@ -3555,6 +3555,7 @@ function cell(k, rank){
   }
   function calcStrategyRates(groups){
     var S = [
+      {id:'auto', name:'🧠 智能自适应', desc:'自动识别走势模板（连龙/交替/变盘/热稳/回补/均衡），用该模板胜率最高的策略'},
       {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
       {id:'hot2', name:'🎯 热门2门', desc:'押最常出的2门，中1个算对'},
       {id:'hot3', name:'🎯 热门3门', desc:'押最常出的3门，中1个算对'},
@@ -3761,6 +3762,14 @@ function cell(k, rank){
         var devK = devT.length ? devT.slice(0,1) : [];
         var brkT = (streak >= 3 && prev) ? drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); }).slice(0,3) : cutK.slice(0,3);
         var brkK = brkT.length ? brkT.slice(0,1) : [];
+        // 智能自适应 auto：识别当前模板，用该模板胜率最高的子策略
+        var _ft2 = frameTypeOf(lst.slice(0, i));
+        var _sub2 = FRAME_BEST[_ft2] || 'order';
+        var autoK = [], autoT = [];
+        if (_sub2 === 'frame'){ autoK = frameK; autoT = frameT2; }
+        else if (_sub2 === 'near'){ autoK = p3.length ? [p3[0]] : []; autoT = p3; }
+        else if (_sub2 === 'mean'){ autoK = meanN.length ? meanN.slice(0,1) : []; autoT = meanN.length ? meanN.slice(0,3) : h3; }
+        else { autoK = orderK.length ? orderK.slice(0,1) : []; autoT = orderK.length ? orderK.slice(0,3) : h3; }
         var preds = {
           hot1: histN ? topN(hist,1) : [],
           hot2: histN ? topN(hist,2) : [],
@@ -3796,6 +3805,7 @@ function cell(k, rank){
           m3: (orderK||[]).length ? (orderK||[]).slice(0,1) : [],
           n5: n5K, n10: n10K, n20: n20K,
           tw: twK, es: esK, dm: dmK, vote: voteK, boot: bootK, gap: gapK, dev: devK, brk: brkK, frame: frameK,
+          auto: autoK,
           ai: recN ? topN(rec,1) : (histN ? topN(hist,1) : [])
         };
         var top3map = {
@@ -3831,6 +3841,7 @@ function cell(k, rank){
           m3: (orderK||[]).length ? (orderK||[]).slice(0,3) : h3,
           n5: n5T, n10: n10T, n20: n20T,
           tw: twT, es: esT, dm: dmT, vote: voteT, boot: bootT, gap: gapT, dev: devT, brk: brkT, frame: frameT2,
+          auto: autoT,
           ai: rec3
         };
         S.forEach(function(x){
@@ -3847,8 +3858,8 @@ function cell(k, rank){
     return S;
   }
   // 全局策略表 + 流转
-  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', m3:'三阶马尔可夫', n5:'近5手', n10:'近10手', n20:'近20手', tw:'时间加权', es:'指数平滑', dm:'双马混合', vote:'多策略投票', boot:'自举模拟', gap:'间隔回补', frame:'趋势框架', dev:'均值偏离', brk:'连断预判', ai:'综合AI'};
-  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','m3','n5','n10','n20','tw','es','dm','vote','boot','gap','dev','brk','frame','ai'];
+  var STRAT_NAMES = {hot1:'热门1门', hot2:'热门2门', hot3:'热门3门', follow:'顺势跟庄', reverse:'反势博弈', near:'近15手主走', cold:'冷门反买', stop:'走过即停', markov:'马尔可夫链', mean:'均值回归', trend:'长龙跟踪', zone:'分区热推', cut:'断龙反打', hour:'时段偏好', deep:'深度AI', cycle:'四门轮转', head:'前段走势', champ:'全组共识', sym:'对称补数', order:'二阶马尔可夫', slope:'趋势加速', mid:'双门夹击', bayes:'贝叶斯更新', first:'首局定调', multi:'连庄续打', regress:'全局回归', mono:'蒙特卡洛', meta:'元学习', grp30:'近30手主走', even:'均衡平门', sleep:'反走过即停', m3:'三阶马尔可夫', n5:'近5手', n10:'近10手', n20:'近20手', tw:'时间加权', es:'指数平滑', dm:'双马混合', vote:'多策略投票', boot:'自举模拟', gap:'间隔回补', frame:'趋势框架', dev:'均值偏离', brk:'连断预判', ai:'综合AI', auto:'🧠 智能自适应'};
+  var STRAT_ORDER = ['hot1','hot2','hot3','follow','reverse','near','cold','stop','markov','mean','trend','zone','cut','hour','deep','cycle','head','champ','sym','order','slope','mid','bayes','first','multi','regress','mono','meta','grp30','even','sleep','m3','n5','n10','n20','tw','es','dm','vote','boot','gap','dev','brk','frame','ai','auto'];
   var __spCache = {};
   function strategyPredict(n, fg, sid){
     var fk = n;
@@ -3858,6 +3869,36 @@ function cell(k, rank){
     var r = _strategyPredictImpl(n, fg, sid);
     __spCache[fk] = { sid: sid, r: r };
     return r;
+  }
+  // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
+  var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
+  function frameTypeOf(lv){
+    var ds = ['hu','long','ru','chu'];
+    if (!lv || lv.length < 5) return '均衡型';
+    var st = 1;
+    for (var jj=lv.length-2; jj>=0 && lv[jj]===lv[lv.length-1]; jj--) st++;
+    var al = 0, an = 0;
+    for (var a2=Math.max(1, lv.length-10); a2<lv.length; a2++){ if (lv[a2] !== lv[a2-1]) al++; an++; }
+    var rl = lv.slice(-15), rh2 = cntArr(rl);
+    var tot = Math.max(1, lv.length), tr2 = Math.max(1, rl.length);
+    var lp2 = {}, rp2 = {}, df2 = {};
+    var hv2 = cntArr(lv);
+    ds.forEach(function(k){ lp2[k] = (hv2[k]||0)/tot; rp2[k] = (rh2[k]||0)/tr2; df2[k] = rp2[k] - lp2[k]; });
+    var gp2 = {hu:1e9,long:1e9,ru:1e9,chu:1e9};
+    for (var gi2=0; gi2<lv.length; gi2++){ if (gp2[lv[gi2]]!==undefined) gp2[lv[gi2]] = lv.length-1-gi2; }
+    var ft = '均衡型';
+    if (st >= 3 && lv.length) ft = '连龙型';
+    else if (an >= 6 && al/an >= 0.6) ft = '交替型';
+    else {
+      var _dv = false, _hs = false, _gf = false;
+      ds.forEach(function(k){ if (df2[k] > 0.15 || df2[k] < -0.12) _dv = true; });
+      ds.forEach(function(k){ if (lp2[k] >= 0.3 && Math.abs(df2[k]) <= 0.08) _hs = true; });
+      ds.forEach(function(k){ if (gp2[k] >= 8 && lp2[k] <= 0.2) _gf = true; });
+      if (_dv) ft = '变盘型';
+      else if (_hs) ft = '热稳型';
+      else if (_gf) ft = '回补型';
+    }
+    return ft;
   }
   function _strategyPredictImpl(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
@@ -3870,6 +3911,7 @@ function cell(k, rank){
     var top3 = [], main = null;
     var prev = lst.length ? lst[lst.length-1] : null;
     var prev2 = lst.length >= 2 ? lst[lst.length-2] : null;
+    var autoFT = null, autoViaS = null;
     var h3 = sp.slice(0,3);
     var nearL = lst.slice(-15), nh = cntArr(nearL);
     var nsp = drs2.filter(function(k){ return nh[k] > 0; }).sort(function(a,b){ return nh[b]-nh[a]; });
@@ -4137,7 +4179,8 @@ function cell(k, rank){
       top3 = sk2.slice(0,3);
     } else if (sid === 'frame'){
       // 趋势框架：识别走势模板，按模板判断（不盲目追占比）
-      var fStreak = streak;
+      var fStreak = 1;
+      for (var fs2=lst.length-2; fs2>=0 && lst[fs2]===lst[lst.length-1]; fs2--) fStreak++;
       var fAlt10 = 0, fAlt10N = 0;
       for (var fa2=Math.max(1, lst.length-10); fa2<lst.length; fa2++){ if (lst[fa2] !== lst[fa2-1]) fAlt10++; fAlt10N++; }
       var frL = lst.slice(-15), frh = cntArr(frL);
@@ -4153,12 +4196,7 @@ function cell(k, rank){
       drs2.forEach(function(k){ if (fDrift[k] > 0.15) fScore[k] += 2.4; if (fDrift[k] < -0.12) fScore[k] -= 1.8; });
       drs2.forEach(function(k){ if (fGap[k] >= 8 && fLp[k] <= 0.2) fScore[k] += 1.2; });
       var fSc = drs2.slice().sort(function(a,b){ return fScore[b]-fScore[a]; });
-      var frameT = '均衡型';
-      if (fStreak >= 3 && prev) frameT = '连龙型';
-      if (fAlt10N >= 6 && fAlt10/fAlt10N >= 0.6) frameT = '交替型';
-      drs2.forEach(function(k){ if (fDrift[k] > 0.15) frameT = '变盘型'; });
-      drs2.forEach(function(k){ if (fLp[k] >= 0.3 && Math.abs(fDrift[k]) <= 0.08) frameT = '热稳型'; });
-      drs2.forEach(function(k){ if (fGap[k] >= 8 && fLp[k] <= 0.2) frameT = '回补型'; });
+      var frameT = frameTypeOf(lst);
       var fTop = fSc[0] || sp[0];
       if (fScore[fTop] !== undefined && fScore[fTop] < -0.5){
         for (var fi3=1; fi3<fSc.length; fi3++){ if (fScore[fSc[fi3]] >= 0){ fTop = fSc[fi3]; break; } }
@@ -4166,6 +4204,12 @@ function cell(k, rank){
       main = fTop || sp[0];
       top3 = [main].concat(fSc.filter(function(k){ return k !== main; }).slice(0,2));
       drs2.forEach(function(k){ probs[k] = Math.max(5, Math.min(60, Math.round((fLp[k]*100 + fRp[k]*100)/2))); });
+    } else if (sid === 'auto'){
+      // 智能自适应：识别当前走势模板 → 用该模板历史最优策略
+      autoFT = frameTypeOf(lst);
+      autoViaS = FRAME_BEST[autoFT] || 'order';
+      var _subR = _strategyPredictImpl(n, fg, autoViaS);
+      main = _subR.main; top3 = _subR.top3; probs = _subR.probs;
     } else {
       main = rsp[0] || sp[0];
       top3 = rsp.length ? rsp.slice(0,3) : sp.slice(0,3);
@@ -4176,7 +4220,7 @@ function cell(k, rank){
       if (miss === undefined) break;
       top3.push(miss);
     }
-    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : null)};
+    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : (sid === 'auto' ? autoFT : null)), via: (sid === 'auto' ? autoViaS : null)};
   }
   window.cycleStrategy = function(){
     var cur = state._previewStrategy || state.aiStrategy || 'ai';
@@ -4768,6 +4812,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v100 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v101 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
