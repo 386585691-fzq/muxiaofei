@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v123 · 路单记牌器</title>
+<title>v124 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v123</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v124</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -2902,7 +2902,8 @@ function renderAIPage(){
         _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
         if (_ls.length >= 5) _ft = frameTypeOf(_ls);
       } catch(e){}
-      var _bp = behaviorPartsOf(_ls);
+      var _bp = {};
+      try { _bp = behaviorPartsOf(_ls); } catch(e){}
       var _fc = BCOLOR[_bp.nm] || '#94a3b8';
       html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml(_bp.nm+'·'+_bp.ds+(_bp.rot?'·'+_bp.rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_bp.nm || _ft}</em></span>`;
     });
@@ -3311,8 +3312,9 @@ function renderAIPage(){
     // 策略推荐：只用当前策略（8大AI可流转）判断，与记录页同一引擎
     const cur = state.current;
     var learnPool = filtered;
-    var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'auto');
-    var pm = predictMain(cur, learnPool);
+    var sp4 = null, pm = null;
+    try { sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'auto'); } catch(e){}
+    try { pm = predictMain(cur, learnPool); } catch(e){}
     var hasData = (pm && pm.top && pm.top.length) || (sp4 && sp4.top3 && sp4.top3.length);
     if (hasData){
       var pctOf = function(k){ return sp4 && sp4.probs && sp4.probs[k] !== undefined ? sp4.probs[k] : 0; };
@@ -4840,7 +4842,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     var out = { avg: {}, lastGap: {}, hot: null, cold: null, due: null };
     try {
       var seq = [];
-      fg.forEach(function(g){ if (g && g.list) seq = seq.concat(g.list); });
+      fg.forEach(function(g){ if (g && Array.isArray(g.list)) seq = seq.concat(g.list); });
       if (seq.length < 10) return out;
       var cc = cntArr(seq);
       ['hu','long','ru','chu'].forEach(function(k){
