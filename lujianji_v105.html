@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v106 · 路单记牌器</title>
+<title>v107 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v106</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v107</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -2891,8 +2891,9 @@ function renderAIPage(){
         _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
         if (_ls.length >= 5) _ft = frameTypeOf(_ls);
       } catch(e){}
-      var _fc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_ft] || '#94a3b8';
-      html += `<span class="tag" data-name="${escapeHtml(n)}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_ft}</em></span>`;
+      var _bp = behaviorPartsOf(_ls);
+      var _fc = BCOLOR[_bp.nm] || '#94a3b8';
+      html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml(_bp.nm+'·'+_bp.ds+(_bp.rot?'·'+_bp.rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_bp.nm || _ft}</em></span>`;
     });
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
@@ -3240,8 +3241,10 @@ function renderAIPage(){
         if (_ls.length >= 5) ft = frameTypeOf(_ls);
       } catch(e){}
     }
-    var fc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[ft] || '#64748b';
-    el.innerHTML = ft ? '<span style="font-size:10px;color:' + fc + ';border:1px solid ' + fc + ';border-radius:6px;padding:2px 6px;white-space:nowrap;">走势 ' + ft + '</span>' : '<span style="font-size:10px;color:#64748b;border:1px solid #444;border-radius:6px;padding:2px 6px;white-space:nowrap;">走势 --</span>';
+    var _bp2 = behaviorPartsOf(_ls);
+    var fc = BCOLOR[_bp2.nm] || '#64748b';
+    var _btxt = _bp2.nm ? _bp2.nm + '·' + _bp2.ds + (_bp2.rot ? '·' + _bp2.rot : '') : (ft ? ft : '');
+    el.innerHTML = _btxt ? '<span style="font-size:10px;color:' + fc + ';border:1px solid ' + fc + ';border-radius:6px;padding:2px 6px;white-space:nowrap;">' + _btxt + '</span>' : '<span style="font-size:10px;color:#64748b;border:1px solid #444;border-radius:6px;padding:2px 6px;white-space:nowrap;">结构 --</span>';
   }
   function renderLiveHint(){
     const box = $('liveHint');
@@ -4018,6 +4021,34 @@ function cell(k, rank){
   }
   // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
   var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
+  // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
+  function behaviorPartsOf(lv){
+    var r = {nm:'', ds:'', rot:''};
+    if (!lv || lv.length < 8) return r;
+    var _c = {};
+    lv.forEach(function(y){ _c[y] = (_c[y]||0)+1; });
+    var _ks = Object.keys(_c).sort(function(a,b){ return _c[b]-_c[a]; });
+    var _n = lv.length;
+    var _t1 = _c[_ks[0]]/_n;
+    var _t2 = _ks.length>1 ? (_c[_ks[0]]+_c[_ks[1]])/_n : 1;
+    var _lr = _ks.length>2 ? _c[_ks[2]]/_n : 0;
+    var _br=1,_bb=1;
+    for (var _bi=1;_bi<lv.length;_bi++){ if (lv[_bi]===lv[_bi-1]){ _br++; if (_br>_bb) _bb=_br; } else _br=1; }
+    if (_bb >= 5){ r.nm='连庄王'; r.ds='连'+_bb+'手'+DOOR_NAME[_ks[0]]; }
+    else if (_t1 >= 0.55){ r.nm='独行侠'; r.ds='单门'+DOOR_NAME[_ks[0]]+'占'+Math.round(_t1*100)+'%'; }
+    else if (_t2 >= 0.65){ r.nm='双子星'; r.ds='专走'+DOOR_NAME[_ks[0]]+DOOR_NAME[_ks[1]]+'占'+Math.round(_t2*100)+'%'; }
+    else if (_lr <= 0.15 && _lr > 0){ r.nm='三缺一'; r.ds='留'+DOOR_NAME[_ks[2]]+'门'; }
+    else { r.nm='四平八稳'; r.ds='四门均衡'; }
+    var _all = DOOR_NAME[_ks[0]] + (_ks.length>1 && _c[_ks[1]]>=_c[_ks[0]]*0.6 ? '+' + DOOR_NAME[_ks[1]] : '');
+    var _c15 = lv.slice(-15);
+    var _cc = {};
+    _c15.forEach(function(y){ _cc[y]=(_cc[y]||0)+1; });
+    var _ck = Object.keys(_cc).sort(function(a,b){ return _cc[b]-_cc[a]; });
+    var _now = _ck.length ? DOOR_NAME[_ck[0]] + (_ck.length>1 && _cc[_ck[1]]>=_cc[_ck[0]]*0.6 ? '+' + DOOR_NAME[_ck[1]] : '') : '';
+    if (_all && _now && _all !== _now) r.rot = '换汤不换药：'+_all+' → '+_now;
+    return r;
+  }
+  var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
   function frameTypeOf(lv){
     var ds = ['hu','long','ru','chu'];
     if (!lv || lv.length < 5) return '均衡型';
@@ -4590,7 +4621,7 @@ function cell(k, rank){
         // 热度榜 TOP15（按记录组数）
         var hot = Object.keys(nm).map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
         html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（记录最多的）</div>';
-        html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th><th>近7天+</th></tr>';
+        html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>行为结构</th><th>组</th><th>手</th><th>AI胜率</th><th>近7天+</th></tr>';
         hot.forEach(function(m){
           var r = rates[m.name];
           var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
@@ -4601,15 +4632,16 @@ function cell(k, rank){
             _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
             if (_ml.length >= 5) _mt = frameTypeOf(_ml);
           } catch(e){}
-          var _mc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_mt] || '#94a3b8';
-          html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + _mt + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
+          var _mbp = behaviorPartsOf(_ml);
+          var _mc = BCOLOR[_mbp.nm] || '#94a3b8';
+          html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
         });
         html += '</table>';
         // AI胜率榜 TOP10（≥3组且≥20手）
         var rateTop = Object.keys(nm).map(function(n){ return { name: n, m: nm[n], r: rates[n] }; }).filter(function(x){ return x.r && x.m.groups >= 3 && x.r.total >= 20; }).sort(function(a,b){ return b.r.rate - a.r.rate || b.m.hands - a.m.hands; }).slice(0, 10);
         if (rateTop.length){
           html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:8px 0 4px;">AI胜率榜 TOP10（≥3组）</div>';
-          html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+          html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>行为结构</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
           rateTop.forEach(function(x){
             var col = x.r.rate>=80?'#4ade80':x.r.rate>=70?'#fbbf24':'#f87171';
             var _xt = '均衡型';
@@ -4619,8 +4651,9 @@ function cell(k, rank){
               _xg.forEach(function(g){ _xl = _xl.concat(g.list || []); });
               if (_xl.length >= 5) _xt = frameTypeOf(_xl);
             } catch(e){}
-            var _xc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_xt] || '#94a3b8';
-            html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td style="color:' + _xc + ';">' + _xt + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
+            var _xbp = behaviorPartsOf(_xl);
+            var _xc = BCOLOR[_xbp.nm] || '#94a3b8';
+            html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td style="color:' + _xc + ';">' + (_xbp.nm ? _xbp.nm+'·'+_xbp.ds : _xt) + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
           });
           html += '</table>';
         }
@@ -4670,7 +4703,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     html += '</div>';
     var hot = names.map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
     html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（本机）</div>';
-    html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+    html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>行为结构</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
     hot.forEach(function(m){
       var r = rates[m.name];
       var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
@@ -4681,8 +4714,9 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
         if (_ml.length >= 5) _mt = frameTypeOf(_ml);
       } catch(e){}
-      var _mc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_mt] || '#94a3b8';
-      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + _mt + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
+      var _mbp = behaviorPartsOf(_ml);
+      var _mc = BCOLOR[_mbp.nm] || '#94a3b8';
+      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
     });
     html += '</table>';
     html += renderStrategyBoard(groups);
