@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v105 · 路单记牌器</title>
+<title>v106 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v104</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v106</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -720,9 +720,71 @@
             }
           });
           if (best >= 6) tags.push({t:'最长连'+DOOR_NAME[bestDoor]+' '+best+'手', c:'#c084fc'});
-          // 近15手不走某门（近期动态）
+          // 留门回补预估：近15手没走的门，大概什么时候出
           if (arr.length >= 10){
-            doorsArr.forEach(function(x){ if (arr.indexOf(x) < 0) tags.push({t:'近15手不走'+DOOR_NAME[x]+'门', c:'#fb923c'}); });
+            var gapSeq = [];
+            groups.forEach(function(g){
+              if (!g || !g.list) return;
+              if (splitNames(g.name).indexOf(n) < 0) return;
+              gapSeq = gapSeq.concat(g.list);
+            });
+            function _frOf(seg){
+              var _c = {};
+              seg.forEach(function(y){ _c[y] = (_c[y]||0)+1; });
+              var _ks = Object.keys(_c).sort(function(a,b){ return _c[b]-_c[a]; });
+              if (!_ks.length) return null;
+              var _t1 = _c[_ks[0]] / seg.length;
+              var _t2 = _ks.length > 1 ? (_c[_ks[0]]+_c[_ks[1]]) / seg.length : 1;
+              var _lastR = _ks.length > 2 ? _c[_ks[2]] / seg.length : 0;
+              if (_t1 >= 0.6) return {f:'单边', d:DOOR_NAME[_ks[0]]};
+              if (_t2 >= 0.8) return {f:'专走两门', d:DOOR_NAME[_ks[0]]+'+'+DOOR_NAME[_ks[1]]};
+              if (_lastR <= 0.12 && _lastR > 0) return {f:'留一门', d:'留'+DOOR_NAME[_ks[2]]};
+              return {f:'均衡', d:''};
+            }
+            doorsArr.forEach(function(x){
+              if (arr.indexOf(x) < 0){
+                var _gi = null;
+                if (gapSeq.length >= 10){
+                  var _cur = 0, _i = gapSeq.length - 1;
+                  while (_i >= 0 && gapSeq[_i] !== x){ _cur++; _i--; }
+                  var _gaps = [], _last = -1;
+                  for (var _j = 0; _j < gapSeq.length; _j++){
+                    if (gapSeq[_j] === x){ if (_last >= 0) _gaps.push(_j - _last - 1); _last = _j; }
+                  }
+                  if (_gaps.length){
+                    var _sum = 0, _mx = 0;
+                    _gaps.forEach(function(g){ _sum += g; if (g > _mx) _mx = g; });
+                    _gi = { cur: _cur, avg: _sum / _gaps.length, max: _mx, cnt: _gaps.length };
+                  }
+                }
+                if (_gi && _gi.cnt >= 2){
+                  var _st = _gi.cur >= _gi.avg ? '已超均值·回补窗口开启' : '未到回补点';
+                  tags.push({t:'留门'+DOOR_NAME[x]+'已连'+_gi.cur+'手未出(历史平均'+_gi.avg.toFixed(1)+'手/次·最大'+_gi.max+')·'+_st, c:'#fb923c'});
+                } else {
+                  tags.push({t:'留门'+DOOR_NAME[x]+'近15手未出', c:'#fb923c'});
+                }
+              }
+            });
+            // 门轮换：前15手 vs 近15手（结构不变、门在换）
+            var _prev15 = gapSeq.slice(-30, -15);
+            var _last15 = gapSeq.slice(-15);
+            if (_prev15.length >= 10 && _last15.length >= 10){
+              var _pf = _frOf(_prev15), _lf = _frOf(_last15);
+              if (_pf && _lf){
+                if (_pf.f === _lf.f){
+                  if (_pf.d !== _lf.d) tags.push({t:'结构'+_pf.f+'不变·门轮换：'+_pf.d+' → '+_lf.d, c:'#f472b6'});
+                  else tags.push({t:'结构'+_pf.f+'·当前走'+_lf.d, c:'#f472b6'});
+                } else {
+                  tags.push({t:'⚠️结构切换：'+_pf.f+'('+_pf.d+') → '+_lf.f+'('+_lf.d+')', c:'#f87171'});
+                }
+              }
+            }
+            // 近5手实时走向
+            var _last5 = gapSeq.slice(-5);
+            if (_last5.length >= 3){
+              var _l5 = _frOf(_last5);
+              if (_l5 && _l5.d) tags.push({t:'近5手正在走'+_l5.d+'门', c:'#a78bfa'});
+            }
           }
           // 偏差标签（vs 全局）
           var devTags = [];
@@ -741,6 +803,36 @@
           html += '<div style="font-size:10px;color:#f87171;font-weight:700;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:3px 6px;margin-bottom:4px;">⚠️ 诱单警示：专走三门、长期留一门不走 = 最典型钓鱼信号。留门越久越可能反手进门收割，盯这种人要反着防，别追着他留的门下注</div>';
           html += '<div style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,.08);border-radius:6px;padding:3px 6px;margin-bottom:4px;">🤖 AI 自主研究框架（自动扫描每个人/每场/每天）：专走三门留一门 · 专走两门 · 后半场收敛 · 近15手留门 · 单边偏多 · 两门集中 · 最长连庄 · 跨人框架借用</div>';
           focusShow.forEach(function(f){
+            // 🧠 行为结构觉悟：全量历史悟结构（不盯单门），并看门轮换
+            var _bl = [];
+            groups.forEach(function(g){
+              if (!g || !g.list) return;
+              if (splitNames(g.name).indexOf(n) < 0) return;
+              _bl = _bl.concat(g.list);
+            });
+            var _bh = '';
+            if (_bl.length >= 10){
+              var _bc = {};
+              _bl.forEach(function(y){ _bc[y] = (_bc[y]||0)+1; });
+              var _bks = Object.keys(_bc).sort(function(a,b){ return _bc[b]-_bc[a]; });
+              var _bt1 = _bc[_bks[0]]/_bl.length;
+              var _bt2 = _bks.length>1 ? (_bc[_bks[0]]+_bc[_bks[1]])/_bl.length : 1;
+              var _blR = _bks.length>2 ? _bc[_bks[2]]/_bl.length : 0;
+              var _br=1,_bb=1;
+              for (var _bi=1;_bi<_bl.length;_bi++){ if (_bl[_bi]===_bl[_bi-1]){ _br++; if (_br>_bb) _bb=_br; } else _br=1; }
+              if (_bb >= 6) _bh = '连庄王 · 连'+_bb+'手'+DOOR_NAME[_bks[0]];
+              else if (_bt1 >= 0.6) _bh = '独行侠 · 单门'+DOOR_NAME[_bks[0]]+'占'+Math.round(_bt1*100)+'%';
+              else if (_bt2 >= 0.8) _bh = '双子星 · 专走'+DOOR_NAME[_bks[0]]+DOOR_NAME[_bks[1]]+'占'+Math.round(_bt2*100)+'%';
+              else if (_blR <= 0.12 && _blR > 0) _bh = '三缺一 · 留'+DOOR_NAME[_bks[2]]+'门';
+              else _bh = '四平八稳 · 四门均衡';
+              var _bAll = DOOR_NAME[_bks[0]] + (_bks.length>1 && _bc[_bks[1]]>=_bc[_bks[0]]*0.6 ? '+' + DOOR_NAME[_bks[1]] : '');
+              var _c15 = _bl.slice(-15);
+              var _cc = {};
+              _c15.forEach(function(y){ _cc[y]=(_cc[y]||0)+1; });
+              var _cks = Object.keys(_cc).sort(function(a,b){ return _cc[b]-_cc[a]; });
+              var _bNow = _cks.length ? DOOR_NAME[_cks[0]] + (_cks.length>1 && _cc[_cks[1]]>=_cc[_cks[0]]*0.6 ? '+' + DOOR_NAME[_cks[1]] : '') : '';
+              if (_bAll && _bNow && _bAll !== _bNow) _bh += ' · 门轮换：'+_bAll+' → '+_bNow;
+            }
             var tagHtml = f.tags.length ? f.tags.map(function(t){ return '<span style="display:inline-block;background:rgba(251,191,36,.12);color:'+t.c+';border:1px solid '+t.c+'44;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:3px;">'+t.t+'</span>'; }).join('') : '<span style="display:inline-block;background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid #94a3b844;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;">暂无异常规律</span>';
             var devHtml = f.dev.length ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">vs平均：'+f.dev.join(' ')+'</div>' : '';
             var bar = '';
@@ -749,6 +841,7 @@
               + '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#fef3c7;font-weight:700;font-size:12px;">'+escapeHtml(f.name)+'</span><span style="color:#94a3b8;font-size:10px;">'+f.s.groups+'组 · '+f.s.total+'手</span></div>'
               + '<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:3px 0;">'+bar+'</div>'
               + '<div style="font-size:10px;color:#94a3b8;">虎 '+f.p.hu+'% · 龙 '+f.p.long+'% · 入 '+f.p.ru+'% · 出 '+f.p.chu+'%</div>'
+              + (_bh ? '<div style="font-size:10px;color:#e9d5ff;background:rgba(233,213,255,.08);border-radius:6px;padding:2px 5px;margin-top:2px;">🧠 行为结构觉悟：'+_bh+'</div>' : '')
               + devHtml
               + '<div style="margin-top:2px;">'+tagHtml+'</div>'
               + '</div>';
