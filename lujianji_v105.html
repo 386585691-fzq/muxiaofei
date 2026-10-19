@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v107 · 路单记牌器</title>
+<title>v108 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v107</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v108</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3911,13 +3911,23 @@ function cell(k, rank){
         var devK = devT.length ? devT.slice(0,1) : [];
         var brkT = (streak >= 3 && prev) ? drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); }).slice(0,3) : cutK.slice(0,3);
         var brkK = brkT.length ? brkT.slice(0,1) : [];
-        // 智能自适应 auto：识别当前模板，用该模板胜率最高的子策略
+        // 智能自适应 auto：先觉悟行为结构（药），再按模板补足（换汤不换药：结构不变门在换，跟新门）
         var _ft2 = frameTypeOf(lst.slice(0, i));
-        var _sub2 = FRAME_BEST[_ft2] || 'order';
+        var _bp2 = behaviorPartsOf(lst.slice(0, i), true);
+        var _sub2 = 'order';
+        if (_bp2.nm === '双子星') _sub2 = 'near';
+        else if (_bp2.nm === '独行侠') _sub2 = 'hot1';
+        else if (_bp2.nm === '连庄王') _sub2 = 'order';
+        else if (_bp2.nm === '三缺一') _sub2 = 'cold';
+        else if (_bp2.nm === '四平八稳') _sub2 = 'even';
+        else _sub2 = FRAME_BEST[_ft2] || 'order';
         var autoK = [], autoT = [];
         if (_sub2 === 'frame'){ autoK = frameK; autoT = frameT2; }
         else if (_sub2 === 'near'){ autoK = p3.length ? [p3[0]] : []; autoT = p3; }
         else if (_sub2 === 'mean'){ autoK = meanN.length ? meanN.slice(0,1) : []; autoT = meanN.length ? meanN.slice(0,3) : h3; }
+        else if (_sub2 === 'cold'){ var _ck2 = drs2.slice().sort(function(a,b){ return (hist[a]||0)-(hist[b]||0); }); autoK = _ck2.length ? _ck2.slice(0,1) : []; autoT = _ck2.length ? _ck2.slice(0,3) : h3; }
+        else if (_sub2 === 'even'){ autoK = ev.length ? ev.slice(0,1) : []; autoT = ev.length ? ev.slice(0,3) : h3; }
+        else if (_sub2 === 'hot1'){ autoK = histN ? topN(hist,1) : []; autoT = h3; }
         else { autoK = orderK.length ? orderK.slice(0,1) : []; autoT = orderK.length ? orderK.slice(0,3) : h3; }
         var preds = {
           hot1: histN ? topN(hist,1) : [],
@@ -4022,7 +4032,7 @@ function cell(k, rank){
   // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
   var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
   // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
-  function behaviorPartsOf(lv){
+  function behaviorPartsOf(lv, noRot){
     var r = {nm:'', ds:'', rot:''};
     if (!lv || lv.length < 8) return r;
     var _c = {};
@@ -4045,7 +4055,7 @@ function cell(k, rank){
     _c15.forEach(function(y){ _cc[y]=(_cc[y]||0)+1; });
     var _ck = Object.keys(_cc).sort(function(a,b){ return _cc[b]-_cc[a]; });
     var _now = _ck.length ? DOOR_NAME[_ck[0]] + (_ck.length>1 && _cc[_ck[1]]>=_cc[_ck[0]]*0.6 ? '+' + DOOR_NAME[_ck[1]] : '') : '';
-    if (_all && _now && _all !== _now) r.rot = '换汤不换药：'+_all+' → '+_now;
+    if (!noRot && _all && _now && _all !== _now) r.rot = '换汤不换药：'+_all+' → '+_now;
     return r;
   }
   var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
@@ -4088,7 +4098,7 @@ function cell(k, rank){
     var top3 = [], main = null;
     var prev = lst.length ? lst[lst.length-1] : null;
     var prev2 = lst.length >= 2 ? lst[lst.length-2] : null;
-    var autoFT = null, autoViaS = null;
+    var autoFT = null, autoViaS = null, autoBP = null;
     var h3 = sp.slice(0,3);
     var nearL = lst.slice(-15), nh = cntArr(nearL);
     var nsp = drs2.filter(function(k){ return nh[k] > 0; }).sort(function(a,b){ return nh[b]-nh[a]; });
@@ -4384,7 +4394,16 @@ function cell(k, rank){
     } else if (sid === 'auto'){
       // 智能自适应：识别当前走势模板 → 用该模板历史最优策略
       autoFT = frameTypeOf(lst);
-      autoViaS = FRAME_BEST[autoFT] || 'order';
+      var _bpA = behaviorPartsOf(lst, false);
+      autoBP = _bpA;
+      autoViaS = 'order';
+      if (_bpA.rot) autoViaS = 'near';
+      else if (_bpA.nm === '双子星') autoViaS = 'near';
+      else if (_bpA.nm === '独行侠') autoViaS = 'hot1';
+      else if (_bpA.nm === '连庄王') autoViaS = 'order';
+      else if (_bpA.nm === '三缺一') autoViaS = 'cold';
+      else if (_bpA.nm === '四平八稳') autoViaS = 'even';
+      else autoViaS = FRAME_BEST[autoFT] || 'order';
       var _subR = _strategyPredictImpl(n, fg, autoViaS);
       main = _subR.main; top3 = _subR.top3; probs = _subR.probs;
     } else {
@@ -4397,7 +4416,7 @@ function cell(k, rank){
       if (miss === undefined) break;
       top3.push(miss);
     }
-    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : (sid === 'auto' ? autoFT : null)), via: (sid === 'auto' ? autoViaS : null)};
+    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : (sid === 'auto' ? (autoBP && autoBP.nm ? autoBP.nm + '·' + autoBP.ds : autoFT) : null)), via: (sid === 'auto' ? autoViaS : null)};
   }
   window.cycleStrategy = function(){
     var cur = state._previewStrategy || state.aiStrategy || 'auto';
