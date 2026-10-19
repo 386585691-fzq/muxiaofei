@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v114 · 路单记牌器</title>
+<title>v115 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v114</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v115</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3750,7 +3750,7 @@ function cell(k, rank){
       {id:'vote', name:'🗳️ 多策略投票', desc:'热门+顺势+均值回归+近门投票'},
       {id:'boot', name:'🎲 自举模拟', desc:'重采样100次按比例'},
       {id:'gap', name:'🕳️ 间隔回补', desc:'最久没出的门优先'},
-      {id:'frame', name:'🧭 趋势框架', desc:'识别走势模板：连龙/交替/热稳/变盘/回补，按模板判断'},
+      {id:'frame', name:'🧭 趋势框架', desc:'识别行为结构（连庄王/独行侠/双子星/三缺一/四平八稳），按结构用药分派'},
       {id:'dev', name:'⚖️ 均值偏离', desc:'比平均少的门回补'},
       {id:'brk', name:'✂️ 连断预判', desc:'连出越长越押断开'},
       {id:'ai', name:'🤖 综合AI', desc:'近期记录加权投票（现有模型）'},
@@ -4360,32 +4360,20 @@ function cell(k, rank){
       main = sk2[0] || sp[0];
       top3 = sk2.slice(0,3);
     } else if (sid === 'frame'){
-      // 趋势框架：识别走势模板，按模板判断（不盲目追占比）
-      var fStreak = 1;
-      for (var fs2=lst.length-2; fs2>=0 && lst[fs2]===lst[lst.length-1]; fs2--) fStreak++;
-      var fAlt10 = 0, fAlt10N = 0;
-      for (var fa2=Math.max(1, lst.length-10); fa2<lst.length; fa2++){ if (lst[fa2] !== lst[fa2-1]) fAlt10++; fAlt10N++; }
-      var frL = lst.slice(-15), frh = cntArr(frL);
-      var fTot = Math.max(1, lst.length), fTotR = Math.max(1, frL.length);
-      var fLp = {}, fRp = {}, fDrift = {};
-      drs2.forEach(function(k){ fLp[k] = (hist[k]||0)/fTot; fRp[k] = (frh[k]||0)/fTotR; fDrift[k] = fRp[k] - fLp[k]; });
-      var fGap = {hu:1e9,long:1e9,ru:1e9,chu:1e9};
-      for (var fgi=0; fgi<lst.length; fgi++){ if (fGap[lst[fgi]]!==undefined) fGap[lst[fgi]] = lst.length-1-fgi; }
-      var fScore = {}; drs2.forEach(function(k){ fScore[k] = 0; });
-      if (fStreak >= 3 && prev) fScore[prev] += 3.0;
-      if (fAlt10N >= 6 && fAlt10/fAlt10N >= 0.6 && prev){ var _opp2 = {hu:'chu',chu:'hu',long:'ru',ru:'long'}[prev] || prev; fScore[_opp2] += 2.2; }
-      drs2.forEach(function(k){ if (fLp[k] >= 0.3 && Math.abs(fDrift[k]) <= 0.08) fScore[k] += 2.0; });
-      drs2.forEach(function(k){ if (fDrift[k] > 0.15) fScore[k] += 2.4; if (fDrift[k] < -0.12) fScore[k] -= 1.8; });
-      drs2.forEach(function(k){ if (fGap[k] >= 8 && fLp[k] <= 0.2) fScore[k] += 1.2; });
-      var fSc = drs2.slice().sort(function(a,b){ return fScore[b]-fScore[a]; });
-      var frameT = frameTypeOf(lst);
-      var fTop = fSc[0] || sp[0];
-      if (fScore[fTop] !== undefined && fScore[fTop] < -0.5){
-        for (var fi3=1; fi3<fSc.length; fi3++){ if (fScore[fSc[fi3]] >= 0){ fTop = fSc[fi3]; break; } }
-      }
-      main = fTop || sp[0];
-      top3 = [main].concat(fSc.filter(function(k){ return k !== main; }).slice(0,2));
-      drs2.forEach(function(k){ probs[k] = Math.max(5, Math.min(60, Math.round((fLp[k]*100 + fRp[k]*100)/2))); });
+      // 趋势框架：行为结构药驱动（药=连庄王/独行侠/双子星/三缺一/四平八稳；汤=具体门在换）
+      frameT = frameTypeOf(lst);
+      var _bpF = behaviorPartsOf(lst, false);
+      var fVia = 'order';
+      if (_bpF.rot) fVia = 'near';
+      else if (_bpF.nm === '双子星') fVia = 'near';
+      else if (_bpF.nm === '独行侠') fVia = 'hot1';
+      else if (_bpF.nm === '连庄王') fVia = 'order';
+      else if (_bpF.nm === '三缺一') fVia = 'cold';
+      else if (_bpF.nm === '四平八稳') fVia = 'even';
+      else fVia = FRAME_BEST[frameT] || 'order';
+      var _subF = _strategyPredictImpl(n, fg, fVia);
+      main = _subF.main; top3 = _subF.top3; probs = _subF.probs;
+      autoBP = _bpF; autoViaS = fVia;
     } else if (sid === 'auto'){
       // 智能自适应：识别当前走势模板 → 用该模板历史最优策略
       autoFT = frameTypeOf(lst);
@@ -4411,7 +4399,7 @@ function cell(k, rank){
       if (miss === undefined) break;
       top3.push(miss);
     }
-    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : (sid === 'auto' ? (autoBP && autoBP.nm ? autoBP.nm + '·' + autoBP.ds : autoFT) : null)), via: (sid === 'auto' ? autoViaS : null)};
+    return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: ((sid === 'frame' || sid === 'auto') ? (autoBP && autoBP.nm ? autoBP.nm + '·' + autoBP.ds : (sid === 'frame' ? frameT : autoFT)) : null), via: ((sid === 'frame' || sid === 'auto') ? autoViaS : null)};
   }
   window.cycleStrategy = function(){
     var cur = state._previewStrategy || state.aiStrategy || 'auto';
