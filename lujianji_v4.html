@@ -1399,7 +1399,7 @@ function renderAIPage(){
           gameName: o.gameName || '路单',
           groupNum: o.groupNum || 1,
           updatedAt: o.updatedAt || 0,
-          aiStrategy: o.aiStrategy || 'ai',
+          aiStrategy: o.aiStrategy || 'auto',
           accuracy: o.accuracy || {total:0,correct:0},
           predictHistory: o.predictHistory || [],
           names: o.names || []
@@ -1542,6 +1542,14 @@ function renderAIPage(){
       render();
     }
   }
+  // v102：一次性把主推策略设为智能自适应（只执行一次，之后可手动流转切换）
+  try {
+    if (!localStorage.getItem('road_auto_v1')) {
+      state.aiStrategy = 'auto';
+      save();
+      localStorage.setItem('road_auto_v1', '1');
+    }
+  } catch(e){}
   // Supabase 云同步自动开启，无需配置钥匙
   pullCloud(); // 联网时拉取云端最新数据（file:// 直开时自动跳过）
   if (!state.accuracy) state.accuracy = {correct:0, total:0};
@@ -3151,7 +3159,7 @@ function renderAIPage(){
     // 策略推荐：只用当前策略（8大AI可流转）判断，与记录页同一引擎
     const cur = state.current;
     var learnPool = filtered;
-    var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'ai');
+    var sp4 = strategyPredict(name, learnPool, state.aiStrategy || 'auto');
     var pm = predictMain(cur, learnPool);
     var hasData = pm && pm.top && pm.top.length;
     if (hasData){
@@ -4223,7 +4231,7 @@ function cell(k, rank){
     return {main: main, top3: top3, probs: probs, name: STRAT_NAMES[sid] || sid, frame: (sid === 'frame' ? frameT : (sid === 'auto' ? autoFT : null)), via: (sid === 'auto' ? autoViaS : null)};
   }
   window.cycleStrategy = function(){
-    var cur = state._previewStrategy || state.aiStrategy || 'ai';
+    var cur = state._previewStrategy || state.aiStrategy || 'auto';
     var idx = STRAT_ORDER.indexOf(cur);
     var next = STRAT_ORDER[(idx+1) % STRAT_ORDER.length];
     state._previewStrategy = next;   // 只预览，不落定不保存，要自己确认
@@ -4265,7 +4273,7 @@ function cell(k, rank){
   };
   function renderStrategyBoard(groups){
     var S = calcStrategyRates(groups);
-    var curS = state.aiStrategy || 'ai';
+    var curS = state.aiStrategy || 'auto';
     var html = '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap;">'
       + '<button id="stratCycle" onclick="cycleStrategy()" style="padding:3px 10px;border-radius:8px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.4);cursor:pointer;">🔄 当前推荐：' + STRAT_NAMES[curS] + '（点我流转）</button>'
       + '<button id="stratConfirm" onclick="confirmStrategy()" style="display:none;padding:3px 10px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;"></button>'
@@ -4539,7 +4547,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   function predictMain(curArr, filtered){
     var name = currentName();
     var sp = null;
-    try { sp = strategyPredict(name, filtered, state._previewStrategy || state.aiStrategy || 'ai'); } catch(e){}
+    try { sp = strategyPredict(name, filtered, state._previewStrategy || state.aiStrategy || 'auto'); } catch(e){}
     var top2 = predictTop2(curArr, filtered);   // 动态：随当前已录手数变化（前缀/上一手/位置）
     if (sp && sp.main){
       // 融合：策略主推优先（面板主推=对错主推=主推一致），动态预测补位3门
@@ -4812,6 +4820,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v101 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v102 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
