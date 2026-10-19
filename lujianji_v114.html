@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v121 · 路单记牌器</title>
+<title>v123 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v121</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v123</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3347,6 +3347,14 @@ function cell(k, rank){
     var _hit5 = 0; _recentM.forEach(function(mm){ if (mm) _hit5++; });
     var _watch = '<div style="background:#111827;border:1px solid #374151;border-radius:6px;padding:5px 8px;margin-bottom:6px;font-size:11px;">'
       + '<div style="color:#93c5fd;font-weight:700;">🤖 AI 盯盘 <span style="color:#888;font-weight:400;">· 组名'+escapeHtml(name)+' · 近5手命中'+_hit5+'/5</span></div>';
+    // v123 冷门习惯提示：该玩家历史里"到冒出点"的冷门
+    try {
+      var _ch = coldHabit(name, filtered, cur);
+      var _NM2 = {hu:'虎',long:'龙',ru:'入',chu:'出'};
+      if (_ch && _ch.due && _ch.avg[_ch.due] && _ch.avg[_ch.due] < 99){
+        _watch += '<div style="color:#f59e0b;font-weight:700;margin-top:3px;">🔍 冷门习惯：'+_NM2[_ch.due]+'平均隔'+_ch.avg[_ch.due].toFixed(1)+'手冒一次，已隔'+(_ch.lastGap[_ch.due]||0)+'手 → 可能要冒，已加入推荐</div>';
+      }
+    } catch(e){}
     if (_xCnt >= 3){
       _watch += '<div style="color:#f87171;font-weight:700;margin-top:3px;">⚠️ 主推连续打错 '+_xCnt+' 手，建议切换策略</div>'
         + '<button onclick="quickResetAI()" style="margin-top:4px;padding:3px 10px;border-radius:8px;background:rgba(248,113,113,.15);color:#f87171;font-size:11px;font-weight:700;border:1px solid rgba(248,113,113,.4);cursor:pointer;">🔄 一键回到智能自适应</button>';
@@ -4827,6 +4835,44 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     updateRecommend();
   }
 
+  // v123 AI盯盘·冷门习惯：按游戏名（玩家）学习每门出现间隔 → 预测冷门冒出点
+  function coldHabit(n, fg, cur){
+    var out = { avg: {}, lastGap: {}, hot: null, cold: null, due: null };
+    try {
+      var seq = [];
+      fg.forEach(function(g){ if (g && g.list) seq = seq.concat(g.list); });
+      if (seq.length < 10) return out;
+      var cc = cntArr(seq);
+      ['hu','long','ru','chu'].forEach(function(k){
+        var nk = cc[k] || 0;
+        out.avg[k] = nk ? seq.length / nk : 99;
+      });
+      var hot = null, hotN = -1, cold = null, coldN = 999;
+      ['hu','long','ru','chu'].forEach(function(k){
+        var nk = cc[k] || 0;
+        if (nk > hotN){ hotN = nk; hot = k; }
+        if (nk < coldN){ coldN = nk; cold = k; }
+      });
+      out.hot = hot; out.cold = cold;
+      var cur2 = cur || [];
+      if (cur2.length >= 3){
+        ['hu','long','ru','chu'].forEach(function(k){
+          var la = -1;
+          for (var i=cur2.length-1; i>=0; i--){ if (cur2[i]===k){ la=i; break; } }
+          out.lastGap[k] = cur2.length - la;
+        });
+        var dueK = null, dueMax = -1;
+        ['hu','long','ru','chu'].forEach(function(k){
+          if (out.lastGap[k] >= 3 && out.avg[k] < 99){
+            var ratio = out.lastGap[k] / Math.max(1, out.avg[k]);
+            if (ratio > dueMax){ dueMax = ratio; dueK = k; }
+          }
+        });
+        out.due = dueK;
+      }
+    } catch(e){}
+    return out;
+  }
   // 统一预测：记录页主推/实时对错/高亮全用同一策略（流转策略），避免显示与对错不一致
   function predictMain(curArr, filtered){
     var name = currentName();
@@ -4838,6 +4884,21 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       var merged = [];
       merged.push(sp.main);
       (top2 || []).forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
+      // v122 冷门冒出补位：比例低的门会时不时冒出来——优先补 均值回归/间隔回补/反走 的预测门，3门覆盖冷门冒出
+      if (merged.length < 3){
+        // v123 冷门习惯：该游戏名（玩家）历史里"到冒出点"的门优先补位
+        try {
+          var _ch2 = coldHabit(name, filtered, curArr);
+          if (_ch2 && _ch2.due && merged.indexOf(_ch2.due) < 0) merged.push(_ch2.due);
+        } catch(e){}
+        var _coldIds2 = ['mean','gap','sleep'];
+        for (var _ci2=0; _ci2<_coldIds2.length && merged.length<3; _ci2++){
+          try {
+            var _mPr2 = _strategyPredictImpl(name, filtered, _coldIds2[_ci2]);
+            if (_mPr2 && _mPr2.main && merged.indexOf(_mPr2.main) < 0) merged.push(_mPr2.main);
+          } catch(e){}
+        }
+      }
       if (merged.length < 3 && sp.top3) sp.top3.forEach(function(k){ if (merged.indexOf(k) < 0) merged.push(k); });
       // v120 3门级实时纠偏：top3 中哪一门近5手几乎不出（出现≤2次且非最热）就单独替换成更热门门，避免3门里死押冷门连错
       var corrected = null;
