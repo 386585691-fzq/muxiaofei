@@ -339,6 +339,9 @@
   try { curAccount = localStorage.getItem(ACCOUNT_KEY) || 'main'; } catch(e){}
   var accountList = ['main', '13828947776', '15024484009'];
   try { var _al0 = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)); if (_al0 && _al0.length) accountList = _al0; } catch(e){}
+  var MAIN_PHONE = '15336533772';
+  accountList = accountList.filter(function(a){ return a !== MAIN_PHONE; });
+  if (accountList.indexOf('main') < 0) accountList.unshift('main');
   function acctPwdKey(){ return curAccount === 'main' ? PWD_KEY : 'road_pwd_' + curAccount; }
   function acctKey(){ return curAccount === 'main' ? STORE_KEY : 'road_groups_' + curAccount; }
   function acctCurKey(){ return curAccount === 'main' ? CUR_KEY : 'road_cur_' + curAccount; }
@@ -346,7 +349,7 @@
   function isMyRow(n){ if (!n) return true; if (curAccount !== 'main') return String(n).indexOf(curAccount + '@') === 0; var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (String(n).indexOf(sp[i]) === 0) return false; } return true; }
   function toCloudName(n){ if (curAccount === 'main') return n; if (n.indexOf(curAccount + '@') === 0) return n; return curAccount + '@' + n; }
   function toLocalName(n){ if (!n) return n; if (curAccount !== 'main'){ if (n.indexOf(curAccount + '@') === 0) return n.slice(curAccount.length + 1); return n; } var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (n.indexOf(sp[i]) === 0) return n.slice(sp[i].length); } return n; }
-  function acctLabel(a){ a = a || curAccount; return a === 'main' ? '15336533772（主账号）' : a; }
+  function acctLabel(a){ a = a || curAccount; if (a === 'main') return 'AA（主账号）'; if (a === '13828947776') return 'BB'; if (a === '15024484009') return 'CC'; return a; }
   function acctDefaultPwd(){ if (curAccount === 'main' || curAccount === '13828947776') return 'aa123123'; if (curAccount === '15024484009') return 'qq123123'; return null; }
   // ===== 账号登录（测试版：手机号 + 固定验证码 123456） =====
   var LOGIN_KEY = 'road_login_v1';
@@ -4722,6 +4725,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v96 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v97 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
