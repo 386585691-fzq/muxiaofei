@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v127 · 路单记牌器</title>
+<title>v128 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v127</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v128</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3363,7 +3363,11 @@ function cell(k, rank){
       _watch += '<div style="color:#f87171;font-weight:700;margin-top:3px;">⚠️ 主推连续打错 '+_xCnt+' 手，建议切换策略</div>'
         + '<button onclick="quickResetAI()" style="margin-top:4px;padding:3px 10px;border-radius:8px;background:rgba(248,113,113,.15);color:#f87171;font-size:11px;font-weight:700;border:1px solid rgba(248,113,113,.4);cursor:pointer;">🔄 一键回到智能自适应</button>';
     } else if (_xCnt >= 2){
-      _watch += '<div style="color:#fbbf24;font-weight:700;margin-top:3px;">⚡ 连续打错 '+_xCnt+' 手，已自动换门盯盘中</div>';
+      if (pm && pm.corrected){
+        _watch += '<div style="color:#fbbf24;font-weight:700;margin-top:3px;">⚡ 连续打错 '+_xCnt+' 手，已自动换门盯盘中（改推【'+{hu:'虎',long:'龙',ru:'入',chu:'出'}[pm.corrected]+'】）</div>';
+      } else {
+        _watch += '<div style="color:#fbbf24;font-weight:700;margin-top:3px;">⚡ 连续打错 '+_xCnt+' 手，盯盘中（暂无更好换门）</div>';
+      }
     } else if (pm && pm.corrected){
       _watch += '<div style="color:#34d399;font-weight:700;margin-top:3px;">✅ 纠偏自动换门中，推荐跟随实况</div>';
     } else if (hasData){
@@ -4970,6 +4974,33 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         }
         merged = _cm;
       }
+      // v128 连续打错强制换门：预测连续错≥2手 → 真正换主推门（不再只说不做）
+      try {
+        var _mkx = state.currentMarks || [];
+        var _xN = 0;
+        for (var _xi2=_mkx.length-1; _xi2>=0; _xi2--){ if (_mkx[_xi2]) break; _xN++; }
+        if (_xN >= 2 && merged.length >= 2){
+          var _c5x = {};
+          curList.slice(-5).forEach(function(x){ _c5x[x]=(_c5x[x]||0)+1; });
+          var _alt = null;
+          // 优先换到 top3 里近5手更热的其他门
+          ['hu','long','ru','chu'].forEach(function(k){
+            if ((_c5x[k]||0) > 0 && merged.indexOf(k) >= 0 && k !== merged[0]){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
+          });
+          // 否则换近5手出现但不在 top3 的门
+          if (!_alt){
+            ['hu','long','ru','chu'].forEach(function(k){
+              if ((_c5x[k]||0) > 0 && merged.indexOf(k) < 0){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
+            });
+          }
+          if (_alt){
+            var _m4 = merged.slice();
+            _m4[0] = _alt;
+            corrected = _alt;
+            merged = _m4;
+          }
+        }
+      } catch(e){}
       return { top: merged.slice(0,3), main: merged[0], corrected: corrected };
     }
     return { top: top2, main: top2[0] };
