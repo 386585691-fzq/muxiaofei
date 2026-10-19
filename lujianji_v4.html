@@ -2772,7 +2772,15 @@ function renderAIPage(){
     state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
     let html = '';
     names.forEach(n => {
-      html += `<span class="tag" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
+      var _ft = '均衡型';
+      try {
+        var _grs = state.groups.filter(function(g){ return g && g.name === n; });
+        var _ls = [];
+        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
+        if (_ls.length >= 5) _ft = frameTypeOf(_ls);
+      } catch(e){}
+      var _fc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_ft] || '#94a3b8';
+      html += `<span class="tag" data-name="${escapeHtml(n)}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_ft}</em></span>`;
     });
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
@@ -4516,11 +4524,19 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     html += '</div>';
     var hot = names.map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
     html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（本机）</div>';
-    html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+    html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
     hot.forEach(function(m){
       var r = rates[m.name];
       var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
-      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
+      var _mt = '均衡型';
+      try {
+        var _mg = state.groups.filter(function(g){ return g && g.name === m.name; });
+        var _ml = [];
+        _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
+        if (_ml.length >= 5) _mt = frameTypeOf(_ml);
+      } catch(e){}
+      var _mc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_mt] || '#94a3b8';
+      html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + _mt + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
     });
     html += '</table>';
     html += renderStrategyBoard(groups);
@@ -4820,6 +4836,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v102 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v103 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
