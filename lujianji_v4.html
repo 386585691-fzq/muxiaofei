@@ -4113,13 +4113,13 @@ function cell(k, rank){
 
   // ===== 新增：云端分析面板（直接拉 Supabase 全量数据，独立计算，不依赖本地 state） =====
   // 云端去重：拉全量 → 算重复(同name+time+list) → 保留最小id → 删除其余
-  window.cloudDedupe = function(){
+  window.cloudDedupe = function(silent){
     if (!CLOUD) return;
     var btn = $('cloudDedupeBtn');
     if (btn){ btn.textContent = '🧹 去重中…'; btn.disabled = true; }
     sbFetchAll(function(err, rows){
       if (err || !rows || !rows.length){
-        alert('拉取云端失败，请检查网络'); if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; } return;
+        if (!silent) alert('拉取云端失败，请检查网络'); if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; } return;
       }
       var groups = {}; var delIds = [];
       rows.forEach(function(r){
@@ -4130,23 +4130,23 @@ function cell(k, rank){
         } else { groups[k] = r.id; }
       });
       if (!delIds.length){
-        alert('云端没有重复数据 ✓');
+        if (!silent) alert('云端没有重复数据 ✓');
         if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
-        if (typeof cloudAnalyze === 'function') cloudAnalyze(true);
+        if (!silent && typeof cloudAnalyze === 'function') cloudAnalyze(true);
         return;
       }
       var i = 0, B = 50, done = 0;
       (function next(){
         if (i >= delIds.length){
-          alert('去重完成：删除 ' + delIds.length + ' 条重复（保留每组最早一条）');
+          if (!silent) alert('去重完成：删除 ' + delIds.length + ' 条重复（保留每组最早一条）');
           if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
-          if (typeof cloudAnalyze === 'function') cloudAnalyze(false);
+          if (!silent && typeof cloudAnalyze === 'function') cloudAnalyze(false);
           return;
         }
         var batch = delIds.slice(i, i + B); i += B;
         sbReq(CLOUD_TBL + '?id=in.(' + batch.join(',') + ')', {method:'DELETE', prefer:'return=minimal'}, function(err, xhr){
           if (err || (xhr.status !== 204 && xhr.status !== 200)){
-            alert('删除批次失败 HTTP=' + (xhr ? xhr.status : '网络') + '，请重试');
+            if (!silent) alert('删除批次失败 HTTP=' + (xhr ? xhr.status : '网络') + '，请重试');
             if (btn){ btn.textContent = '🧹 云端去重'; btn.disabled = false; }
             return;
           }
@@ -4622,6 +4622,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     setTimeout(function(){ backfillMarks(); }, 250);
     // 云端分析展开（解锁后600ms才计算）
     setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
+    // 自动云端去重（解锁后2.5s静默跑，重复不再积累；删除量大时后台分批进行不卡界面）
+    setTimeout(function(){ try{ if (typeof window.cloudDedupe === 'function') window.cloudDedupe(true); }catch(e){} }, 2500);
   }
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
 
@@ -4636,6 +4638,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v89 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v90 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
