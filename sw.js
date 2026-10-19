@@ -1,5 +1,5 @@
-﻿const CACHE = 'lujianji-v119';
-const ASSETS = ['./lujianji_v119.html', './lujianji_v118.html', './lujianji_v117.html', './lujianji_v116.html', './lujianji_v115.html', './lujianji_v114.html', './lujianji_v109.html', './lujianji_v108.html', './lujianji_v107.html', './lujianji_v106.html', './lujianji_v105.html', './lujianji_v4.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon.png'];
+﻿const CACHE = 'lujianji-v120';
+const ASSETS = ['./lujianji_v120.html', './lujianji_v119.html', './lujianji_v118.html', './lujianji_v117.html', './lujianji_v116.html', './lujianji_v115.html', './lujianji_v114.html', './lujianji_v109.html', './lujianji_v108.html', './lujianji_v107.html', './lujianji_v106.html', './lujianji_v105.html', './lujianji_v4.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon.png'];
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); }).then(function(){ return self.skipWaiting(); }));
 });
