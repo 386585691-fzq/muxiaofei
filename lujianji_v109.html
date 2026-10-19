@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v129 · 路单记牌器</title>
+<title>v130 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v129</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v130</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -4990,16 +4990,20 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
           var _c5x = {};
           curList.slice(-5).forEach(function(x){ _c5x[x]=(_c5x[x]||0)+1; });
           var _alt = null;
+          // v130 冷门保护：到冒出点的冷门（due）绝不换掉；_alt 选择排除 due
+          function _notDue(k){ return !(due && k === due); }
           // 优先换到 top3 里近5手更热的其他门
           ['hu','long','ru','chu'].forEach(function(k){
-            if ((_c5x[k]||0) > 0 && merged.indexOf(k) >= 0 && k !== merged[0]){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
+            if ((_c5x[k]||0) > 0 && merged.indexOf(k) >= 0 && k !== merged[0] && _notDue(k)){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
           });
-          // 否则换近5手出现但不在 top3 的门
+          // 否则换近5手出现但不在 top3 的门（也不换 due）
           if (!_alt){
             ['hu','long','ru','chu'].forEach(function(k){
-              if ((_c5x[k]||0) > 0 && merged.indexOf(k) < 0){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
+              if ((_c5x[k]||0) > 0 && merged.indexOf(k) < 0 && _notDue(k)){ if (!_alt || (_c5x[k]||0) > (_c5x[_alt]||0)) _alt = k; }
             });
           }
+          // 若候选只剩 due（无可换的非冷门门）→ 不换，避免换掉到冒出点的冷门
+          if (_alt && due && _alt === due){ _alt = null; }
           if (_alt){
             // v129 去重：_alt 已在 merged 内 → 移到第1位（不产生重复门）；不在 → 插入第1位并截断
             var _m4 = merged.slice();
