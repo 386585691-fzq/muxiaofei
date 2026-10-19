@@ -241,13 +241,14 @@
   <div class="group-name-row" id="sec-ai">
     <label>组名</label>
     <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20" style="flex:1;min-width:0;">
+    <span id="curFrameBadge"></span>
     <button id="groupNameQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
     <button id="recordRefresh" onclick="recordRefresh()" style="padding:6px 12px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;white-space:nowrap;">🔄 刷新</button>
     <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v104</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3114,10 +3115,28 @@ function renderAIPage(){
     }
     return Object.keys(score).sort(function(a,b){return score[b]-score[a];}).slice(0,3);
   }
+  function updateFrameBadge(){
+    var el = $('curFrameBadge');
+    if (!el) return;
+    var inp = $('groupName');
+    var nm = (inp && inp.value || '').trim().split(/[,，]/)[0];
+    var ft = null;
+    if (nm) {
+      try {
+        var _grs = state.groups.filter(function(g){ return g && g.name === nm; });
+        var _ls = [];
+        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
+        if (_ls.length >= 5) ft = frameTypeOf(_ls);
+      } catch(e){}
+    }
+    var fc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[ft] || '#64748b';
+    el.innerHTML = ft ? '<span style="font-size:10px;color:' + fc + ';border:1px solid ' + fc + ';border-radius:6px;padding:2px 6px;white-space:nowrap;">走势 ' + ft + '</span>' : '<span style="font-size:10px;color:#64748b;border:1px solid #444;border-radius:6px;padding:2px 6px;white-space:nowrap;">走势 --</span>';
+  }
   function renderLiveHint(){
     const box = $('liveHint');
     const name = $('groupName').value.trim();
-    if (!name){ box.innerHTML = ''; return; }
+    if (!name){ box.innerHTML = ''; updateFrameBadge(); return; }
+    updateFrameBadge();
     // 指纹：名字+筛选+数据量没变不重算（打字不卡）
     var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + state.current.length + '|' + (state.currentMarks ? state.currentMarks.length : 0);
     if (window.__lhFp === _fk && box.innerHTML) return;
@@ -4460,21 +4479,37 @@ function cell(k, rank){
         // 热度榜 TOP15（按记录组数）
         var hot = Object.keys(nm).map(function(n){ return nm[n]; }).sort(function(a,b){ return b.groups - a.groups || b.hands - a.hands; }).slice(0, 15);
         html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">热度榜 TOP15（记录最多的）</div>';
-        html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th><th>近7天+</th></tr>';
+        html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th><th>近7天+</th></tr>';
         hot.forEach(function(m){
           var r = rates[m.name];
           var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
-          html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
+          var _mt = '均衡型';
+          try {
+            var _mg = state.groups.filter(function(g){ return g && g.name === m.name; });
+            var _ml = [];
+            _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
+            if (_ml.length >= 5) _mt = frameTypeOf(_ml);
+          } catch(e){}
+          var _mc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_mt] || '#94a3b8';
+          html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + _mt + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
         });
         html += '</table>';
         // AI胜率榜 TOP10（≥3组且≥20手）
         var rateTop = Object.keys(nm).map(function(n){ return { name: n, m: nm[n], r: rates[n] }; }).filter(function(x){ return x.r && x.m.groups >= 3 && x.r.total >= 20; }).sort(function(a,b){ return b.r.rate - a.r.rate || b.m.hands - a.m.hands; }).slice(0, 10);
         if (rateTop.length){
           html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:8px 0 4px;">AI胜率榜 TOP10（≥3组）</div>';
-          html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
+          html += '<table class="rate-table" style="font-size:11px;"><tr><th>人名</th><th>走势模板</th><th>组</th><th>手</th><th>AI胜率</th></tr>';
           rateTop.forEach(function(x){
             var col = x.r.rate>=80?'#4ade80':x.r.rate>=70?'#fbbf24':'#f87171';
-            html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
+            var _xt = '均衡型';
+            try {
+              var _xg = state.groups.filter(function(g){ return g && g.name === x.name; });
+              var _xl = [];
+              _xg.forEach(function(g){ _xl = _xl.concat(g.list || []); });
+              if (_xl.length >= 5) _xt = frameTypeOf(_xl);
+            } catch(e){}
+            var _xc = {'连龙型':'#f87171','交替型':'#60a5fa','变盘型':'#c084fc','热稳型':'#34d399','回补型':'#fbbf24','均衡型':'#94a3b8'}[_xt] || '#94a3b8';
+            html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td style="color:' + _xc + ';">' + _xt + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
           });
           html += '</table>';
         }
@@ -4836,6 +4871,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v103 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v104 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
