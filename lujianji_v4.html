@@ -2658,10 +2658,13 @@ function renderAIPage(){
 
   function renderTags(){
     const bar = $('tagBar');
-    const names = [];
-    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    const seen = {}; const names = [];
+    // Set去重（避免includes O(n^2)）+ 只渲染最近100个人名（几千组也秒出）
+    state.groups.forEach(g => { if (g.name && !seen[g.name]){ seen[g.name] = 1; names.push(g.name); } });
     let html = '';
-    names.forEach(n => {
+    const show = names.length > 100 ? names.slice(-100) : names;
+    if (names.length > 100) html += '<span class="tag" style="opacity:.55">最近100人/共' + names.length + '人·输名字搜索</span>';
+    show.forEach(n => {
       const active = activeTag === n ? ' active' : '';
       html += `<span class="tag${active}" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
     });
@@ -4593,9 +4596,15 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   });
 
   function _boot(){
-    backfillMarks();
-    render();
-    // 默认展开云端分析面板（解锁后600ms才计算，避免锁屏输入时卡）
+    // 第一步：界面骨架秒出（网格/组名栏/历史60组）
+    renderGrid();
+    renderNameBar();
+    renderHistory();
+    // 第二步：重活分批延迟（人名标签→提示/推荐→补对错），点进入不卡
+    setTimeout(function(){ renderTags(); }, 60);
+    setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 150);
+    setTimeout(function(){ backfillMarks(); }, 250);
+    // 云端分析展开（解锁后600ms才计算）
     setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
   }
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
@@ -4611,6 +4620,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v87 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v88 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
