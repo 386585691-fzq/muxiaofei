@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v115 · 路单记牌器</title>
+<title>v116 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v115</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v116</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3708,7 +3708,7 @@ function cell(k, rank){
   }
   function calcStrategyRates(groups){
     var S = [
-      {id:'auto', name:'🧠 智能自适应', desc:'自动识别走势模板（连龙/交替/变盘/热稳/回补/均衡），用该模板胜率最高的策略'},
+      {id:'auto', name:'🧠 智能自适应', desc:'识别行为结构（连庄王/独行侠/双子星/三缺一/四平八稳），按结构用药分派'},
       {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
       {id:'hot2', name:'🎯 热门2门', desc:'押最常出的2门，中1个算对'},
       {id:'hot3', name:'🎯 热门3门', desc:'押最常出的3门，中1个算对'},
@@ -3894,15 +3894,22 @@ function cell(k, rank){
         var voteK = voteT.slice(0,1);
         var bootK = monoK.length ? monoK.slice(0,1) : [];
         var bootT = monoK.slice(0,3);
-        var frL2 = lst.slice(Math.max(0,i-15), i), frh2 = cntArr(frL2);
-        var fTot2 = Math.max(1, i), fTotR2 = Math.max(1, frL2.length);
-        var fL2 = {}, fR2 = {}, fD2 = {};
-        drs2.forEach(function(k){ fL2[k] = (hist[k]||0)/fTot2; fR2[k] = (frh2[k]||0)/fTotR2; fD2[k] = fR2[k] - fL2[k]; });
-        var fG2 = {hu:1e9,long:1e9,ru:1e9,chu:1e9};
-        for (var fg2i=0; fg2i<i; fg2i++){ if (fG2[lst[fg2i]]!==undefined) fG2[lst[fg2i]] = i-1-fg2i; }
-        var fS2 = {}; drs2.forEach(function(k){ fS2[k] = (fL2[k]>=0.3 && Math.abs(fD2[k])<=0.08) ? 2.0 : 0; if (fD2[k]>0.15) fS2[k]+=2.4; if (fD2[k]<-0.12) fS2[k]-=1.8; if (fG2[k]>=8 && fL2[k]<=0.2) fS2[k]+=1.2; });
-        var frameT2 = drs2.slice().sort(function(a,b){ return fS2[b]-fS2[a]; });
-        var frameK = frameT2.length ? [frameT2[0]] : [];
+        // 趋势框架回测：行为结构药驱动（与 strategyPredict 一致：药=连庄王/独行侠/双子星/三缺一/四平八稳）
+        var _bpR = behaviorPartsOf(lst.slice(0, i), false);
+        var fViaR = 'order';
+        if (_bpR.rot) fViaR = 'near';
+        else if (_bpR.nm === '双子星') fViaR = 'near';
+        else if (_bpR.nm === '独行侠') fViaR = 'hot1';
+        else if (_bpR.nm === '连庄王') fViaR = 'order';
+        else if (_bpR.nm === '三缺一') fViaR = 'cold';
+        else if (_bpR.nm === '四平八稳') fViaR = 'even';
+        else fViaR = FRAME_BEST[frameTypeOf(lst.slice(0,i))] || 'order';
+        var frameK = [], frameT2 = [];
+        if (fViaR === 'near'){ frameK = p3.length ? [p3[0]] : []; frameT2 = p3; }
+        else if (fViaR === 'hot1'){ frameK = histN ? topN(hist,1) : []; frameT2 = histN ? topN(hist,3) : []; }
+        else if (fViaR === 'cold'){ frameK = histN ? bottomN(hist,1) : []; frameT2 = histN ? bottomN(hist,3) : []; }
+        else if (fViaR === 'even'){ frameK = evenK.slice(0,1); frameT2 = evenK.slice(0,3); }
+        else { frameK = orderK.length ? orderK.slice(0,1) : []; frameT2 = orderK.length ? orderK.slice(0,3) : h3; }
         var gapT = drs2.slice().sort(function(a,b){
           var pre = lst.slice(0, i);
           var la = -1, lb = -1;
@@ -3915,13 +3922,21 @@ function cell(k, rank){
         var devK = devT.length ? devT.slice(0,1) : [];
         var brkT = (streak >= 3 && prev) ? drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); }).slice(0,3) : cutK.slice(0,3);
         var brkK = brkT.length ? brkT.slice(0,1) : [];
-        // 智能自适应 auto：识别当前模板，用该模板胜率最高的子策略（实时循环保持轻量）
-        var _ft2 = frameTypeOf(lst.slice(0, i));
-        var _sub2 = FRAME_BEST[_ft2] || 'order';
+        // 智能自适应 auto 回测：行为结构药驱动（与 strategyPredict 一致）
+        var _bpA2 = behaviorPartsOf(lst.slice(0, i), false);
+        var _sub2 = 'order';
+        if (_bpA2.rot) _sub2 = 'near';
+        else if (_bpA2.nm === '双子星') _sub2 = 'near';
+        else if (_bpA2.nm === '独行侠') _sub2 = 'hot1';
+        else if (_bpA2.nm === '连庄王') _sub2 = 'order';
+        else if (_bpA2.nm === '三缺一') _sub2 = 'cold';
+        else if (_bpA2.nm === '四平八稳') _sub2 = 'even';
+        else _sub2 = FRAME_BEST[frameTypeOf(lst.slice(0,i))] || 'order';
         var autoK = [], autoT = [];
-        if (_sub2 === 'frame'){ autoK = frameK; autoT = frameT2; }
-        else if (_sub2 === 'near'){ autoK = p3.length ? [p3[0]] : []; autoT = p3; }
-        else if (_sub2 === 'mean'){ autoK = meanN.length ? meanN.slice(0,1) : []; autoT = meanN.length ? meanN.slice(0,3) : h3; }
+        if (_sub2 === 'near'){ autoK = p3.length ? [p3[0]] : []; autoT = p3; }
+        else if (_sub2 === 'hot1'){ autoK = histN ? topN(hist,1) : []; autoT = histN ? topN(hist,3) : []; }
+        else if (_sub2 === 'cold'){ autoK = histN ? bottomN(hist,1) : []; autoT = histN ? bottomN(hist,3) : []; }
+        else if (_sub2 === 'even'){ autoK = evenK.slice(0,1); autoT = evenK.slice(0,3); }
         else { autoK = orderK.length ? orderK.slice(0,1) : []; autoT = orderK.length ? orderK.slice(0,3) : h3; }
         var preds = {
           hot1: histN ? topN(hist,1) : [],
@@ -4007,7 +4022,7 @@ function cell(k, rank){
       }
     });
     S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit/x.total*100) : 0; x.rate3 = x.total3 ? Math.round(x.hit3/x.total3*100) : 0; });
-    S.sort(function(a,b){ return b.rate3 - a.rate3 || b.rate - a.rate || b.total3 - a.total3; });
+    S.sort(function(a,b){ return b.rate - a.rate || b.rate3 - a.rate3 || b.total3 - a.total3; });
     return S;
   }
   // 全局策略表 + 流转
@@ -4450,7 +4465,7 @@ function cell(k, rank){
       + '<button id="stratConfirm" onclick="confirmStrategy()" style="display:none;padding:3px 10px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;"></button>'
       + '<span id="stratHint" style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
-    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 3门命中率 · 全部'+groups.length+'组）</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 主推=押第1门 · 3门=前3候选门·4选3基准≈75% · 全部'+groups.length+'组）</div>';
     html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
     S.forEach(function(x, idx){
       var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
