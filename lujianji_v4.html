@@ -331,6 +331,21 @@
 <script>
 (function(){
   const PWD_KEY = 'road_pwd_v1';
+  // ===== 多账号：主账号 + 子账号（独立密码 + 云端前缀隔离；主账号汇总） =====
+  const ACCOUNT_KEY = 'road_account_v1';
+  const ACCOUNTS_KEY = 'road_accounts_v1';
+  var curAccount = 'main';
+  try { curAccount = localStorage.getItem(ACCOUNT_KEY) || 'main'; } catch(e){}
+  var accountList = ['main', '13828947776'];
+  try { var _al0 = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)); if (_al0 && _al0.length) accountList = _al0; } catch(e){}
+  function acctPwdKey(){ return curAccount === 'main' ? PWD_KEY : 'road_pwd_' + curAccount; }
+  function acctKey(){ return curAccount === 'main' ? STORE_KEY : 'road_groups_' + curAccount; }
+  function acctCurKey(){ return curAccount === 'main' ? CUR_KEY : 'road_cur_' + curAccount; }
+  function subPrefixes(){ var p = []; accountList.forEach(function(a){ if (a !== 'main') p.push(a + '@'); }); return p; }
+  function isMyRow(n){ if (!n) return true; if (curAccount !== 'main') return String(n).indexOf(curAccount + '@') === 0; var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (String(n).indexOf(sp[i]) === 0) return false; } return true; }
+  function toCloudName(n){ if (curAccount === 'main') return n; if (n.indexOf(curAccount + '@') === 0) return n; return curAccount + '@' + n; }
+  function toLocalName(n){ if (!n) return n; if (curAccount !== 'main'){ if (n.indexOf(curAccount + '@') === 0) return n.slice(curAccount.length + 1); return n; } var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (n.indexOf(sp[i]) === 0) return n.slice(sp[i].length); } return n; }
+  function acctLabel(){ return curAccount === 'main' ? '主账号' : curAccount; }
   // ===== 账号登录（测试版：手机号 + 固定验证码 123456） =====
   var LOGIN_KEY = 'road_login_v1';
   function getLogin(){ try{ var o = JSON.parse(localStorage.getItem(LOGIN_KEY) || 'null'); return o; }catch(e){ return null; } }
@@ -410,23 +425,23 @@
     __unlockHooks = [];
   }
   function checkLock(){
-    var savedPwd = localStorage.getItem(PWD_KEY);
+    var savedPwd = localStorage.getItem(acctPwdKey());
     var lock = document.getElementById('lockScreen');
     var pwdInput = document.getElementById('lockPwd');
     var msg = document.getElementById('lockMsg');
     var tip = document.getElementById('lockTip');
     if (!savedPwd){
       // 第一次使用，设置密码
-      tip.textContent = '首次使用，请设置密码';
+      tip.textContent = '首次使用 ' + acctLabel() + '，请设置密码';
       document.getElementById('lockBtn').onclick = function(){
         var p1 = pwdInput.value.trim();
         if (p1.length < 4){ msg.textContent = '密码至少4位'; return; }
-        localStorage.setItem(PWD_KEY, p1);
+        localStorage.setItem(acctPwdKey(), p1);
         lock.style.display = 'none';
         __unlockGo();
       };
     } else {
-      tip.textContent = '';
+      tip.textContent = acctLabel() + ' 的密码';
       document.getElementById('lockBtn').onclick = function(){
         if (pwdInput.value === savedPwd){
           lock.style.display = 'none';
@@ -444,23 +459,7 @@
   checkLock();
 
   const STORE_KEY = 'road_groups_v2';
-  const CUR_KEY = 'road_cur_v1';
-    // ===== 多账号：主账号 + 子账号（子账号数据云端带前缀隔离，主账号汇总） =====
-    const ACCOUNT_KEY = 'road_account_v1';
-    const ACCOUNTS_KEY = 'road_accounts_v1';
-    var curAccount = 'main';
-    try { curAccount = localStorage.getItem(ACCOUNT_KEY) || 'main'; } catch(e){}
-    var accountList = ['main'];
-    try { var _al0 = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)); if (_al0 && _al0.length) accountList = _al0; } catch(e){}
-    function acctKey(){ return curAccount === 'main' ? STORE_KEY : 'road_groups_' + curAccount; }
-    function acctCurKey(){ return curAccount === 'main' ? CUR_KEY : 'road_cur_' + curAccount; }
-    function subPrefixes(){ var p = []; accountList.forEach(function(a){ if (a !== 'main') p.push(a + '@'); }); return p; }
-    // 拉取合并时：主账号只收无前缀（自己的）；子账号只收自己前缀（看不到主账号）
-    function isMyRow(n){ if (!n) return true; if (curAccount !== 'main') return String(n).indexOf(curAccount + '@') === 0; var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (String(n).indexOf(sp[i]) === 0) return false; } return true; }
-    // 推云端：子账号名字加前缀（云端隔离）
-    function toCloudName(n){ if (curAccount === 'main') return n; if (n.indexOf(curAccount + '@') === 0) return n; return curAccount + '@' + n; }
-    // 拉取/显示：云端前缀名还原为原名
-    function toLocalName(n){ if (!n) return n; if (curAccount !== 'main'){ if (n.indexOf(curAccount + '@') === 0) return n.slice(curAccount.length + 1); return n; } var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (n.indexOf(sp[i]) === 0) return n.slice(sp[i].length); } return n; }  // 录手即时小写：当前组快照（数据不丢 + 不卡）
+  const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
   const IMPORTED_FLAG = 'imported_v1';
   const SYMBOLS = { hu:'虎', long:'龙', ru:'入', chu:'出' };
   const NEXT = { hu:'long', long:'ru', ru:'chu', chu:null };
@@ -1184,6 +1183,8 @@ function renderAIPage(){
       var nm = prompt('新账号名称（如：老板、小王）');
       if (!nm || !nm.trim()){ renderAcct(); return; }
       nm = nm.trim().replace(/@/g, '');
+      var _pw = prompt('该账号的进入密码（至少4位）');
+      if (_pw && _pw.trim().length >= 4){ try { localStorage.setItem('road_pwd_' + nm, _pw.trim()); } catch(e){} }
       if (accountList.indexOf(nm) < 0){ accountList.push(nm); try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountList)); } catch(e){} }
       try { localStorage.setItem(ACCOUNT_KEY, nm); } catch(e){}
       curAccount = nm;
@@ -1192,6 +1193,12 @@ function renderAIPage(){
       return;
     }
     if (v === curAccount){ renderAcct(); return; }
+    // 切换前校验目标账号密码（每个账号独立密码，互相不能随便看）
+    var _needPwd = localStorage.getItem(v === 'main' ? PWD_KEY : 'road_pwd_' + v);
+    if (_needPwd){
+      var _gotPwd = prompt('请输入 ' + (v === 'main' ? '主账号' : v) + ' 的密码');
+      if (!_gotPwd || _gotPwd !== _needPwd){ toast('密码错误，未切换'); renderAcct(); return; }
+    }
     try { localStorage.setItem(ACCOUNT_KEY, v); } catch(e){}
     curAccount = v;
     renderAcct();
@@ -4708,6 +4715,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v92 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v93 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
