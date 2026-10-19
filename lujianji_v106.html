@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v108 · 路单记牌器</title>
+<title>v109 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v108</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v109</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -3911,23 +3911,13 @@ function cell(k, rank){
         var devK = devT.length ? devT.slice(0,1) : [];
         var brkT = (streak >= 3 && prev) ? drs2.filter(function(k){ return k !== prev; }).sort(function(a,b){ return (hist[b]||0)-(hist[a]||0); }).slice(0,3) : cutK.slice(0,3);
         var brkK = brkT.length ? brkT.slice(0,1) : [];
-        // 智能自适应 auto：先觉悟行为结构（药），再按模板补足（换汤不换药：结构不变门在换，跟新门）
+        // 智能自适应 auto：识别当前模板，用该模板胜率最高的子策略（实时循环保持轻量）
         var _ft2 = frameTypeOf(lst.slice(0, i));
-        var _bp2 = behaviorPartsOf(lst.slice(0, i), true);
-        var _sub2 = 'order';
-        if (_bp2.nm === '双子星') _sub2 = 'near';
-        else if (_bp2.nm === '独行侠') _sub2 = 'hot1';
-        else if (_bp2.nm === '连庄王') _sub2 = 'order';
-        else if (_bp2.nm === '三缺一') _sub2 = 'cold';
-        else if (_bp2.nm === '四平八稳') _sub2 = 'even';
-        else _sub2 = FRAME_BEST[_ft2] || 'order';
+        var _sub2 = FRAME_BEST[_ft2] || 'order';
         var autoK = [], autoT = [];
         if (_sub2 === 'frame'){ autoK = frameK; autoT = frameT2; }
         else if (_sub2 === 'near'){ autoK = p3.length ? [p3[0]] : []; autoT = p3; }
         else if (_sub2 === 'mean'){ autoK = meanN.length ? meanN.slice(0,1) : []; autoT = meanN.length ? meanN.slice(0,3) : h3; }
-        else if (_sub2 === 'cold'){ var _ck2 = drs2.slice().sort(function(a,b){ return (hist[a]||0)-(hist[b]||0); }); autoK = _ck2.length ? _ck2.slice(0,1) : []; autoT = _ck2.length ? _ck2.slice(0,3) : h3; }
-        else if (_sub2 === 'even'){ autoK = ev.length ? ev.slice(0,1) : []; autoT = ev.length ? ev.slice(0,3) : h3; }
-        else if (_sub2 === 'hot1'){ autoK = histN ? topN(hist,1) : []; autoT = h3; }
         else { autoK = orderK.length ? orderK.slice(0,1) : []; autoT = orderK.length ? orderK.slice(0,3) : h3; }
         var preds = {
           hot1: histN ? topN(hist,1) : [],
