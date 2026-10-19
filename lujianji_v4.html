@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>路单记牌器</title>
+<title>v105 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -202,7 +202,7 @@
 </style>
 </head>
 <body>
-<div id="updateBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9997;background:linear-gradient(90deg,#fbbf24,#f59e0b);color:#0f172a;text-align:center;padding:9px;font-size:13px;font-weight:900;cursor:pointer;" onclick="location.reload()">🔄 发现新版本，点这里立即更新</div>
+<div id="updateBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9997;background:linear-gradient(90deg,#fbbf24,#f59e0b);color:#0f172a;text-align:center;padding:9px;font-size:13px;font-weight:900;cursor:pointer;" onclick="location.reload()">🔄 发现新版本 <span id="updBarVer"></span>，点这里立即更新</div>
 <!-- 密码锁 -->
 <div id="lockScreen" style="position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e1b4b);z-index:9999;display:none;align-items:center;justify-content:center;">
   <div style="background:rgba(30,41,59,.8);backdrop-filter:blur(20px);border:1px solid rgba(251,191,36,.2);border-radius:16px;padding:30px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
@@ -217,6 +217,7 @@
 <div id="loginBar" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:4px;padding:0 2px;">
   <span id="loginState" style="font-size:11px;color:#94a3b8;"></span>
   <button id="loginBtn" onclick="showLoginModal()" style="padding:4px 10px;border-radius:6px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;border:1px solid rgba(251,191,36,.3);cursor:pointer;font-family:inherit;">登录</button>
+  <button id="updateBtn" onclick="forcePageUpdate()" title="检查新版本并刷新页面" style="padding:4px 10px;border-radius:6px;background:rgba(52,211,153,.12);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.3);cursor:pointer;font-family:inherit;">🔄 更新 <span id="updVer"></span></button>
 </div>
 <div id="loginModal" style="position:fixed;inset:0;background:rgba(2,6,23,.75);z-index:9998;display:none;align-items:center;justify-content:center;">
   <div style="background:rgba(30,41,59,.97);border:1px solid rgba(251,191,36,.25);border-radius:16px;padding:24px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
@@ -399,6 +400,23 @@
   window.hideLoginModal = hideLoginModal;
   window.doLogin = doLogin;
   window.logout = logout;
+  // 版本号：从页面标题自动提取，填到更新按钮/更新提示条（以后只改标题即可同步版本）
+  try {
+    var _v = (document.title.match(/v\d+/) || [''])[0];
+    if (_v) {
+      var _up = document.getElementById('updVer'); if (_up) _up.textContent = _v;
+      var _ubv = document.getElementById('updBarVer'); if (_ubv) _ubv.textContent = _v;
+    }
+  } catch(e){}
+  // 顶部"🔄 更新"按钮：先触发 Service Worker 检查更新，再刷新页面
+  window.forcePageUpdate = function(){
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller){
+        navigator.serviceWorker.getRegistration().then(function(reg){ if (reg) reg.update(); }).catch(function(){});
+      }
+    } catch(e){}
+    setTimeout(function(){ window.location.reload(); }, 400);
+  };
   // PWA：注册 Service Worker（离线缓存 + 添加到主屏幕成 App）+ 新版本检测
   if ('serviceWorker' in navigator){
       startRT(); // 实时监控默认开（AI关注页自动抓云端新登记）
@@ -4871,6 +4889,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v104 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v105 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
