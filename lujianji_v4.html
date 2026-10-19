@@ -233,6 +233,7 @@
   <button class="navbtn" data-page="analyze">📊 分析</button>
   <button class="navbtn" data-page="cloud">☁️ 云端分析</button>
   <button class="navbtn" data-page="history">📚 历史</button>
+  <select id="acctSel" style="margin-left:6px;padding:4px 8px;border-radius:6px;background:#1e293b;color:#e2e8f0;font-size:11px;border:1px solid #334155;max-width:110px;" title="切换账号"></select>
 </div>
 
 <div class="current page active" id="page-record">
@@ -443,7 +444,23 @@
   checkLock();
 
   const STORE_KEY = 'road_groups_v2';
-  const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
+  const CUR_KEY = 'road_cur_v1';
+    // ===== 多账号：主账号 + 子账号（子账号数据云端带前缀隔离，主账号汇总） =====
+    const ACCOUNT_KEY = 'road_account_v1';
+    const ACCOUNTS_KEY = 'road_accounts_v1';
+    var curAccount = 'main';
+    try { curAccount = localStorage.getItem(ACCOUNT_KEY) || 'main'; } catch(e){}
+    var accountList = ['main'];
+    try { var _al0 = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)); if (_al0 && _al0.length) accountList = _al0; } catch(e){}
+    function acctKey(){ return curAccount === 'main' ? STORE_KEY : 'road_groups_' + curAccount; }
+    function acctCurKey(){ return curAccount === 'main' ? CUR_KEY : 'road_cur_' + curAccount; }
+    function subPrefixes(){ var p = []; accountList.forEach(function(a){ if (a !== 'main') p.push(a + '@'); }); return p; }
+    // 拉取合并时：主账号只收无前缀（自己的）；子账号只收自己前缀（看不到主账号）
+    function isMyRow(n){ if (!n) return true; if (curAccount !== 'main') return String(n).indexOf(curAccount + '@') === 0; var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (String(n).indexOf(sp[i]) === 0) return false; } return true; }
+    // 推云端：子账号名字加前缀（云端隔离）
+    function toCloudName(n){ if (curAccount === 'main') return n; if (n.indexOf(curAccount + '@') === 0) return n; return curAccount + '@' + n; }
+    // 拉取/显示：云端前缀名还原为原名
+    function toLocalName(n){ if (!n) return n; if (curAccount !== 'main'){ if (n.indexOf(curAccount + '@') === 0) return n.slice(curAccount.length + 1); return n; } var sp = subPrefixes(); for (var i=0;i<sp.length;i++){ if (n.indexOf(sp[i]) === 0) return n.slice(sp[i].length); } return n; }  // 录手即时小写：当前组快照（数据不丢 + 不卡）
   const IMPORTED_FLAG = 'imported_v1';
   const SYMBOLS = { hu:'虎', long:'龙', ru:'入', chu:'出' };
   const NEXT = { hu:'long', long:'ru', ru:'chu', chu:null };
@@ -1081,11 +1098,12 @@ function renderAIPage(){
     sbFetchAll(function(err, rows){
       if (err){ if (typeof toast === 'function') toast('⚠️ 刷新失败（网络慢/超时），可稍后再试'); return; }
       var before = state.groups.length;
+      if (curAccount !== 'main'){ rows = rows.filter(function(r){ return r.name && String(r.name).indexOf(curAccount + '@') === 0; }); }
       var groups = rows.map(function(r){
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
-        return { name: r.name || '', time: r.time || '', list: list };
+        return { name: toLocalName(r.name || ''), time: r.time || '', list: list };
       });
       // 统计前先去重（云端曾出现重复上传，重复组不再算进胜率/手数）
       var seenCloud = {};
@@ -1143,6 +1161,42 @@ function renderAIPage(){
   });
   $('searchQueryBtn').addEventListener('click', function(){ searchQuery = $('searchBox').value.trim(); activeTag = ''; render(); toast('✅ 查询成功'); });
   $('groupNameQuery').addEventListener('click', function(){ renderLiveHint(); updateAIHint(); toast('✅ 查询成功'); });
+
+  // ===== 多账号切换（主账号可看汇总；子账号只看自己） =====
+  function renderAcct(){
+    var sel = $('acctSel'); if (!sel) return;
+    var h = '';
+    accountList.forEach(function(a){ h += '<option value="' + a + '"' + (a === curAccount ? ' selected' : '') + '>' + (a === 'main' ? '主账号' : a) + '</option>'; });
+    h += '<option value="__add__">＋ 添加账号</option>';
+    sel.innerHTML = h;
+  }
+  function switchAccount(v){
+    saveLocal();
+    state = load();
+    render();
+    toast('已切换账号：' + (v === 'main' ? '主账号' : v));
+    setTimeout(pullCloud, 400);
+  }
+  renderAcct();
+  $('acctSel').addEventListener('change', function(){
+    var v = this.value;
+    if (v === '__add__'){
+      var nm = prompt('新账号名称（如：老板、小王）');
+      if (!nm || !nm.trim()){ renderAcct(); return; }
+      nm = nm.trim().replace(/@/g, '');
+      if (accountList.indexOf(nm) < 0){ accountList.push(nm); try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountList)); } catch(e){} }
+      try { localStorage.setItem(ACCOUNT_KEY, nm); } catch(e){}
+      curAccount = nm;
+      renderAcct();
+      switchAccount(nm);
+      return;
+    }
+    if (v === curAccount){ renderAcct(); return; }
+    try { localStorage.setItem(ACCOUNT_KEY, v); } catch(e){}
+    curAccount = v;
+    renderAcct();
+    switchAccount(v);
+  });
 
 
 
@@ -1314,11 +1368,11 @@ function renderAIPage(){
 
   function load(){
     try {
-      const raw = localStorage.getItem(STORE_KEY);
+      const raw = localStorage.getItem(acctKey());
       if (raw) {
         const o = JSON.parse(raw);
         var curO = null;
-        try { var curRaw = localStorage.getItem(CUR_KEY); if (curRaw) curO = JSON.parse(curRaw); } catch(e){}
+        try { var curRaw = localStorage.getItem(acctCurKey()); if (curRaw) curO = JSON.parse(curRaw); } catch(e){}
         var st = {
           groups: o.groups || [],
           current: o.current || [],
@@ -1343,12 +1397,12 @@ function renderAIPage(){
   }
   function save(){
     state.updatedAt = Date.now();
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+    try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
     pushCloud();
   }
   // 本地落盘（拉云端后使用，不触发推送）
   function saveLocal(){
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+    try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
   }
   // 录手防抖落盘：连续点牌合并 300ms 写一次（手机每手全量 JSON.stringify 几百组是卡顿主因）
   var saveTimer = null;
@@ -1357,13 +1411,13 @@ function renderAIPage(){
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function(){
       saveTimer = null;
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+      try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
       pushCloud();
     }, 300);
   }
   // 当前组即时小写：每手只写当前组（几KB，手机快），刷新不丢；完整快照低频写
   function saveCur(){
-    try { localStorage.setItem(CUR_KEY, JSON.stringify({ current: state.current.slice(), currentMarks: state.currentMarks ? state.currentMarks.slice() : [], updatedAt: Date.now() })); } catch(e){}
+    try { localStorage.setItem(acctCurKey(), JSON.stringify({ current: state.current.slice(), currentMarks: state.currentMarks ? state.currentMarks.slice() : [], updatedAt: Date.now() })); } catch(e){}
   }
   // 防抖推云端：连续点牌合并为一次上传
   var cloudBusy = false, cloudPending = false;
@@ -1400,8 +1454,9 @@ function renderAIPage(){
         });
         var missing = [];
         uniqGroups.forEach(function(g){
-          var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
-          if (!remoteKeys[k]) missing.push({name: g.name, time: String(g.time || ''), list: g.list || []});
+          var cn = toCloudName(g.name);
+          var k = _nt(cn) + '|' + JSON.stringify(g.list || []);
+          if (!remoteKeys[k]) missing.push({name: cn, time: String(g.time || ''), list: g.list || []});
         });
         if (missing.length) sbPushRows(missing, function(){});
         saveLocal();
@@ -1417,11 +1472,12 @@ function renderAIPage(){
       if (err) return;
       if (!rows || !rows.length) return;
       var remote = rows.map(function(r){
+        if (!isMyRow(r.name)) return null;
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
-        return { name: r.name, list: list, time: r.time };
-      });
+        return { name: toLocalName(r.name), list: list, time: r.time };
+      }).filter(Boolean);
       state.groups = mergeGroups(remote, state.groups);
       state.groupNum = state.groups.length + 1;
       saveLocal();
@@ -4476,7 +4532,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     state.groupNum++;
     // 保留人名不清空（方便连续记录同一人）；但下一次打字会自动替换旧名，不再粘在一起
     _lastPicked = doneName;
-    save(); try { localStorage.removeItem(CUR_KEY); } catch(e){}
+    save(); try { localStorage.removeItem(acctCurKey()); } catch(e){}
     render(); backfillMarks();
   });
 
@@ -4652,6 +4708,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v91 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v92 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
