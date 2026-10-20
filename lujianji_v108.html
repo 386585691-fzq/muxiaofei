@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v133 · 路单记牌器</title>
+<title>v134 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,11 +249,27 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v133</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v134</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
   <div class="grid" id="grid"></div>
+
+  <div style="margin:5px 0 2px;display:flex;align-items:center;gap:6px;">
+    <button id="photoToggle" onclick="togglePhotoPanel()" style="padding:4px 10px;border-radius:6px;background:rgba(56,189,248,.12);color:#38bdf8;font-size:11px;font-weight:700;border:1px solid rgba(56,189,248,.35);cursor:pointer;font-family:inherit;">📷 拍照录单</button>
+    <span id="photoStatus" style="font-size:10px;color:#64748b;"></span>
+  </div>
+  <div id="photoPanel" style="display:none;margin-bottom:6px;background:#1e293b;border:1px solid rgba(56,189,248,.25);border-radius:8px;padding:8px;">
+    <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoOnInput(event)">
+      <button onclick="document.getElementById('photoInput').click()" style="padding:5px 10px;border-radius:6px;background:rgba(56,189,248,.2);color:#e0f2fe;font-size:12px;font-weight:700;border:1px solid rgba(56,189,248,.5);cursor:pointer;font-family:inherit;">📷 拍照 / 选图</button>
+      <button id="photoOcr" onclick="photoOcr()" disabled style="padding:5px 10px;border-radius:6px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;font-family:inherit;">🔍 自动识别</button>
+      <button onclick="photoClear()" style="padding:5px 10px;border-radius:6px;background:rgba(248,113,113,.12);color:#f87171;font-size:12px;font-weight:700;border:1px solid rgba(248,113,113,.35);cursor:pointer;font-family:inherit;">🗑 清除</button>
+    </div>
+    <img id="photoImg" alt="" style="display:none;max-width:100%;border-radius:6px;margin-bottom:6px;">
+    <div id="photoOcrOut" style="display:none;font-size:12px;background:#0f172a;border-radius:6px;padding:6px;margin-bottom:6px;line-height:1.8;"></div>
+    <div style="font-size:10px;color:#64748b;">识别结果仅供辅助：认得出就点字填入，认错/漏了就直接对照照片点下面的大按钮，AI 预测照常实时变通。</div>
+  </div>
   <div class="pick-btns">
     <button class="pbtn pbtn-hu" data-s="hu">虎</button>
     <button class="pbtn pbtn-long" data-s="long">龙</button>
@@ -5108,6 +5124,158 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       changed = true;
     });
     if (changed){ save(); render(); }
+  }
+
+
+  // ===== v134 拍照录单：拍照/选图 → 自动识别 入出虎龙 → 点字填入/一键填入 =====
+  var __photoSeq = [];
+  var __photoWorkerP = null;
+  var __photoTessP = null;
+  function togglePhotoPanel(){
+    var p = document.getElementById('photoPanel');
+    if (!p) return;
+    p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+  }
+  function photoCompress(dataUrl, maxEdge, cb){
+    try {
+      var im = new Image();
+      im.onload = function(){
+        try {
+          var w = im.width || 640, h = im.height || 640;
+          var scale = Math.min(1, maxEdge / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * scale));
+          c.height = Math.max(1, Math.round(h * scale));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          cb(c.toDataURL('image/jpeg', 0.82));
+        } catch(e2){ cb(dataUrl); }
+      };
+      im.onerror = function(){ cb(dataUrl); };
+      im.src = dataUrl;
+    } catch(e){ cb(dataUrl); }
+  }
+  function photoOnInput(ev){
+    var f = ev && ev.target && ev.target.files && ev.target.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){
+      photoCompress(rd.result, 1280, function(url){
+        var img = document.getElementById('photoImg');
+        if (!img) return;
+        img.src = url;
+        img.style.display = 'block';
+        var ocr = document.getElementById('photoOcr');
+        if (ocr) ocr.disabled = false;
+        var st = document.getElementById('photoStatus');
+        if (st) st.textContent = '照片已载入（仅本次对照用，不存云端）';
+        var out = document.getElementById('photoOcrOut');
+        if (out){ out.style.display = 'none'; out.innerHTML = ''; }
+        __photoSeq = [];
+      });
+    };
+    rd.readAsDataURL(f);
+    if (ev && ev.target) ev.target.value = '';
+  }
+  function photoClear(){
+    var img = document.getElementById('photoImg');
+    if (img){ img.removeAttribute('src'); img.style.display = 'none'; }
+    var ocr = document.getElementById('photoOcr');
+    if (ocr) ocr.disabled = true;
+    var out = document.getElementById('photoOcrOut');
+    if (out){ out.style.display = 'none'; out.innerHTML = ''; }
+    var st = document.getElementById('photoStatus');
+    if (st) st.textContent = '';
+    __photoSeq = [];
+  }
+  function photoLoadTess(){
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (__photoTessP) return __photoTessP;
+    __photoTessP = new Promise(function(res, rej){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+      s.onload = function(){ res(window.Tesseract); };
+      s.onerror = function(){ __photoTessP = null; rej(new Error('识别引擎加载失败（网络/CDN）')); };
+      document.head.appendChild(s);
+    });
+    return __photoTessP;
+  }
+  function photoOcr(){
+    var img = document.getElementById('photoImg');
+    var out = document.getElementById('photoOcrOut');
+    var btn = document.getElementById('photoOcr');
+    if (!img || !img.src) return;
+    if (btn) btn.disabled = true;
+    if (out){
+      out.style.display = 'block';
+      out.innerHTML = '⏳ 加载识别引擎（首次约 10-20 秒，只需一次）…';
+    }
+    photoLoadTess().then(function(T){
+      if (!__photoWorkerP){
+        __photoWorkerP = T.createWorker('chi_sim', 1, {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
+          langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/chi_sim@1/4.0.0_best_int',
+          logger: function(m){
+            if (m && m.status === 'recognizing text' && out){
+              out.innerHTML = '⏳ 识别中 ' + Math.max(0, Math.round((m.progress || 0) * 100)) + '%…';
+            }
+          }
+        });
+      }
+      return __photoWorkerP;
+    }).then(function(worker){
+      return worker.recognize(img.src);
+    }).then(function(r){
+      var cands = { '入':'ru', '出':'chu', '虎':'hu', '龙':'long' };
+      var seq = [];
+      (r && r.data && r.data.words ? r.data.words : []).forEach(function(w){
+        var t = String(w.text || '').trim();
+        if (w.confidence >= 60 && cands[t]) seq.push({ k: cands[t], t: t });
+      });
+      __photoSeq = seq;
+      var dup = {}; var uniq = [];
+      seq.forEach(function(o){ if (!dup[o.t]) { dup[o.t] = 1; uniq.push(o.t); } });
+      if (!seq.length){
+        out.innerHTML = '😅 没识别到明确的 入/出/虎/龙（图片模糊或字体特殊）。照常对照照片点下面大门按钮手动录即可。';
+        return;
+      }
+      var html = '<div style="margin-bottom:4px;">识别到 ' + seq.length + ' 手：<b style="color:#38bdf8;">' + uniq.join(' ') + '</b>（按识别顺序）</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+      seq.forEach(function(o, i){
+        html += '<button onclick="photoFill(' + i + ')" style="padding:6px 12px;border-radius:6px;background:rgba(56,189,248,.18);color:#e0f2fe;font-size:15px;font-weight:800;border:1px solid rgba(56,189,248,.5);cursor:pointer;font-family:inherit;">' + o.t + '</button>';
+      });
+      html += '</div>';
+      html += '<div style="margin-top:6px;"><button onclick="photoFillAll()" style="padding:5px 12px;border-radius:6px;background:rgba(52,211,153,.2);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.5);cursor:pointer;font-family:inherit;">✅ 按识别顺序全部填入（' + seq.length + '手）</button></div>';
+      html += '<div style="margin-top:4px;font-size:10px;color:#64748b;">识别可能认错/漏字：点单个字只填那一手，认错的手直接跳过别点。</div>';
+      out.innerHTML = html;
+    }).catch(function(e){
+      __photoWorkerP = null;
+      if (out){ out.innerHTML = '⚠️ ' + (e && e.message ? e.message : '识别失败') + '。仍可对照照片点下面大门按钮手动录。'; }
+    }).then(function(){
+      if (btn) btn.disabled = false;
+      var st = document.getElementById('photoStatus');
+      if (st) st.textContent = '识别完成';
+    });
+  }
+  function photoFill(i){
+    var o = __photoSeq[i];
+    if (!o) return;
+    try { pushSymbol(o.k); } catch(e){}
+  }
+  function photoFillAll(){
+    var arr = __photoSeq.slice();
+    if (!arr.length) return;
+    var room = 12;
+    try { if (state && state.current) room = Math.max(0, 12 - state.current.length); } catch(e){}
+    if (arr.length > room){
+      if (room <= 0){ alert('本组已满 12 格，先点「完成本组并开新组」'); return; }
+      if (!confirm('本组只剩 ' + room + ' 格，只填入前 ' + room + ' 手？')) return;
+      arr = arr.slice(0, room);
+    }
+    var ok = 0;
+    arr.forEach(function(o){ try { pushSymbol(o.k); ok++; } catch(e){} });
+    var st = document.getElementById('photoStatus');
+    if (st) st.textContent = '已填入 ' + ok + ' 手（填错了用「撤销」逐手退）';
   }
 
   document.querySelectorAll('.pbtn').forEach(b => {
