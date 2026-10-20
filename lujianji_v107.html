@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v137 · 路单记牌器</title>
+<title>v138 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -1681,7 +1681,11 @@ function renderAIPage(){
       state.groups = mergeGroups(remote, state.groups);
       state.groupNum = state.groups.length + 1;
       saveLocal();
-      render();
+      // v138 云端数据到达后分批渲染：骨架立即、重活错开，不让合并瞬间卡住输入/登录
+      renderGrid();
+      setTimeout(function(){ renderNameBar(); renderTags(); }, 60);
+      setTimeout(function(){ renderLiveHint(); updateRecommend(); updateAIHint(); }, 160);
+      setTimeout(function(){ renderHistory(); }, 220);
     });
   }
 
@@ -3322,23 +3326,32 @@ function renderAIPage(){
     }
     return Object.keys(score).sort(function(a,b){return score[b]-score[a];}).slice(0,3);
   }
+  // v138 框架徽章缓存：名字+数据没变只算一次（原实现每次输入/换名都全量扫所有组）
+  var __fbCache = {};
   function updateFrameBadge(){
     var el = $('curFrameBadge');
     if (!el) return;
     var inp = $('groupName');
     var nm = (inp && inp.value || '').trim().split(/[,，]/)[0];
-    var ft = null;
+    var ft = null, _nm2 = null, _ds2 = '', _rot2 = '';
     if (nm) {
       try {
-        var _grs = state.groups.filter(function(g){ return g && g.name === nm; });
-        var _ls = [];
-        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
-        if (_ls.length >= 5) ft = frameTypeOf(_ls);
+        var _bfk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '');
+        var _bc2 = __fbCache[nm];
+        if (_bc2 && _bc2.k === _bfk){ _nm2 = _bc2.nm; _ds2 = _bc2.ds; _rot2 = _bc2.rot; ft = _bc2.ft; }
+        else {
+          var _arrF = nameIndex().idx[nm]; var _grs = _arrF || [];
+          var _ls = [];
+          _grs.forEach(function(g){ var L = g.list || []; for (var _j=0;_j<L.length;_j++) _ls.push(L[_j]); });
+          if (_ls.length >= 5) ft = frameTypeOf(_ls);
+          var _bpx = behaviorPartsOf(_ls);
+          _nm2 = _bpx.nm; _ds2 = _bpx.ds; _rot2 = _bpx.rot || '';
+          __fbCache[nm] = { k: _bfk, nm: _nm2, ds: _ds2, rot: _rot2, ft: ft };
+        }
       } catch(e){}
     }
-    var _bp2 = behaviorPartsOf(_ls);
-    var fc = BCOLOR[_bp2.nm] || '#64748b';
-    var _btxt = _bp2.nm ? _bp2.nm + '·' + _bp2.ds + (_bp2.rot ? '·' + _bp2.rot : '') : (ft ? ft : '');
+    var fc = BCOLOR[_nm2] || '#64748b';
+    var _btxt = _nm2 ? _nm2 + '·' + _ds2 + (_rot2 ? '·' + _rot2 : '') : (ft ? ft : '');
     el.innerHTML = _btxt ? '<span style="font-size:10px;color:' + fc + ';border:1px solid ' + fc + ';border-radius:6px;padding:2px 6px;white-space:nowrap;">' + _btxt + '</span>' : '<span style="font-size:10px;color:#64748b;border:1px solid #444;border-radius:6px;padding:2px 6px;white-space:nowrap;">结构 --</span>';
   }
   function renderLiveHint(){
@@ -4276,10 +4289,19 @@ function cell(k, rank){
   // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
   var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
   // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
+  // v138 策略基础数据缓存：名字+数据没变只构建一次 gr/lst（原实现每个策略都全量 filter+concat → 换名卡）
+  var __baseC = { fk: '', gr: null, lst: null };
   function _strategyPredictImpl(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
-    var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
-    var lst = []; gr.forEach(function(g){ lst = lst.concat(g.list||[]); });
+    var gr, lst;
+    var _fk3 = n + '|' + fg.length + (fg.length ? '|' + fg[0].id + '|' + fg[fg.length-1].time : '');
+    if (__baseC.fk === _fk3){ gr = __baseC.gr; lst = __baseC.lst; }
+    else {
+      gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
+      lst = [];
+      gr.forEach(function(g){ var L = g.list || []; for (var _k3=0; _k3<L.length; _k3++) lst.push(L[_k3]); });
+      __baseC = { fk: _fk3, gr: gr, lst: lst };
+    }
     var hist = cntArr(lst);
     var sp = drs2.filter(function(k){ return hist[k] > 0; }).sort(function(a,b){ return hist[b]-hist[a]; });
     var probs = {};
@@ -4580,7 +4602,7 @@ function cell(k, rank){
       else if (_bpF.nm === '三缺一') fVia = 'cold';
       else if (_bpF.nm === '四平八稳') fVia = 'even';
       else fVia = FRAME_BEST[frameT] || 'order';
-      var _subF = _strategyPredictImpl(n, fg, fVia);
+      var _subF = _strategyPredictCached(n, fg, fVia);
       main = _subF.main; top3 = _subF.top3; probs = _subF.probs;
       autoBP = _bpF; autoViaS = fVia;
     } else if (sid === 'auto'){
@@ -4596,7 +4618,7 @@ function cell(k, rank){
       else if (_bpA.nm === '三缺一') autoViaS = 'cold';
       else if (_bpA.nm === '四平八稳') autoViaS = 'even';
       else autoViaS = FRAME_BEST[autoFT] || 'order';
-      var _subR = _strategyPredictImpl(n, fg, autoViaS);
+      var _subR = _strategyPredictCached(n, fg, autoViaS);
       main = _subR.main; top3 = _subR.top3; probs = _subR.probs;
     } else {
       main = rsp[0] || sp[0];
