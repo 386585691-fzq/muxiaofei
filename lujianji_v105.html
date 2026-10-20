@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v138 · 路单记牌器</title>
+<title>v139 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -1696,6 +1696,12 @@ function renderAIPage(){
   //  注：新记的组都有当天时间（如 10-9），不会被误删；近期记的 555 有 time，正常保留
   {
     var OLD_NO_TIME = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
+    // v139 清除错误「游戏名合并」数据：名字以「好运@」开头或等于「@」的组，加载时彻底移除（云端已同步删除，本地不再残留、不再传回云端）
+    try {
+      var _mcBefore = state.groups.length;
+      state.groups = state.groups.filter(function(g){ return g && g.name && String(g.name).indexOf('好运@') !== 0 && String(g.name) !== '@'; });
+      if (state.groups.length !== _mcBefore){ save(); }
+    } catch(e){}
     var oldCount = state.groups.length;
     state.groups = state.groups.filter(function(g){
       if (!g) return false;
