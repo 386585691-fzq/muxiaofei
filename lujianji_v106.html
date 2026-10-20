@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v135 · 路单记牌器</title>
+<title>v136 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v135</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v136</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -1425,6 +1425,50 @@ function renderAIPage(){
       }
     });
   }
+
+
+  // ===== v136 录屏OCR通道：APK把识别序列写为 __OCR__<账号> 行，网页3秒轮询自动填入当前组 =====
+  window.__ocrPoll = null;
+  function startOCRPoll(){
+    if (window.__ocrPoll) return;
+    window.__ocrPoll = setInterval(function(){
+      if (!CLOUD || !CLOUD_URL || __locked) return;
+      var myAcct = (typeof curAccount === 'string' && curAccount !== 'main') ? curAccount : '15336533772';
+      sbReq(CLOUD_TBL + '?select=id,name,time,list&name=like.' + encodeURIComponent('__OCR__%') + '&order=id.asc&limit=50', null, function(err, xhr){
+        if (err || !xhr || xhr.status !== 200) return;
+        var rows = [];
+        try{ rows = JSON.parse(xhr.responseText); }catch(e){ return; }
+        if (!rows || !rows.length) return;
+        var filled = 0;
+        rows.forEach(function(r){
+          var nm = String(r.name || '');
+          if (nm.indexOf('__OCR__' + myAcct) !== 0) return;
+          var seq = (r.list && r.list.length) ? r.list.slice() : [];
+          if (!seq.length) return;
+          var room = 12;
+          try { if (state && state.current) room = Math.max(0, 12 - state.current.length); } catch(e){}
+          if (room <= 0) return;
+          var arr = room < seq.length ? seq.slice(0, room) : seq;
+          arr.forEach(function(s2){
+            try { if (typeof pushSymbol === 'function') pushSymbol(s2); } catch(e){}
+          });
+          filled += arr.length;
+          try { sbReq(CLOUD_TBL + '?id=eq.' + r.id, {method: 'DELETE'}, function(){}); } catch(e){}
+        });
+        if (filled > 0){
+          var st2 = document.getElementById('rtStatus');
+          if (st2){
+            st2.textContent = '📡 录屏识别自动填入 ' + filled + ' 手';
+            st2.style.color = '#34d399';
+            setTimeout(function(){ st2.textContent = '自动抓云端新登记·每60秒'; st2.style.color = '#64748b'; }, 4000);
+          }
+          var st3 = document.getElementById('photoStatus');
+          if (st3) st3.textContent = '📡 录屏识别已填入 ' + filled + ' 手';
+        }
+      });
+    }, 3000);
+  }
+  setTimeout(function(){ try{ startOCRPoll(); }catch(e){} }, 3000);
 
   // 合并去重：按 人名+牌路 合并两份数据，谁的数据都不丢
   function mergeGroups(a, b){
