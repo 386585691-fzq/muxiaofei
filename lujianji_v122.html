@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v134 · 路单记牌器</title>
+<title>v135 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -249,7 +249,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v134</span>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v135</span>
     <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
   <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
@@ -5154,27 +5154,58 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       im.src = dataUrl;
     } catch(e){ cb(dataUrl); }
   }
+  function photoShowUrl(url){
+    var p = document.getElementById('photoPanel');
+    if (p && p.style.display === 'none'){ p.style.display = 'block'; }
+    var img = document.getElementById('photoImg');
+    if (!img) return;
+    img.src = url;
+    img.style.display = 'block';
+    var ocr = document.getElementById('photoOcr');
+    if (ocr) ocr.disabled = false;
+    var st = document.getElementById('photoStatus');
+    if (st) st.textContent = '照片已载入（仅本次对照用，不存云端）';
+    var out = document.getElementById('photoOcrOut');
+    if (out){ out.style.display = 'none'; out.innerHTML = ''; }
+    __photoSeq = [];
+  }
+  function photoFeedFile(f){
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){ photoCompress(rd.result, 1280, function(url){ photoShowUrl(url); }); };
+    rd.readAsDataURL(f);
+  }
   function photoOnInput(ev){
     var f = ev && ev.target && ev.target.files && ev.target.files[0];
     if (!f) return;
-    var rd = new FileReader();
-    rd.onload = function(){
-      photoCompress(rd.result, 1280, function(url){
-        var img = document.getElementById('photoImg');
-        if (!img) return;
-        img.src = url;
-        img.style.display = 'block';
-        var ocr = document.getElementById('photoOcr');
-        if (ocr) ocr.disabled = false;
-        var st = document.getElementById('photoStatus');
-        if (st) st.textContent = '照片已载入（仅本次对照用，不存云端）';
-        var out = document.getElementById('photoOcrOut');
-        if (out){ out.style.display = 'none'; out.innerHTML = ''; }
-        __photoSeq = [];
-      });
-    };
-    rd.readAsDataURL(f);
+    photoFeedFile(f);
     if (ev && ev.target) ev.target.value = '';
+  }
+  // 电脑/手机截图：Ctrl+V 直接粘贴图片载入
+  document.addEventListener('paste', function(e){
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++){
+      var it = items[i];
+      if (it && it.type && it.type.indexOf('image') === 0){
+        e.preventDefault();
+        var f = it.getAsFile && it.getAsFile();
+        if (f) photoFeedFile(f);
+        break;
+      }
+    }
+  });
+  // 从识别全文里猜游戏名：优先含 厅/号/桌/台/房/室/馆 的行，否则取第一行
+  function photoGuessGameName(text){
+    try {
+      var lines = String(text || '').split(/\r?\n/).map(function(x){ return x.trim(); })
+        .filter(function(x){ return x.length >= 2 && x.length <= 20; });
+      if (!lines.length) return '';
+      for (var i = 0; i < lines.length; i++){
+        if (/[厅号桌台房室馆]/.test(lines[i])) return lines[i];
+      }
+      return lines[0];
+    } catch(e){ return ''; }
   }
   function photoClear(){
     var img = document.getElementById('photoImg');
@@ -5233,13 +5264,23 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         if (w.confidence >= 60 && cands[t]) seq.push({ k: cands[t], t: t });
       });
       __photoSeq = seq;
+      var gname = photoGuessGameName(r.data.text);
+      var gnIn = document.getElementById('groupName');
+      if (gname && gnIn && String(gnIn.value || '').trim() === ''){
+        gnIn.value = gname;
+        gnIn.dataset.autoFilled = '1';
+      }
+      var gnameHtml = '';
+      if (gname){
+        gnameHtml = '<div style="margin-bottom:4px;color:#4ade80;">🎮 已自动填入游戏名：<b>' + gname + '</b>（可在上方修改）</div>';
+      }
       var dup = {}; var uniq = [];
       seq.forEach(function(o){ if (!dup[o.t]) { dup[o.t] = 1; uniq.push(o.t); } });
       if (!seq.length){
         out.innerHTML = '😅 没识别到明确的 入/出/虎/龙（图片模糊或字体特殊）。照常对照照片点下面大门按钮手动录即可。';
         return;
       }
-      var html = '<div style="margin-bottom:4px;">识别到 ' + seq.length + ' 手：<b style="color:#38bdf8;">' + uniq.join(' ') + '</b>（按识别顺序）</div>';
+      var html = gnameHtml + '<div style="margin-bottom:4px;">识别到 ' + seq.length + ' 手：<b style="color:#38bdf8;">' + uniq.join(' ') + '</b>（按识别顺序）</div>';
       html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
       seq.forEach(function(o, i){
         html += '<button onclick="photoFill(' + i + ')" style="padding:6px 12px;border-radius:6px;background:rgba(56,189,248,.18);color:#e0f2fe;font-size:15px;font-weight:800;border:1px solid rgba(56,189,248,.5);cursor:pointer;font-family:inherit;">' + o.t + '</button>';
