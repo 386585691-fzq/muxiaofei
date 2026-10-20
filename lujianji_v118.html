@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v136 · 路单记牌器</title>
+<title>v137 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -924,6 +924,10 @@
     }
 
 function renderAIPage(){
+    // v137 AI页不可见时跳过全量重建（切回来时 switchPage 会重新渲染）：原实现每60秒云端同步也全量重算+重建
+    var _pgAi = document.getElementById('page-ai');
+    if (_pgAi && _pgAi.classList && !_pgAi.classList.contains('active')){ state._aiDirty = true; return; }
+    state._aiDirty = false;
     var aiView = state.aiView || 'sum';
     var tabs = [
       {v:'sum', t:'🧠 AI总结'},
@@ -1413,9 +1417,10 @@ function renderAIPage(){
       if (!rows || !rows.length) return;
       var before = state.groups.length;
       state.groups = mergeGroups(state.groups, rows);
-      if (typeof saveLocal === 'function') saveLocal();
       var added = state.groups.length - before;
       if (added > 0){
+        // v137 只有真新增才落盘：原实现每60秒全量 JSON.stringify 所有组 → 手机定时卡一下
+        if (typeof saveLocal === 'function') saveLocal();
         var st = $('rtStatus');
         st.textContent = '📡 新收录 ' + added + ' 组，已更新分析';
         st.style.color = '#fbbf24';
@@ -2950,23 +2955,41 @@ function renderAIPage(){
     });
   }
 
+  // v137 名字索引 + 行为结构缓存：原实现 136 名字 × filter(1200组) + includes 去重 → 手机切页卡
+  var __nameIdxC = { fk: '', names: null, idx: null };
+  var __bpC = {};
+  function nameIndex(){
+    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
+    if (__nameIdxC.fk === fk && __nameIdxC.idx) return __nameIdxC;
+    var idx = {};
+    state.groups.forEach(function(g){ if (g && g.name){ (idx[g.name] = idx[g.name] || []).push(g); } });
+    __nameIdxC = { fk: fk, names: Object.keys(idx), idx: idx };
+    return __nameIdxC;
+  }
   function renderNameBar(){
     const bar = $('nameBar');
-    const names = [];
-    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    var _ni = nameIndex();
+    const names = _ni.names;
     let html = '';
     names.forEach(n => {
-      var _ft = '均衡型';
+      var _ft = '均衡型', _nm = null, _ds = '', _rot = '';
       try {
-        var _grs = state.groups.filter(function(g){ return g && g.name === n; });
+        var _grs = _ni.idx[n] || [];
         var _ls = [];
-        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
-        if (_ls.length >= 5) _ft = frameTypeOf(_ls);
+        _grs.forEach(function(g){ var L = g.list || []; for (var _k=0;_k<L.length;_k++) _ls.push(L[_k]); });
+        if (_ls.length >= 5){
+          var _bc = __bpC[n];
+          if (_bc && _bc.k === _ni.fk){ _nm = _bc.r.nm; _ds = _bc.r.ds; _rot = _bc.r.rot; _ft = _bc.r.ft; }
+          else {
+            var _bp = behaviorPartsOf(_ls);
+            _nm = _bp.nm; _ds = _bp.ds; _rot = _bp.rot || '';
+            _ft = frameTypeOf(_ls);
+            __bpC[n] = { k: _ni.fk, r: { nm: _nm, ds: _ds, rot: _rot, ft: _ft } };
+          }
+        }
       } catch(e){}
-      var _bp = {};
-      try { _bp = behaviorPartsOf(_ls); } catch(e){}
-      var _fc = BCOLOR[_bp.nm] || '#94a3b8';
-      html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml(_bp.nm+'·'+_bp.ds+(_bp.rot?'·'+_bp.rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_bp.nm || _ft}</em></span>`;
+      var _fc = BCOLOR[_nm] || '#94a3b8';
+      html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml((_nm||'')+'·'+_ds+(_rot?'·'+_rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_nm || _ft}</em></span>`;
     });
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
@@ -2982,8 +3005,7 @@ function renderAIPage(){
 
   function renderTopTags(){
     const bar = $('topTagBar');
-    const names = [];
-    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
+    const names = nameIndex().names;
     let html = '';
     names.forEach(n => {
       const active = activeTag === n ? ' active' : '';
@@ -4230,6 +4252,18 @@ function cell(k, rank){
     }
     return ft;
   }
+  // v137 冷门策略覆盖缓存：predictMain 里 mean/gap/sleep 不再每次全量扫描（组不变即复用）
+  var __sp2Cache = {};
+  function _strategyPredictCached(n, fg, sid){
+    var fk2 = n;
+    for (var _fi=0; _fi<fg.length; _fi++) fk2 += '|' + (fg[_fi].time||'') + ':' + (fg[_fi].list||[]).length;
+    fk2 += '#' + sid;
+    var cc2 = __sp2Cache[fk2];
+    if (cc2) return cc2;
+    var rr2 = _strategyPredictImpl(n, fg, sid);
+    __sp2Cache[fk2] = rr2;
+    return rr2;
+  }
   function strategyPredict(n, fg, sid){
     var fk = n;
     for (var fi=0; fi<fg.length; fi++) fk += '|' + (fg[fi].time||'') + ':' + (fg[fi].list||[]).length;
@@ -4929,24 +4963,27 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   }
 
   // v123 AI盯盘·冷门习惯：按游戏名（玩家）学习每门出现间隔 → 预测冷门冒出点
+  // v137 冷门习惯·全表统计只算一次（表不变即复用）：原实现每次调用都全量拼接所有组 → 手机卡顿主因
+  var __coldCache = { fk: '', avg: null, hot: null, cold: null };
   function coldHabit(n, fg, cur){
     var out = { avg: {}, lastGap: {}, hot: null, cold: null, due: null };
     try {
-      var seq = [];
-      fg.forEach(function(g){ if (g && Array.isArray(g.list)) seq = seq.concat(g.list); });
-      if (seq.length < 10) return out;
-      var cc = cntArr(seq);
-      ['hu','long','ru','chu'].forEach(function(k){
-        var nk = cc[k] || 0;
-        out.avg[k] = nk ? seq.length / nk : 99;
-      });
-      var hot = null, hotN = -1, cold = null, coldN = 999;
-      ['hu','long','ru','chu'].forEach(function(k){
-        var nk = cc[k] || 0;
-        if (nk > hotN){ hotN = nk; hot = k; }
-        if (nk < coldN){ coldN = nk; cold = k; }
-      });
-      out.hot = hot; out.cold = cold;
+      var fk = (fg && fg.length) ? fg.length + '|' + fg[0].id + '|' + fg[fg.length-1].time : '0';
+      if (__coldCache.fk !== fk){
+        var seq = [];
+        fg.forEach(function(g){ if (g && Array.isArray(g.list)){ for (var _i=0; _i<g.list.length; _i++) seq.push(g.list[_i]); } });
+        if (seq.length < 10){ return out; }
+        var cc = cntArr(seq);
+        var avg2 = {}, hot = null, hotN = -1, cold = null, coldN = 999;
+        ['hu','long','ru','chu'].forEach(function(k){
+          var nk = cc[k] || 0;
+          avg2[k] = nk ? seq.length / nk : 99;
+          if (nk > hotN){ hotN = nk; hot = k; }
+          if (nk < coldN){ coldN = nk; cold = k; }
+        });
+        __coldCache.fk = fk; __coldCache.avg = avg2; __coldCache.hot = hot; __coldCache.cold = cold;
+      }
+      out.avg = __coldCache.avg; out.hot = __coldCache.hot; out.cold = __coldCache.cold;
       var cur2 = cur || [];
       if (cur2.length >= 3){
         ['hu','long','ru','chu'].forEach(function(k){
@@ -4986,7 +5023,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         var _coldIds2 = ['mean','gap','sleep'];
         var _coldCover2 = null;
         for (var _ci2=0; _ci2<_coldIds2.length; _ci2++){
-          var _mPr2 = _strategyPredictImpl(name, filtered, _coldIds2[_ci2]);
+          var _mPr2 = _strategyPredictCached(name, filtered, _coldIds2[_ci2]);
           if (_mPr2 && _mPr2.main && _mPr2.main !== _due0 && merged.indexOf(_mPr2.main) < 0){ _coldCover2 = _mPr2.main; break; }
         }
         if (_coldCover2){
