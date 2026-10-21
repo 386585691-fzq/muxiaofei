@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v147 · 路单记牌器</title>
+<title>v148 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -31,13 +31,11 @@
     flex: 1; max-width: 180px; background: rgba(255,255,255,.08); border: 1px solid rgba(251,191,36,.3); color: #fbbf24;
     padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; outline: none;
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
-    backdrop-filter: blur(10px);
   }
   #searchBox::placeholder { color: #64748b; }
 
   .current {
     background: rgba(30, 41, 59, .6);
-    backdrop-filter: blur(20px);
     border: 1px solid rgba(251,191,36,.15);
     border-radius: 14px; padding: 8px 10px; margin-bottom: 8px;
     box-shadow: 0 8px 32px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
@@ -119,7 +117,6 @@
     padding: 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
     font-size: 12px; font-weight: 700; cursor: pointer;
     transition: all .15s;
-    backdrop-filter: blur(10px);
   }
   .abtn:active { transform: scale(.97); }
   .abtn-undo { background: rgba(100,116,139,.3); color: #e2e8f0; }
@@ -127,7 +124,6 @@
 
   .history-item {
     background: rgba(30, 41, 59, .5);
-    backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,.08);
     border-radius: 12px; padding: 10px 12px; margin-bottom: 6px;
     box-shadow: 0 4px 15px rgba(0,0,0,.2);
@@ -271,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v147</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v148</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -362,7 +358,7 @@
   </div>
   <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
   <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
-  <!-- v147 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
+  <!-- v148 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
     <button class="action-btn undo" id="exportBtn">导出备份</button>
     <button class="action-btn undo" id="importBtn">导入恢复</button>
@@ -532,7 +528,7 @@
 
   const STORE_KEY = 'road_groups_v2';
   const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
-  // v147 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
+  // v148 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
   var DB_NAME = 'lujianji', DB_STORE = 'kv', _idb = null, _idbFail = false;
   function idbOpen(){
     if (typeof indexedDB === 'undefined'){ _idbFail = true; return Promise.resolve(null); }
@@ -602,7 +598,7 @@
       renderAIPage();
       // 点AI关注即静默同步云端最新数据（5秒内不重复拉）
       var nowMs = Date.now();
-      // v147 限流放宽到60秒（原5秒：来回点AI页会反复全量拉云端合并→手机卡）
+      // v148 限流放宽到60秒（原5秒：来回点AI页会反复全量拉云端合并→手机卡）
       if (nowMs - _lastAiSync > 60000){
         _lastAiSync = nowMs;
         if (typeof fetchCloudNew === 'function') fetchCloudNew();
@@ -992,7 +988,7 @@ function renderAIPage(){
     var _pgAi = document.getElementById('page-ai');
     if (_pgAi && _pgAi.classList && !_pgAi.classList.contains('active')){ state._aiDirty = true; return; }
     state._aiDirty = false;
-    // v147 AI页切回不重算：数据/视图/时间筛选没变就复用上次结果（AI页全量分析是切页卡主因）
+    // v148 AI页切回不重算：数据/视图/时间筛选没变就复用上次结果（AI页全量分析是切页卡主因）
     var _afp = state.groups.length + '|' + (state.aiView||'sum') + '|' + aiTimeFilter + '|' + (state.aiName||'') + '|' + (window.__mkV||0);
     var _ab = $('aiFocusBody');
     if (window.__aiFp === _afp && _ab && _ab.innerHTML) return;
@@ -1720,13 +1716,13 @@ function renderAIPage(){
     cloudTimer = setTimeout(function(){
       if (cloudBusy){ cloudPending = true; return; }
       cloudBusy = true;
-      // v147 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
+      // v148 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
       var pushed = {};
       try { pushed = JSON.parse(localStorage.getItem('cloud_pushed_v1') || '{}'); } catch(e){}
       // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
       var cleanGroups = state.groups.filter(function(g){
         if (!g) return false;
-        if (String(g.name || '').indexOf('@') >= 0) return false; // v147 账号前缀污染不再回传
+        if (String(g.name || '').indexOf('@') >= 0) return false; // v148 账号前缀污染不再回传
         var t = String(g.time || '');
         if (t.indexOf('9-') === 0) return false;
         if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
@@ -1779,7 +1775,7 @@ function renderAIPage(){
   }
 
   let state = load();
-  // v147 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
+  // v148 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
   var __nameIdxC = { fk: '', names: null, idx: null };
   var __bpC = {};
   var __nmAllC = { fk: '', idx: null };
@@ -1803,7 +1799,7 @@ function renderAIPage(){
       if (!t && OLD_NO_TIME.indexOf(g.name) >= 0) return false; // Excel老批次(无时间)
       return true;
     });
-    // v147 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
+    // v148 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
     try {
       var _b144 = state.groups.length;
       var _seen144 = {};
@@ -3002,7 +2998,7 @@ function renderAIPage(){
 
   function renderHistory(){
     const box = $('historyList');
-    // v147 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
+    // v148 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
     var _hf = (activeTag||'') + '|' + (searchQuery||'') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
     if (window.__hFp === _hf && box && box.innerHTML) return;
     window.__hFp = _hf;
@@ -3015,9 +3011,9 @@ function renderAIPage(){
       return;
     }
     let html = '';
-    // 性能：无搜索时只渲染最近 60 组（历史页 DOM 太大是卡顿主因），搜索时全量渲染便于查找
-    const limitAll = !q;
-    const startIdx = limitAll ? Math.max(0, groups.length - 60) : 0;
+    // v148 默认只渲染最近20组（原60）+「加载更多」：iPhone Safari 上720个格也是死机级
+    var limitN = Math.max(1, Math.min(groups.length, q ? 100 : (window.__hMore||20)));
+    const startIdx = Math.max(0, groups.length - limitN);
     for (let i = groups.length-1; i >= startIdx; i--){
       const g = groups[i];
       const realIdx = state.groups.indexOf(g);
@@ -3040,7 +3036,10 @@ function renderAIPage(){
       html += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
       html += `</div>`;
     }
-    if (startIdx > 0) html += '<div style="font-size:11px;color:#64748b;text-align:center;padding:8px;">仅显示最近 60 组（共 '+groups.length+' 组），点搜索可查全部</div>';
+    if (startIdx > 0) html += '<div style="font-size:11px;color:#64748b;text-align:center;padding:6px;">仅显示最近 ' + limitN + ' 组（共 ' + groups.length + ' 组）</div>';
+    if (groups.length > limitN){
+      html += '<button id="hMoreBtn" style="width:100%;margin:4px 0 8px;padding:8px;border-radius:8px;background:rgba(251,191,36,.1);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.3);cursor:pointer;">加载更多 20 组（剩余 ' + (groups.length - limitN) + ' 组）</button>';
+    }
     box.innerHTML = html;
     box.querySelectorAll('.history-del').forEach(b => {
       b.addEventListener('click', () => {
@@ -3049,6 +3048,8 @@ function renderAIPage(){
         save(); render();
       });
     });
+    var _hb = box.querySelector('#hMoreBtn');
+    if (_hb) _hb.addEventListener('click', function(){ window.__hMore = (window.__hMore||20) + 20; window.__hFp = ''; renderHistory(); });
   }
 
   function escapeHtml(s){
@@ -3057,20 +3058,23 @@ function renderAIPage(){
 
   function renderTags(){
     const bar = $('tagBar');
-    // v147 切页不重建：数据+选中标签没变就复用
-    var _tf = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '') + '|' + (activeTag||'');
+    // v148 默认最近20人（原100）+展开按钮：iPhone Safari 上标签也是渲染负担
+    var _tf = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '') + '|' + (activeTag||'') + '|' + (window.__tAll?'1':'0');
     if (window.__tFp === _tf && bar && bar.innerHTML) return;
     window.__tFp = _tf;
     const seen = {}; const names = [];
-    // Set去重（避免includes O(n^2)）+ 只渲染最近100个人名（几千组也秒出）
+    // Set去重（避免includes O(n^2)）
     state.groups.forEach(g => { if (g.name && !seen[g.name]){ seen[g.name] = 1; names.push(g.name); } });
     let html = '';
-    const show = names.length > 100 ? names.slice(-100) : names;
-    if (names.length > 100) html += '<span class="tag" style="opacity:.55">最近100人/共' + names.length + '人·输名字搜索</span>';
+    const show = window.__tAll ? names : names.slice(-20);
+    if (names.length > 20 && !window.__tAll) html += '<span class="tag" style="opacity:.55">最近20人/共' + names.length + '人·输名字搜索</span>';
     show.forEach(n => {
       const active = activeTag === n ? ' active' : '';
       html += `<span class="tag${active}" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
     });
+    if (names.length > 20 && !window.__tAll){
+      html += '<button id="tAllBtn" style="padding:5px 10px;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;border:1px dashed rgba(251,191,36,.35);cursor:pointer;">展开全部 ' + names.length + ' 人</button>';
+    }
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', () => {
@@ -3081,6 +3085,8 @@ function renderAIPage(){
         render();
       });
     });
+    var _tb = bar.querySelector('#tAllBtn');
+    if (_tb) _tb.addEventListener('click', function(){ window.__tAll = true; window.__tFp = ''; renderTags(); });
   }
 
   // v137 名字索引 + 行为结构缓存：原实现 136 名字 × filter(1200组) + includes 去重 → 手机切页卡
@@ -3111,12 +3117,13 @@ function renderAIPage(){
   function renderNameBar(){
     const bar = $('nameBar');
     var _ni = nameIndex();
-    // v147 切页不重建：名字集合没变就复用上次渲染（275个tag的DOM重建在手机上是切页卡主因）
-    if (window.__nbFp === _ni.fk && bar && bar.innerHTML) return;
-    window.__nbFp = _ni.fk;
     const names = _ni.names;
+    // v148 默认只渲染最近20个名字（几百个tag在iPhone Safari布局/绘制风暴=登录死机感），点「展开全部」才全量
+    var _names2 = window.__nbAll ? names : names.slice(-20);
+    if (window.__nbFp === _ni.fk + '|' + (window.__nbAll?'1':'0') && bar && bar.innerHTML) return;
+    window.__nbFp = _ni.fk + '|' + (window.__nbAll?'1':'0');
     let html = '';
-    names.forEach(n => {
+    _names2.forEach(n => {
       var _ft = '均衡型', _nm = null, _ds = '', _rot = '';
       try {
         var _grs = _ni.idx[n] || [];
@@ -3136,6 +3143,9 @@ function renderAIPage(){
       var _fc = BCOLOR[_nm] || '#94a3b8';
       html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml((_nm||'')+'·'+_ds+(_rot?'·'+_rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_nm || _ft}</em></span>`;
     });
+    if (names.length > 20 && !window.__nbAll){
+      html += '<button id="nbAllBtn" style="width:100%;margin-top:6px;padding:7px;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.35);cursor:pointer;">展开全部 ' + names.length + ' 人</button>';
+    }
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', () => {
@@ -3146,6 +3156,8 @@ function renderAIPage(){
         updateAIHint();
       });
     });
+    var _nbB = bar.querySelector('#nbAllBtn');
+    if (_nbB) _nbB.addEventListener('click', function(){ window.__nbAll = true; window.__nbFp = ''; renderNameBar(); });
   }
 
   function renderTopTags(){
@@ -3211,7 +3223,7 @@ function renderAIPage(){
     // 支持逗号/空格/顿号分隔多个名字
     return str.split(/[,，\s、]+/).map(n => n.trim()).filter(Boolean);
   }
-  // v147 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
+  // v148 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
   var __gfC = { fk: '', r: null };
   function getFiltered(){
     const name = $('groupName').value.trim();
@@ -3299,7 +3311,7 @@ function renderAIPage(){
     return s;
   }
 
-  // v147 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
+  // v148 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
   var __aggC = { fk: '', A: null };
   function predictTop2(curArr, filtered){
     if (!filtered.length) return []; // 只学这个人，没数据不瞎猜
@@ -4933,7 +4945,7 @@ function cell(k, rank){
     var cached = null;
     try { var _c = localStorage.getItem('cloud_cache_v1'); if (_c) cached = JSON.parse(_c); } catch(e){}
     if (cached && cached.html){
-      // v147 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
+      // v148 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
       if (box.innerHTML !== cached.html) box.innerHTML = cached.html;
       if (silent) return;   // 已展开过：直接用缓存，不重拉不重算
     } else {
@@ -5404,7 +5416,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     });
     if (changed){
       window.__mkV = (window.__mkV||0) + 1;
-      // v147 补对错落盘用防抖：登录瞬间不全量 JSON.stringify（2000组序列化在手机上是卡源）
+      // v148 补对错落盘用防抖：登录瞬间不全量 JSON.stringify（2000组序列化在手机上是卡源）
       saveDebounced(); render();
     }
   }
@@ -5784,20 +5796,22 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   });
 
   function _boot(){
-    // v147 登录秒点：解锁瞬间只画12格骨架（几乎零成本），其余几十毫秒后分批补齐 → 界面立即响应点击
+    // v148 登录秒点：解锁瞬间只画12格骨架（几乎零成本），其余几十毫秒后分批补齐 → 界面立即响应点击
     renderGrid();
     setTimeout(function(){ renderNameBar(); }, 50);
     setTimeout(function(){ renderHistory(); }, 100);
     setTimeout(function(){ renderTags(); }, 160);
     setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 250);
-    setTimeout(function(){ backfillMarks(); }, 350);
+    setTimeout(function(){ backfillMarks(); }, 800);
     // 云端分析展开（解锁后600ms才计算）
     setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
     // 自动云端去重（解锁后2.5s静默跑，重复不再积累；删除量大时后台分批进行不卡界面）
     setTimeout(function(){ try{ if (typeof window.cloudDedupe === 'function') window.cloudDedupe(true); }catch(e){} }, 2500);
   }
+  // v148 默认折叠状态（首次）：名字栏/标签20个、历史20组
+  window.__nbAll = false; window.__tAll = false; window.__hMore = 20;
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
-  // v147 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
+  // v148 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
   _idbReady.then(function(){
     idbGet(acctKey()).then(function(idbRaw){
       if (!idbRaw) return;
@@ -5806,7 +5820,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         if (_idbSt && (_idbSt.updatedAt || 0) > ((state && state.updatedAt) || 0)){
           state = _idbSt;
           try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
-          // v147 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
+          // v148 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
           if (__locked && typeof __unlockHooks !== 'undefined'){ __unlockHooks.push(function(){ setTimeout(function(){ try{ render(); }catch(e){} }, 300); }); }
           else { setTimeout(function(){ try { render(); } catch(e){} }, 300); }
         }
@@ -5825,6 +5839,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v147 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v148 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
