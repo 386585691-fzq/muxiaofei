@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v142 · 路单记牌器</title>
+<title>v143 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,11 +267,11 @@
       <button id="groupNameQuery">🔍 查询</button>
       <button id="recordRefresh" onclick="recordRefresh()">🔄 刷新</button>
     </div>
-    <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
+    <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:999;"></div>
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v142</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v143</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -3660,14 +3660,19 @@ function cell(k, rank){
     box.innerHTML = html;
     box.style.display = 'block';
     box.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('click', () => {
+      function pick(){
         _lastPicked = el.dataset.n;
         $('groupName').value = el.dataset.n;
-        try { $('groupName').select(); } catch(e){}
         box.style.display = 'none';
+        box.innerHTML = '';
+        try { $('groupName').focus(); $('groupName').select(); } catch(e){}
         renderLiveHint();
         updateAIHint();
-      });
+      }
+      // v143 按下就选：手机端点联想项时输入框失焦→键盘收起→页面跳动，click 常落空；mousedown/touchstart 抢在失焦前选中
+      el.addEventListener('mousedown', function(e){ e.preventDefault(); pick(); });
+      el.addEventListener('touchstart', function(e){ e.preventDefault(); pick(); }, { passive:false });
+      el.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); pick(); });
     });
   }
 
@@ -5595,6 +5600,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     $('groupName').addEventListener('blur', function(){
       var v = this.value;
       if (v && v.indexOf(',') < 0) _lastPicked = v;
+      var sb = $('nameSuggest');
+      if (sb) sb.style.display = 'none';
     });
 
   $('clearAllBtn').addEventListener('click', () => {
@@ -5711,6 +5718,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v142 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v143 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
