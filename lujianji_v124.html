@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v139 · 路单记牌器</title>
+<title>v140 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -241,7 +241,7 @@
 <div class="current page active" id="page-record">
   <div class="group-name-row" id="sec-ai">
     <label>组名</label>
-    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20" style="flex:1;min-width:0;">
+    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="60" style="flex:1;min-width:0;">
     <span id="curFrameBadge"></span>
     <button id="groupNameQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
     <button id="recordRefresh" onclick="recordRefresh()" style="padding:6px 12px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;white-space:nowrap;">🔄 刷新</button>
@@ -249,10 +249,10 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v136</span>
-    <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v140</span>
+    <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">收起 ▼</button>
   </div>
-  <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
+  <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
   <div class="grid" id="grid"></div>
 
   <div style="margin:5px 0 2px;display:flex;align-items:center;gap:6px;">
@@ -516,11 +516,18 @@
   const COLS = 6;
 
   // 折叠当前记录区的人名列表
+  // v140 名字栏默认展开 + 展开状态记忆（切页/刷新不再每次收起来）
+  try {
+    var _nbOpen = localStorage.getItem('road_nb_open') || '1';
+    var _nbBar = document.getElementById('nameBar');
+    if (_nbOpen !== '1'){ _nbBar.style.display = 'none'; document.getElementById('toggleNameBar').textContent = '展开 ▶'; }
+  } catch(e){}
   document.getElementById('toggleNameBar').addEventListener('click', function(){
     const bar = document.getElementById('nameBar');
     const show = bar.style.display === 'none';
     bar.style.display = show ? 'flex' : 'none';
     this.textContent = show ? '收起 ▼' : '展开 ▶';
+    try { localStorage.setItem('road_nb_open', show ? '1' : '0'); } catch(e){}
     if (show && typeof renderNameBar === 'function') renderNameBar();
   });
 
@@ -1307,7 +1314,22 @@ function renderAIPage(){
     });
   });
   $('searchQueryBtn').addEventListener('click', function(){ searchQuery = $('searchBox').value.trim(); activeTag = ''; render(); toast('✅ 查询成功'); });
-  $('groupNameQuery').addEventListener('click', function(){ renderLiveHint(); updateAIHint(); toast('✅ 查询成功'); });
+  // v140 查询按钮：强制重算推荐（清指纹缓存）+ 显示命中组数
+  $('groupNameQuery').addEventListener('click', function(){
+    var _q = $('groupName').value.trim();
+    window.__lhFp = ''; window.__ahFp = '';
+    renderLiveHint(); updateAIHint();
+    var _hit = 0;
+    if (_q){
+      var _ns = _q.split(/[,，\s、]+/).map(function(x){ return x.trim(); }).filter(Boolean);
+      try { var _idx = nameIndex().idx; _ns.forEach(function(n){ _hit += (_idx[n] || []).length; }); } catch(e){}
+    }
+    toast('✅ 查询成功 · 命中 ' + _hit + ' 组');
+  });
+  // v140 组名框回车 = 查询
+  $('groupName').addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.keyCode === 13){ e.preventDefault(); $('groupNameQuery').click(); }
+  });
 
   // ===== 多账号切换（主账号可看汇总；子账号只看自己） =====
   function renderAcct(){
@@ -5507,7 +5529,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       if (e.isComposing) return;
       _dropOldName(this);
       clearTimeout(sgTimer);
-      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 500);
+      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 250);
     });
     $('groupName').addEventListener('compositionend', function(){
       _dropOldName(this);
