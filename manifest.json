@@ -2,7 +2,7 @@
   "name": "路单记牌器",
   "short_name": "记牌器",
   "description": "虎龙入出四门记录与AI规律分析",
-  "start_url": "./lujianji_v164.html",
+  "start_url": "./lujianji_v165.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
