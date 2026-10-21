@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v152 · 路单记牌器</title>
+<title>v153 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v152</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v153</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -1321,7 +1321,8 @@ function renderAIPage(){
       var seenCloud = {};
       // 指纹：云端行数 + 最后一行id + 当前时间筛选（变了才重算）
       var cloudFp = (rows.length) + '|' + (rows.length ? String(rows[rows.length-1].id||'') : '') + '|' + (cloudTimeFilter||'all');
-      if (cached && cached.fp === cloudFp){ return; }   // 数据没变：保持缓存秒开结果
+      var _crC = null; try { _crC = JSON.parse(localStorage.getItem('cloud_cache_v1') || 'null'); } catch(e){} // v153 修复 cached 未定义报错
+      if (_crC && _crC.fp === cloudFp){ return; }   // 数据没变：保持缓存秒开结果
       groups = groups.filter(function(g){
         var k = g.name + '|' + g.time + '|' + JSON.stringify(g.list);
         if (seenCloud[k]) return false; seenCloud[k] = 1; return true;
@@ -4062,7 +4063,10 @@ function cell(k, rank){
     ks.sort(function(a,b){ return o[b]-o[a]; });
     return [ks[0]];
   }
+  var __csrC = { fk: '', r: null }; // v153 策略回测缓存：云端分析页"全策略对比"是秒级重算，数据没变直接复用
   function calcStrategyRates(groups){
+    var _csk = groups.length + '|' + (groups.length ? String(groups[0].time||'') + '|' + String(groups[groups.length-1].time||'') : '');
+    if (__csrC.fk === _csk) return __csrC.r;
     var S = [
       {id:'auto', name:'🧠 智能自适应', desc:'识别行为结构（连庄王/独行侠/双子星/三缺一/四平八稳），按结构用药分派'},
       {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
@@ -4395,7 +4399,8 @@ function cell(k, rank){
       }
     });
     S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit/x.total*100) : 0; x.rate3 = x.total3 ? Math.round(x.hit3/x.total3*100) : 0; });
-    S.sort(function(a,b){ return b.rate - a.rate || b.rate3 - a.rate3 || b.total3 - a.total3; });
+    S.sort(function(a,b){ return b.rate - a.rate || b.rate3 - a.rate3 || b.total3 - a.total3; });    __csrC = { fk: _csk, r: S };
+
     return S;
   }
   // 全局策略表 + 流转
@@ -4945,7 +4950,11 @@ function cell(k, rank){
       })();
     });
   };
+  var _cloudBusy = false; // v153 云端分析计算锁：进行中重复触发直接跳过（否则点一次拉一次全量、卡一次）
+  function _cloudVisible(){ var _p = document.getElementById('page-cloud'); return !!(_p && _p.classList && _p.classList.contains('active')); }
   function cloudAnalyze(silent){
+    if (_cloudBusy){ return; } // v153 上一轮还在拉/算：跳过本次（点云端分析不再叠加重活）
+    _cloudBusy = true;
     var box = $('cloudContent');
     // 结果缓存：展开秒开，数据变了才重算（解决云端分析点击卡）
     var cached = null;
@@ -4953,23 +4962,26 @@ function cell(k, rank){
     if (cached && cached.html){
       // v150 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
       if (box.innerHTML !== cached.html) box.innerHTML = cached.html;
-      if (silent) return;   // 已展开过：直接用缓存，不重拉不重算
-    } else {
-      if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
+      if (silent){ _cloudBusy = false; return; }   // 已展开过：直接用缓存，不重拉不重算
+      // v153 有缓存也秒开：先显示上次结果，再后台静默刷新（首次点开不再白屏等10秒）
+    } else if (!silent && !box.innerHTML){
+      box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
     }
     sbFetchAll(function(err, rows){
+      // v153 用户已切走（云端页不可见）：放弃本轮大计算，不堵主线程；下次切回再算
+      if (!_cloudVisible()){ _cloudBusy = false; return; }
       if (err){
         if (cached && cached.html){
           box.innerHTML = cached.html + '<div style="color:#f59e0b;font-size:11px;padding:8px;text-align:center;">⚠️ 云端拉取失败，显示上次结果。点右上角「刷新」重试</div>';
-          return;
+          _cloudBusy = false; return;
         }
         var lc = state.groups.length;
         box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试' + (lc > 0 ? '<br><br><button id="cloudLocalBtn" style="padding:8px 16px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;">先看本地分析（本机 '+lc+' 组）</button>' : '') + '</div>';
         var lb = document.getElementById('cloudLocalBtn');
         if (lb) lb.addEventListener('click', function(){ renderCloudFromLocal(); });
-        return;
+        _cloudBusy = false; return;
       }
-      if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; return; }
+      if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; _cloudBusy = false; return; }
       var groups = rows.map(function(r){
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
@@ -5042,15 +5054,21 @@ function cell(k, rank){
         });
         return { hit: hit, total: total, rate: total ? Math.round(hit/total*100) : 0 };
       }
-      // 分片计算，避免卡 UI
+      // v153 只算热度TOP25名字：全量名字逐个"留一手验证"是几十秒级重活（点云端分析后切页卡死的元凶）
+      var hotNames = names.slice().sort(function(a,b){ return nm[b].groups - nm[a].groups || nm[b].hands - nm[a].hands; }).slice(0, 25);
       var rates = {}, idx = 0;
       function step(){
+        if (!_cloudVisible()){ _cloudBusy = false; return; } // v153 已切走：停止分片，不堵主线程
         var t0 = Date.now();
-        while (idx < names.length && Date.now() - t0 < 60){ rates[names[idx]] = calcRate(names[idx]); idx++; }
-        if (idx < names.length){ setTimeout(step, 0); return; }
+        while (idx < hotNames.length && Date.now() - t0 < 60){ rates[hotNames[idx]] = calcRate(hotNames[idx]); idx++; }
+        if (idx < hotNames.length){ setTimeout(step, 0); return; }
         renderCloud(rates);
       }
       function renderCloud(rates){
+        if (!_cloudVisible()){ _cloudBusy = false; return; } // v153 已切走：只解锁不写DOM（切回时缓存/重算）
+        // v153 名字牌路预聚合：一次遍历取每人合并牌路（原实现在渲染时对每人全量 filter state.groups 50次 = 秒级卡）
+        var handCache = {};
+        groups.forEach(function(g){ if (!g || !g.name) return; var arr = handCache[g.name]; if (!arr) arr = handCache[g.name] = []; for (var hi=0; hi<(g.list||[]).length; hi++) arr.push(g.list[hi]); });
         var html = '';
         // 每日记录量
         var days = Object.keys(dayMap).sort();
@@ -5066,12 +5084,10 @@ function cell(k, rank){
           var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
           var _mt = '均衡型';
           try {
-            var _mg = state.groups.filter(function(g){ return g && g.name === m.name; });
-            var _ml = [];
-            _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
+            var _ml = handCache[m.name] || [];
             if (_ml.length >= 5) _mt = frameTypeOf(_ml);
           } catch(e){}
-          var _mbp = behaviorPartsOf(_ml);
+          var _mbp = behaviorPartsOf(_ml || []);
           var _mc = BCOLOR[_mbp.nm] || '#94a3b8';
           html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
         });
@@ -5085,12 +5101,10 @@ function cell(k, rank){
             var col = x.r.rate>=80?'#4ade80':x.r.rate>=70?'#fbbf24':'#f87171';
             var _xt = '均衡型';
             try {
-              var _xg = state.groups.filter(function(g){ return g && g.name === x.name; });
-              var _xl = [];
-              _xg.forEach(function(g){ _xl = _xl.concat(g.list || []); });
+              var _xl = handCache[x.name] || [];
               if (_xl.length >= 5) _xt = frameTypeOf(_xl);
             } catch(e){}
-            var _xbp = behaviorPartsOf(_xl);
+            var _xbp = behaviorPartsOf(_xl || []);
             var _xc = BCOLOR[_xbp.nm] || '#94a3b8';
             html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td style="color:' + _xc + ';">' + (_xbp.nm ? _xbp.nm+'·'+_xbp.ds : _xt) + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
           });
@@ -5101,6 +5115,7 @@ function cell(k, rank){
 html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
         try { localStorage.setItem('cloud_cache_v1', JSON.stringify({ fp: cloudFp, html: html })); } catch(e){}
+        _cloudBusy = false;
       }
       setTimeout(step, 0);
     });
@@ -5850,7 +5865,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v152');
+    _L.push('版本: v153');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5868,7 +5883,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v152 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v153 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
