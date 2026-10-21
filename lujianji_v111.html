@@ -3020,6 +3020,20 @@ function renderAIPage(){
     __nameIdxC = { fk: fk, names: Object.keys(idx), idx: idx };
     return __nameIdxC;
   }
+  // v142 名字包含索引：组名支持「好运,臭弟」多名字，按逗号拆开后每个名字都能命中（输入联想/记录提示零全表扫描）
+  var __nmAllC = { fk: '', idx: null };
+  function nameContainsIndex(){
+    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
+    if (__nmAllC.fk === fk && __nmAllC.idx) return __nmAllC;
+    var idx = {};
+    state.groups.forEach(function(g){
+      if (!g || !g.name) return;
+      var ns = nmSplit(g.name);
+      for (var i=0;i<ns.length;i++){ (idx[ns[i]] = idx[ns[i]] || []).push(g); }
+    });
+    __nmAllC = { fk: fk, idx: idx };
+    return __nmAllC;
+  }
   function renderNameBar(){
     const bar = $('nameBar');
     var _ni = nameIndex();
@@ -3409,6 +3423,19 @@ function renderAIPage(){
     const name = $('groupName').value.trim();
     if (!name){ box.innerHTML = ''; updateFrameBadge(); return; }
     updateFrameBadge();
+    // v142 输入中间状态（名字还没打完/查无此人）：零计算直接轻提示，不扫全表不跑预测
+    var _namesP = parseNames(name);
+    var _ncNow = nameContainsIndex();
+    var _hasHit = false;
+    for (var _iP=0; _iP<_namesP.length; _iP++){ if (_ncNow.idx[_namesP[_iP]]) _hasHit = true; }
+    if (!_hasHit){
+      var _noneFp = 'none|' + name;
+      if (window.__lhFp !== _noneFp){
+        box.innerHTML = '<div style="font-size:11px;color:#64748b;background:#2b2b2b;border-radius:6px;padding:7px 10px;">⌨️ 继续输入名字…（有记录的名字会直接出推荐）</div>';
+        window.__lhFp = _noneFp;
+      }
+      return;
+    }
     // 指纹：名字+筛选+数据量没变不重算（打字不卡）
     var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + state.current.length + '|' + (state.currentMarks ? state.currentMarks.length : 0) + '|' + (state.aiStrategy || '') + '|' + (state._previewStrategy || '');
     if (window.__lhFp === _fk && box.innerHTML) return;
@@ -3422,7 +3449,11 @@ function renderAIPage(){
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
 
     const names = parseNames(name);
-    let allMatches = state.groups.filter(g => names.indexOf(g.name) >= 0);
+    let allMatches = [];
+    var _seenM = {};
+    names.forEach(function(n){
+      (_ncNow.idx[n] || []).forEach(function(g){ if (!_seenM[g.id]){ _seenM[g.id] = 1; allMatches.push(g); } });
+    });
     // 时间筛选按钮
     let filtered = allMatches;
     if (timeFilter === 'today') filtered = allMatches.filter(g => g.time && g.time.startsWith(todayStr));
@@ -3654,7 +3685,7 @@ function cell(k, rank){
   function calcAIForName(nm){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
-    var grps = state.groups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
+    var grps = nameContainsIndex().idx[nm] || [];
     if (!grps.length) return [];
     var s = {hu:0,long:0,ru:0,chu:0,total:0};
     var near = [];
@@ -3711,7 +3742,9 @@ function cell(k, rank){
   function _calcFocusNearNameImpl(nm, srcGroups){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
-    var grps = (srcGroups || state.groups).filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
+    var grps;
+    if (srcGroups){ grps = srcGroups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; }); }
+    else { grps = nameContainsIndex().idx[nm] || []; }
     if (!grps.length){
       // 无个人历史 → 参考当天实时全局规律（可能是同人换名）
       var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, td1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
@@ -5556,7 +5589,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     $('groupName').addEventListener('compositionend', function(){
       _dropOldName(this);
       clearTimeout(sgTimer);
-      renderLiveHint(); renderSuggest(); updateAIHint();
+      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 250);
     });
     // 失焦时记下当前单名字：下一次输入自动替换旧名（手打A用完换B也不粘）
     $('groupName').addEventListener('blur', function(){
