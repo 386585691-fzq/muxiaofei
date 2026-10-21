@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v151 · 路单记牌器</title>
+<title>v152 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v151</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v152</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -1499,6 +1499,8 @@ function renderAIPage(){
       state.groups = mergeGroups(state.groups, rows);
       var added = state.groups.length - before;
       if (added > 0){
+        // v152 有新数据并入 → 当天统计缓存作废，实时当天立即刷新
+        window.__dayCache = {}; window.__dayCache0 = {};
         // v137 只有真新增才落盘：原实现每60秒全量 JSON.stringify 所有组 → 手机定时卡一下
         if (typeof saveLocal === 'function') saveLocal();
         var st = $('rtStatus');
@@ -1560,7 +1562,8 @@ function renderAIPage(){
     var seen = {}; var out = [];
     (a || []).concat(b || []).forEach(function(g){
       if (!g) return;
-      var k = (g.name || '') + '|' + JSON.stringify(g.list || []);
+      // v152 去重键加入 time：同牌路但不同时间 = 不同局（当天新局不再被云端旧局顶掉）
+      var k = (g.name || '') + '|' + String(g.time || '') + '|' + JSON.stringify(g.list || []);
       if (!seen[k]) { seen[k] = 1; out.push(g); }
     });
     return out;
@@ -1599,6 +1602,11 @@ function renderAIPage(){
     var p = String(t).trim().split(/[\s:-]+/);
     var m = parseInt(p[0],10)||1, d = parseInt(p[1],10)||1, h = parseInt(p[2],10)||0, mi = parseInt(p[3],10)||0;
     return ((m*31+d)*24+h)*60+mi;
+  }
+  // v152 当天精确判断（替代前缀匹配：前缀会把 10-2 当天 误算成含 10-21/10-22，是"时间错乱"根源）
+  function _isToday(g, mm, dd){
+    var t = parseTime(g && g.time);
+    return !!(t && t.m === mm && t.d === dd);
   }
   // 拉云端全部行（分页拉全，避免超过1000条漏数据/误判缺失重复推送；按时间解析排序）
   function sbFetchAll(cb, onProg, strict){
@@ -1834,7 +1842,7 @@ function renderAIPage(){
         var _t = String(g.time || '');
         if (_t.indexOf('9-') === 0) continue;
         if (!_t && OLD_NO_TIME.indexOf(g.name) >= 0) continue;
-        var _k = _nm + '|' + JSON.stringify(g.list || []);
+        var _k = _nm + '|' + String(_t) + '|' + JSON.stringify(g.list || []); // v152 同牌路不同时间都保留
         if (_SEEN[_k]) continue;
         _SEEN[_k] = 1;
         _res.push(g);
@@ -3239,8 +3247,8 @@ function renderAIPage(){
       all = state.groups.filter(g => g.time && g.time.startsWith(base));
       if (!all.length) all = state.groups.slice();
     }
-    if (timeFilter === 'today') all = all.filter(g => g.time && g.time.startsWith(todayStr));
-    else if (timeFilter === 'yesterday') all = all.filter(g => g.time && g.time.startsWith(yestStr));
+    if (timeFilter === 'today') all = all.filter(g => _isToday(g, now.getMonth()+1, now.getDate()));
+    else if (timeFilter === 'yesterday') all = all.filter(g => _isToday(g, yest.getMonth()+1, yest.getDate())); // v152 精确，前缀会把 10-2 误算成 10-21
     __gfC = { fk: _fk, r: all };
     return all;
   }
@@ -3551,13 +3559,13 @@ function renderAIPage(){
     });
     // 时间筛选按钮
     let filtered = allMatches;
-    if (timeFilter === 'today') filtered = allMatches.filter(g => g.time && g.time.startsWith(todayStr));
-    else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => g.time && g.time.startsWith(yestStr));
+    if (timeFilter === 'today') filtered = allMatches.filter(g => _isToday(g, now.getMonth()+1, now.getDate()));
+    else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => _isToday(g, yest.getMonth()+1, yest.getDate())); // v152 精确
 
     // 无个人历史 → 参考当天实时全局规律（可能是同人换名），照样出推荐
     let usedGlobal = false;
     if (!filtered.length){
-      var tgl = state.groups.filter(g => g && g.time && String(g.time).indexOf(todayStr) === 0);
+      var tgl = state.groups.filter(g => g && _isToday(g, now.getMonth()+1, now.getDate())); // v152 精确当天
       filtered = tgl.length ? tgl : state.groups;
       usedGlobal = true;
     }
@@ -3848,7 +3856,7 @@ function cell(k, rank){
     if (!grps.length){
       // 无个人历史 → 参考当天实时全局规律（可能是同人换名）
       var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, td1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
-      var tp1 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td1) === 0; });
+      var tp1 = (srcGroups || state.groups).filter(function(g){ return g && _isToday(g, nw1.getMonth()+1, nw1.getDate()); }); // v152 精确当天
       grps = tp1.length ? tp1 : (srcGroups || state.groups);
     }
     var s = {hu:0,long:0,ru:0,chu:0,total:0};
@@ -3861,7 +3869,7 @@ function cell(k, rank){
     if (s.total < 8){
       // 个人不足8手 → 参考当天实时全局规律
       var nw2 = new Date(), pd2 = function(x){ return String(x).padStart(2,'0'); }, td2 = (nw2.getMonth()+1) + '-' + pd2(nw2.getDate());
-      var tp2 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td2) === 0; });
+      var tp2 = (srcGroups || state.groups).filter(function(g){ return g && _isToday(g, nw2.getMonth()+1, nw2.getDate()); }); // v152 精确当天
       grps = tp2.length ? tp2 : (srcGroups || state.groups);
       s = {hu:0,long:0,ru:0,chu:0,total:0}; near = [];
       grps.forEach(function(g){
@@ -3936,12 +3944,13 @@ function cell(k, rank){
     if (!q){
       // 组名空：显示全局概览（AI关注常显，记录时永远看得到）
       var nw0 = new Date(), pd0 = function(x){ return String(x).padStart(2,'0'); }, ts0 = (nw0.getMonth()+1) + '-' + pd0(nw0.getDate());
-      var dayKey0 = ts0 + '|' + state.groups.length;
+      var _l0 = state.groups.length ? String(state.groups[state.groups.length-1].time||'') : '';
+      var dayKey0 = ts0 + '|' + state.groups.length + '|' + _l0; // v152 加最新组time：实时监控合并后当天统计立即刷新
       var dc0 = window.__dayCache0 || (window.__dayCache0 = {});
       var gd0, gT0, pool0;
       if (dc0.k === dayKey0){ gd0 = dc0.gd; gT0 = dc0.gt; pool0 = gd0.length ? gd0 : state.groups; }
       else {
-        gd0 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts0) === 0; });
+        gd0 = state.groups.filter(function(g){ return g && _isToday(g, nw0.getMonth()+1, nw0.getDate()); });
         gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
         pool0 = gd0.length ? gd0 : state.groups;
         pool0.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
@@ -3963,12 +3972,13 @@ function cell(k, rank){
     window.__ahFp = _fk2;
     // 当天四门平均（当天数据作基准，无当天数据才用全部）
     var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, ts1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
-    var dayKey = ts1 + '|' + state.groups.length;
+    var _l1 = state.groups.length ? String(state.groups[state.groups.length-1].time||'') : '';
+    var dayKey = ts1 + '|' + state.groups.length + '|' + _l1; // v152 加最新组time
     var dc = window.__dayCache || (window.__dayCache = {});
     var gd1, gT, pool1;
     if (dc.k === dayKey){ gd1 = dc.gd; gT = dc.gt; pool1 = gd1.length ? gd1 : state.groups; }
     else {
-      gd1 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts1) === 0; });
+      gd1 = state.groups.filter(function(g){ return g && _isToday(g, nw1.getMonth()+1, nw1.getDate()); });
       gT = {hu:0,long:0,ru:0,chu:0,all:0};
       pool1 = gd1.length ? gd1 : state.groups;
       pool1.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
@@ -5840,7 +5850,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v151');
+    _L.push('版本: v152');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5858,7 +5868,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v151 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v152 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
