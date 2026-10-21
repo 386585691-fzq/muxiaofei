@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v144 · 路单记牌器</title>
+<title>v145 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -271,7 +271,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v144</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v145</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -362,13 +362,13 @@
   </div>
   <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
   <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
-  <div id="historyList">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+  <!-- v145 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
     <button class="action-btn undo" id="exportBtn">导出备份</button>
     <button class="action-btn undo" id="importBtn">导入恢复</button>
   </div>
-  <button class="clear-all" id="clearAllBtn">清空全部历史</button>
-</div>
+  <button class="clear-all" id="clearAllBtn" style="width:100%;margin-bottom:8px;">清空全部历史</button>
+  <div id="historyList"></div>
 <script>
 (function(){
   var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
@@ -532,7 +532,7 @@
 
   const STORE_KEY = 'road_groups_v2';
   const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
-  // v144 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
+  // v145 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
   var DB_NAME = 'lujianji', DB_STORE = 'kv', _idb = null, _idbFail = false;
   function idbOpen(){
     if (typeof indexedDB === 'undefined'){ _idbFail = true; return Promise.resolve(null); }
@@ -1714,42 +1714,38 @@ function renderAIPage(){
     cloudTimer = setTimeout(function(){
       if (cloudBusy){ cloudPending = true; return; }
       cloudBusy = true;
-      // 先读云端最新（必须完整） → 合并去重 → 只插入云端没有的（不删除、不覆盖）
-      sbFetchAllStrict(function(err, remoteRows){
-        cloudBusy = false;
-        if (err){ saveLocal(); if (cloudPending){ cloudPending = false; pushCloud(); } return; }
-        var remoteKeys = {};
-        // 推送完成后的尾部处理：解锁并处理挂起
-        function finishCloud(){ if (cloudPending){ cloudPending = false; pushCloud(); } }
-        remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + JSON.stringify(r.list || [])] = 1; });
-        // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
-        var cleanGroups = state.groups.filter(function(g){
-          if (!g) return false;
-          if (String(g.name || '').indexOf('@') >= 0) return false; // v144 账号前缀污染不再回传
-          var t = String(g.time || '');
-          if (t.indexOf('9-') === 0) return false;
-          if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
-          return true;
-        });
-        state.groups = cleanGroups;
-        state.groupNum = cleanGroups.length + 1;
-        // 先本地按 name+list 去重（防止本地重复组被反复推送）
-        var seenLocal = {};
-        var uniqGroups = cleanGroups.filter(function(g){
-          var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
-          if (seenLocal[k]) return false; seenLocal[k] = 1; return true;
-        });
-        var missing = [];
-        uniqGroups.forEach(function(g){
-          var cn = toCloudName(g.name);
-          var k = _nt(cn) + '|' + JSON.stringify(g.list || []);
-          if (!remoteKeys[k]) missing.push({name: cn, time: String(g.time || ''), list: g.list || []});
-        });
-        if (missing.length) sbPushRows(missing, function(){});
+      // v145 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
+      var pushed = {};
+      try { pushed = JSON.parse(localStorage.getItem('cloud_pushed_v1') || '{}'); } catch(e){}
+      // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
+      var cleanGroups = state.groups.filter(function(g){
+        if (!g) return false;
+        if (String(g.name || '').indexOf('@') >= 0) return false; // v145 账号前缀污染不再回传
+        var t = String(g.time || '');
+        if (t.indexOf('9-') === 0) return false;
+        if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
+        return true;
+      });
+      state.groups = cleanGroups;
+      state.groupNum = cleanGroups.length + 1;
+      // 本地按 name+list 去重 + 只取没推过的
+      var seenLocal = {};
+      var missing = [];
+      cleanGroups.forEach(function(g){
+        var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
+        if (seenLocal[k]) return; seenLocal[k] = 1;
+        if (pushed[k]) return;
+        missing.push({name: toCloudName(g.name), time: String(g.time || ''), list: g.list || []});
+      });
+      function done(){
+        missing.forEach(function(m){ pushed[_nt(m.name) + '|' + JSON.stringify(m.list || [])] = 1; });
+        try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
         saveLocal();
         cloudBusy = false;
         if (cloudPending){ cloudPending = false; pushCloud(); }
-      });
+      }
+      if (missing.length) sbPushRows(missing, function(){ done(); });
+      else done();
     }, 600);
   }
   // 启动拉云端：合并云端与本地，显示全量
@@ -1777,7 +1773,7 @@ function renderAIPage(){
   }
 
   let state = load();
-  // v144 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
+  // v145 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
   var __nameIdxC = { fk: '', names: null, idx: null };
   var __bpC = {};
   var __nmAllC = { fk: '', idx: null };
@@ -1801,7 +1797,7 @@ function renderAIPage(){
       if (!t && OLD_NO_TIME.indexOf(g.name) >= 0) return false; // Excel老批次(无时间)
       return true;
     });
-    // v144 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
+    // v145 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
     try {
       var _b144 = state.groups.length;
       var _seen144 = {};
@@ -3198,6 +3194,8 @@ function renderAIPage(){
     // 支持逗号/空格/顿号分隔多个名字
     return str.split(/[,，\s、]+/).map(n => n.trim()).filter(Boolean);
   }
+  // v145 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
+  var __gfC = { fk: '', r: null };
   function getFiltered(){
     const name = $('groupName').value.trim();
     if (!name) return [];
@@ -3207,6 +3205,8 @@ function renderAIPage(){
     const todayStr = (now.getMonth()+1) + '-' + pad(now.getDate());
     const yest = new Date(); yest.setDate(yest.getDate()-1);
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
+    var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '');
+    if (__gfC.fk === _fk) return __gfC.r;
     let all = state.groups.filter(g => names.indexOf(g.name) >= 0);
     // 新名字无历史 → 参考当天实时全局规律（可能是同人换游戏名）
     if (!all.length){
@@ -3214,8 +3214,9 @@ function renderAIPage(){
       all = state.groups.filter(g => g.time && g.time.startsWith(base));
       if (!all.length) all = state.groups.slice();
     }
-    if (timeFilter === 'today') return all.filter(g => g.time && g.time.startsWith(todayStr));
-    if (timeFilter === 'yesterday') return all.filter(g => g.time && g.time.startsWith(yestStr));
+    if (timeFilter === 'today') all = all.filter(g => g.time && g.time.startsWith(todayStr));
+    else if (timeFilter === 'yesterday') all = all.filter(g => g.time && g.time.startsWith(yestStr));
+    __gfC = { fk: _fk, r: all };
     return all;
   }
 
@@ -3281,6 +3282,8 @@ function renderAIPage(){
     return s;
   }
 
+  // v145 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
+  var __aggC = { fk: '', A: null };
   function predictTop2(curArr, filtered){
     if (!filtered.length) return []; // 只学这个人，没数据不瞎猜
     var score = {hu:0, long:0, ru:0, chu:0};
@@ -3295,7 +3298,9 @@ function renderAIPage(){
       return new Date(y,mo,da,h,mi).getTime();
     }
     function buildAgg(fg){
-      var A = { g1:{}, g2:{}, g3:{}, g4:{}, c2:{}, c3:{}, pos:{}, gF:{hu:0,long:0,ru:0,chu:0}, pr:{hu:0,long:0,ru:0,chu:0}, prT:0, t1:{}, t2:{} };
+      var _fk2 = fg.length + '|' + (fg.length ? fg[0].id + '|' + fg[fg.length-1].id + '|' + fg[fg.length-1].time : '');
+      if (__aggC.fk === _fk2) return __aggC.A;
+      var A = { g1:{}, g2:{}, g3:{}, g4:{}, c2:{}, c3:{}, pos:{}, gF:{hu:0,long:0,ru:0,chu:0}, pr:{hu:0,long:0,ru:0,chu:0}, prT:0, t1:{}, t2:{}};
       fg.forEach(function(g, gi){
         var L = g.list.length;
         for (var i=0;i<L;i++){
@@ -3328,6 +3333,7 @@ function renderAIPage(){
           }
         }
       });
+      __aggC = { fk: _fk2, A: A };
       return A;
     }
     var tk = '';
@@ -5770,7 +5776,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     setTimeout(function(){ try{ if (typeof window.cloudDedupe === 'function') window.cloudDedupe(true); }catch(e){} }, 2500);
   }
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
-  // v144 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
+  // v145 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
   _idbReady.then(function(){
     idbGet(acctKey()).then(function(idbRaw){
       if (!idbRaw) return;
@@ -5779,7 +5785,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         if (_idbSt && (_idbSt.updatedAt || 0) > ((state && state.updatedAt) || 0)){
           state = _idbSt;
           try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
-          // v144 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
+          // v145 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
           if (__locked && typeof __unlockHooks !== 'undefined'){ __unlockHooks.push(function(){ try{ render(); }catch(e){} }); }
           else { try { render(); } catch(e){} }
         }
@@ -5798,6 +5804,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v144 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v145 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
