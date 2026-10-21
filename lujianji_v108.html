@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v155 · 路单记牌器</title>
+<title>v133 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -31,42 +31,26 @@
     flex: 1; max-width: 180px; background: rgba(255,255,255,.08); border: 1px solid rgba(251,191,36,.3); color: #fbbf24;
     padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; outline: none;
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
+    backdrop-filter: blur(10px);
   }
   #searchBox::placeholder { color: #64748b; }
 
   .current {
     background: rgba(30, 41, 59, .6);
+    backdrop-filter: blur(20px);
     border: 1px solid rgba(251,191,36,.15);
     border-radius: 14px; padding: 8px 10px; margin-bottom: 8px;
     box-shadow: 0 8px 32px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
   }
-  .group-name-row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 10px; }
-  .gn-top { display: flex; align-items: center; justify-content: space-between; min-height: 20px; }
-  .group-name-row label { font-size: 13px; color: #94a3b8; font-weight: 700; }
+  .group-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .group-name-row label { font-size: 12px; color: #94a3b8; white-space: nowrap; font-weight: 600; }
   #groupName {
-    width: 100%; box-sizing: border-box;
-    background: rgba(250, 245, 224, .95); border: 2px solid #b8a87a; color: #1a1a1a;
-    padding: 12px 12px; border-radius: 10px; font-size: 16px; font-weight: 900; outline: none;
+    flex: 1; background: rgba(250, 245, 224, .95); border: 2px solid #b8a87a; color: #1a1a1a;
+    padding: 5px 10px; border-radius: 8px; font-size: 14px; font-weight: 900; outline: none;
     font-family: "STHeiti", "Microsoft YaHei", sans-serif;
     box-shadow: 0 4px 15px rgba(184,168,122,.2);
   }
   #groupName::placeholder { color: #b8a87a; font-weight: 600; }
-  .gn-actions { display: flex; gap: 8px; }
-  #groupNameQuery {
-    flex: 1; padding: 12px 0; border-radius: 10px; border: none; cursor: pointer;
-    background: linear-gradient(180deg, #d97706, #b45309); color: #fef08a;
-    font-size: 15px; font-weight: 900; font-family: inherit;
-    box-shadow: 0 3px 0 #92400e, 0 4px 12px rgba(217,119,6,.25);
-  }
-  #recordRefresh {
-    padding: 12px 16px; border-radius: 10px;
-    background: rgba(52,211,153,.15); color: #34d399;
-    font-size: 14px; font-weight: 700; border: 1px solid rgba(52,211,153,.35); cursor: pointer; font-family: inherit;
-  }
-  .namebar-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .namebar-head > span:first-child { font-size: 12px; color: #94a3b8; font-weight: 600; }
-  .nb-ver { font-size: 10px; color: #6b7280; margin-left: auto; }
-  #toggleNameBar { padding: 5px 12px; border-radius: 8px; background: #3a3a3a; color: #ccc; font-size: 12px; border: 1px solid #555; cursor: pointer; font-family: inherit; }
 
   .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px; }
   .cell {
@@ -117,6 +101,7 @@
     padding: 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
     font-size: 12px; font-weight: 700; cursor: pointer;
     transition: all .15s;
+    backdrop-filter: blur(10px);
   }
   .abtn:active { transform: scale(.97); }
   .abtn-undo { background: rgba(100,116,139,.3); color: #e2e8f0; }
@@ -124,6 +109,7 @@
 
   .history-item {
     background: rgba(30, 41, 59, .5);
+    backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,.08);
     border-radius: 12px; padding: 10px 12px; margin-bottom: 6px;
     box-shadow: 0 4px 15px rgba(0,0,0,.2);
@@ -169,9 +155,9 @@
   }
 
   .tag {
-    padding: 6px 12px; border-radius: 14px;
+    padding: 3px 8px; border-radius: 10px;
     background: #3a3a3a; color: #ccc;
-    font-size: 13px; cursor: pointer; border: 1px solid #555;
+    font-size: 11px; cursor: pointer; border: 1px solid #555;
     user-select: none;
   }
   .tag.active {
@@ -254,40 +240,20 @@
 
 <div class="current page active" id="page-record">
   <div class="group-name-row" id="sec-ai">
-    <div class="gn-top">
-      <label>组名</label>
-      <span id="curFrameBadge"></span>
-    </div>
-    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="60">
-    <div class="gn-actions">
-      <button id="groupNameQuery">🔍 查询</button>
-      <button id="recordRefresh" onclick="recordRefresh()">🔄 刷新</button>
-    </div>
-    <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:999;"></div>
+    <label>组名</label>
+    <input id="groupName" type="text" placeholder="点下面选，或自己打，多个名字用逗号隔开" maxlength="20" style="flex:1;min-width:0;">
+    <span id="curFrameBadge"></span>
+    <button id="groupNameQuery" style="padding:6px 12px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.35);cursor:pointer;white-space:nowrap;">查询</button>
+    <button id="recordRefresh" onclick="recordRefresh()" style="padding:6px 12px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;white-space:nowrap;">🔄 刷新</button>
+    <div id="nameSuggest" style="display:none;position:relative;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-top:4px;max-height:210px;overflow-y:auto;z-index:20;"></div>
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
-  <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v155</span>
-    <button id="toggleNameBar">收起 ▼</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+    <span style="font-size:10px;color:#888;">快捷选名</span><span style="font-size:9px;color:#6b7280;margin-left:8px;">v133</span>
+    <button id="toggleNameBar" style="padding:1px 6px;border-radius:6px;background:#3a3a3a;color:#aaa;font-size:10px;border:1px solid #555;cursor:pointer;">展开 ▶</button>
   </div>
-  <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
+  <div id="nameBar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px;max-height:150px;overflow-y:auto;"></div>
   <div class="grid" id="grid"></div>
-
-  <div style="margin:5px 0 2px;display:flex;align-items:center;gap:6px;">
-    <button id="photoToggle" onclick="togglePhotoPanel()" style="padding:4px 10px;border-radius:6px;background:rgba(56,189,248,.12);color:#38bdf8;font-size:11px;font-weight:700;border:1px solid rgba(56,189,248,.35);cursor:pointer;font-family:inherit;">📷 拍照录单</button>
-    <span id="photoStatus" style="font-size:10px;color:#64748b;"></span>
-  </div>
-  <div id="photoPanel" style="display:none;margin-bottom:6px;background:#1e293b;border:1px solid rgba(56,189,248,.25);border-radius:8px;padding:8px;">
-    <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoOnInput(event)">
-      <button onclick="document.getElementById('photoInput').click()" style="padding:5px 10px;border-radius:6px;background:rgba(56,189,248,.2);color:#e0f2fe;font-size:12px;font-weight:700;border:1px solid rgba(56,189,248,.5);cursor:pointer;font-family:inherit;">📷 拍照 / 选图</button>
-      <button id="photoOcr" onclick="photoOcr()" disabled style="padding:5px 10px;border-radius:6px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;font-family:inherit;">🔍 自动识别</button>
-      <button onclick="photoClear()" style="padding:5px 10px;border-radius:6px;background:rgba(248,113,113,.12);color:#f87171;font-size:12px;font-weight:700;border:1px solid rgba(248,113,113,.35);cursor:pointer;font-family:inherit;">🗑 清除</button>
-    </div>
-    <img id="photoImg" alt="" style="display:none;max-width:100%;border-radius:6px;margin-bottom:6px;">
-    <div id="photoOcrOut" style="display:none;font-size:12px;background:#0f172a;border-radius:6px;padding:6px;margin-bottom:6px;line-height:1.8;"></div>
-    <div style="font-size:10px;color:#64748b;">识别结果仅供辅助：认得出就点字填入，认错/漏了就直接对照照片点下面的大按钮，AI 预测照常实时变通。</div>
-  </div>
   <div class="pick-btns">
     <button class="pbtn pbtn-hu" data-s="hu">虎</button>
     <button class="pbtn pbtn-long" data-s="long">龙</button>
@@ -358,13 +324,13 @@
   </div>
   <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
   <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
-  <!-- v150 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+  <div id="historyList">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
     <button class="action-btn undo" id="exportBtn">导出备份</button>
     <button class="action-btn undo" id="importBtn">导入恢复</button>
   </div>
-  <button class="clear-all" id="clearAllBtn" style="width:100%;margin-bottom:8px;">清空全部历史</button>
-  <div id="historyList"></div>
+  <button class="clear-all" id="clearAllBtn">清空全部历史</button>
+</div>
 <script>
 (function(){
   var BCOLOR = {'连庄王':'#f87171','独行侠':'#4ade80','双子星':'#38bdf8','三缺一':'#fbbf24','四平八稳':'#94a3b8'};
@@ -528,58 +494,17 @@
 
   const STORE_KEY = 'road_groups_v2';
   const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
-  // v150 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
-  var DB_NAME = 'lujianji', DB_STORE = 'kv', _idb = null, _idbFail = false;
-  function idbOpen(){
-    if (typeof indexedDB === 'undefined'){ _idbFail = true; return Promise.resolve(null); }
-    return new Promise(function(res){
-      var rq;
-      try { rq = indexedDB.open(DB_NAME, 1); } catch(e){ _idbFail = true; res(null); return; }
-      rq.onupgradeneeded = function(){ try { if (!rq.result.objectStoreNames.contains(DB_STORE)) rq.result.createObjectStore(DB_STORE); } catch(e){} };
-      rq.onsuccess = function(){ _idb = rq.result; res(_idb); };
-      rq.onerror = function(){ _idbFail = true; res(null); };
-      rq.onblocked = function(){ _idbFail = true; res(null); };
-    });
-  }
-  var _idbReady = idbOpen();
-  function idbGet(key){
-    if (_idbFail) return Promise.resolve(null);
-    return _idbReady.then(function(db){
-      if (!db) return null;
-      return new Promise(function(res){
-        try {
-          var t = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(key);
-          t.onsuccess = function(){ res(t.result || null); };
-          t.onerror = function(){ res(null); };
-        } catch(e){ res(null); }
-      });
-    });
-  }
-  function idbSet(key, val){
-    if (_idbFail) return;
-    _idbReady.then(function(db){
-      if (!db) return;
-      try { db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(val, key); } catch(e){}
-    });
-  }
   const IMPORTED_FLAG = 'imported_v1';
   const SYMBOLS = { hu:'虎', long:'龙', ru:'入', chu:'出' };
   const NEXT = { hu:'long', long:'ru', ru:'chu', chu:null };
   const COLS = 6;
 
   // 折叠当前记录区的人名列表
-  // v140 名字栏默认展开 + 展开状态记忆（切页/刷新不再每次收起来）
-  try {
-    var _nbOpen = localStorage.getItem('road_nb_open') || '1';
-    var _nbBar = document.getElementById('nameBar');
-    if (_nbOpen !== '1'){ _nbBar.style.display = 'none'; document.getElementById('toggleNameBar').textContent = '展开 ▶'; }
-  } catch(e){}
   document.getElementById('toggleNameBar').addEventListener('click', function(){
     const bar = document.getElementById('nameBar');
     const show = bar.style.display === 'none';
     bar.style.display = show ? 'flex' : 'none';
     this.textContent = show ? '收起 ▼' : '展开 ▶';
-    try { localStorage.setItem('road_nb_open', show ? '1' : '0'); } catch(e){}
     if (show && typeof renderNameBar === 'function') renderNameBar();
   });
 
@@ -598,8 +523,7 @@
       renderAIPage();
       // 点AI关注即静默同步云端最新数据（5秒内不重复拉）
       var nowMs = Date.now();
-      // v150 限流放宽到60秒（原5秒：来回点AI页会反复全量拉云端合并→手机卡）
-      if (nowMs - _lastAiSync > 60000){
+      if (nowMs - _lastAiSync > 5000){
         _lastAiSync = nowMs;
         if (typeof fetchCloudNew === 'function') fetchCloudNew();
       }
@@ -984,15 +908,6 @@
     }
 
 function renderAIPage(){
-    // v137 AI页不可见时跳过全量重建（切回来时 switchPage 会重新渲染）：原实现每60秒云端同步也全量重算+重建
-    var _pgAi = document.getElementById('page-ai');
-    if (_pgAi && _pgAi.classList && !_pgAi.classList.contains('active')){ state._aiDirty = true; return; }
-    state._aiDirty = false;
-    // v150 AI页切回不重算：数据/视图/时间筛选没变就复用上次结果（AI页全量分析是切页卡主因）
-    var _afp = state.groups.length + '|' + (state.aiView||'sum') + '|' + aiTimeFilter + '|' + (state.aiName||'') + '|' + (window.__mkV||0);
-    var _ab = $('aiFocusBody');
-    if (window.__aiFp === _afp && _ab && _ab.innerHTML) return;
-    window.__aiFp = _afp;
     var aiView = state.aiView || 'sum';
     var tabs = [
       {v:'sum', t:'🧠 AI总结'},
@@ -1224,10 +1139,6 @@ function renderAIPage(){
   // 分析页：本地全量统计（四门分布/每日记录量/TOP热度）
   function renderAnalyzePage(){
     var box = $('analyzeBody');
-    // v155 指纹缓存：切页不重算（1200组全量统计一次约几十ms，来回切页叠加就卡）
-    var _af2 = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '0') + '|' + (window.__mkV||0);
-    if (window.__analyzeFp === _af2 && box && box.innerHTML) return;
-    window.__analyzeFp = _af2;
     var drs = ['hu','long','ru','chu'];
     var gT = {hu:0,long:0,ru:0,chu:0,all:0};
     var dayMap = {};
@@ -1254,7 +1165,7 @@ function renderAIPage(){
     hot.forEach(function(x){ html += '<div style="font-size:10px;color:#94a3b8;">'+x.n+'：'+x.g+'组 · '+x.h+'手</div>'; });
     box.innerHTML = html;
   }
-  $('aiNameInput').addEventListener('input', debounce(renderAIPage, 300)); // v155 AI输入防抖：停手300ms才全量分析
+  $('aiNameInput').addEventListener('input', renderAIPage);
 
   // 全局 AI 查询：所有页面顶部实时提示
   function updateGlobalAI(){
@@ -1307,8 +1218,6 @@ function renderAIPage(){
     });
   }
   bindNameSuggest('aiNameInput', 'aiNameSuggest', renderAIPage);
-  // v155 记录页搜索输入防抖（250ms 停手后渲染一次）
-  var __debouncedRender = debounce(render, 250);
 
     // 记录页刷新：重新拉云端并全量重渲染
   window.recordRefresh = function(){
@@ -1327,8 +1236,7 @@ function renderAIPage(){
       var seenCloud = {};
       // 指纹：云端行数 + 最后一行id + 当前时间筛选（变了才重算）
       var cloudFp = (rows.length) + '|' + (rows.length ? String(rows[rows.length-1].id||'') : '') + '|' + (cloudTimeFilter||'all');
-      var _crC = null; try { _crC = JSON.parse(localStorage.getItem('cloud_cache_v1') || 'null'); } catch(e){} // v153 修复 cached 未定义报错
-      if (_crC && _crC.fp === cloudFp){ return; }   // 数据没变：保持缓存秒开结果
+      if (cached && cached.fp === cloudFp){ return; }   // 数据没变：保持缓存秒开结果
       groups = groups.filter(function(g){
         var k = g.name + '|' + g.time + '|' + JSON.stringify(g.list);
         if (seenCloud[k]) return false; seenCloud[k] = 1; return true;
@@ -1379,22 +1287,7 @@ function renderAIPage(){
     });
   });
   $('searchQueryBtn').addEventListener('click', function(){ searchQuery = $('searchBox').value.trim(); activeTag = ''; render(); toast('✅ 查询成功'); });
-  // v140 查询按钮：强制重算推荐（清指纹缓存）+ 显示命中组数
-  $('groupNameQuery').addEventListener('click', function(){
-    var _q = $('groupName').value.trim();
-    window.__lhFp = ''; window.__ahFp = '';
-    renderLiveHint(); updateAIHint();
-    var _hit = 0;
-    if (_q){
-      var _ns = _q.split(/[,，\s、]+/).map(function(x){ return x.trim(); }).filter(Boolean);
-      try { var _idx = nameIndex().idx; _ns.forEach(function(n){ _hit += (_idx[n] || []).length; }); } catch(e){}
-    }
-    toast('✅ 查询成功 · 命中 ' + _hit + ' 组');
-  });
-  // v140 组名框回车 = 查询
-  $('groupName').addEventListener('keydown', function(e){
-    if (e.key === 'Enter' || e.keyCode === 13){ e.preventDefault(); $('groupNameQuery').click(); }
-  });
+  $('groupNameQuery').addEventListener('click', function(){ renderLiveHint(); updateAIHint(); toast('✅ 查询成功'); });
 
   // ===== 多账号切换（主账号可看汇总；子账号只看自己） =====
   function renderAcct(){
@@ -1504,12 +1397,9 @@ function renderAIPage(){
       if (!rows || !rows.length) return;
       var before = state.groups.length;
       state.groups = mergeGroups(state.groups, rows);
+      if (typeof saveLocal === 'function') saveLocal();
       var added = state.groups.length - before;
       if (added > 0){
-        // v152 有新数据并入 → 当天统计缓存作废，实时当天立即刷新
-        window.__dayCache = {}; window.__dayCache0 = {};
-        // v137 只有真新增才落盘：原实现每60秒全量 JSON.stringify 所有组 → 手机定时卡一下
-        if (typeof saveLocal === 'function') saveLocal();
         var st = $('rtStatus');
         st.textContent = '📡 新收录 ' + added + ' 组，已更新分析';
         st.style.color = '#fbbf24';
@@ -1520,65 +1410,12 @@ function renderAIPage(){
     });
   }
 
-
-  // ===== v136 录屏OCR通道：APK把识别序列写为 __OCR__<账号> 行，网页3秒轮询自动填入当前组 =====
-  window.__ocrPoll = null;
-  function startOCRPoll(){
-    if (window.__ocrPoll) return;
-    window.__ocrPoll = setInterval(function(){
-      if (!CLOUD || !CLOUD_URL || __locked) return;
-      if (window.__ocrQuiet && Date.now() < window.__ocrQuiet) return; // v155 无录屏数据时退避60秒，不再每3秒空轮询
-      var myAcct = (typeof curAccount === 'string' && curAccount !== 'main') ? curAccount : '15336533772';
-      sbReq(CLOUD_TBL + '?select=id,name,time,list&name=like.' + encodeURIComponent('__OCR__%') + '&order=id.asc&limit=50', null, function(err, xhr){
-        if (err || !xhr || xhr.status !== 200) return;
-        var rows = [];
-        try{ rows = JSON.parse(xhr.responseText); }catch(e){ return; }
-        if (!rows) rows = []; // v155 空数据走退避计数，不提前 return
-        var filled = 0;
-        if (!rows.length){
-          // v155 空结果退避：连续6次空（约1分钟）后停60秒再查，恢复后自动回10秒节奏
-          window.__ocrEmpty = (window.__ocrEmpty || 0) + 1;
-          if (window.__ocrEmpty >= 6){ window.__ocrQuiet = Date.now() + 60000; window.__ocrEmpty = 0; }
-        } else {
-          window.__ocrEmpty = 0; window.__ocrQuiet = 0;
-        }
-        rows.forEach(function(r){
-          var nm = String(r.name || '');
-          if (nm.indexOf('__OCR__' + myAcct) !== 0) return;
-          var seq = (r.list && r.list.length) ? r.list.slice() : [];
-          if (!seq.length) return;
-          var room = 12;
-          try { if (state && state.current) room = Math.max(0, 12 - state.current.length); } catch(e){}
-          if (room <= 0) return;
-          var arr = room < seq.length ? seq.slice(0, room) : seq;
-          arr.forEach(function(s2){
-            try { if (typeof pushSymbol === 'function') pushSymbol(s2); } catch(e){}
-          });
-          filled += arr.length;
-          try { sbReq(CLOUD_TBL + '?id=eq.' + r.id, {method: 'DELETE'}, function(){}); } catch(e){}
-        });
-        if (filled > 0){
-          var st2 = document.getElementById('rtStatus');
-          if (st2){
-            st2.textContent = '📡 录屏识别自动填入 ' + filled + ' 手';
-            st2.style.color = '#34d399';
-            setTimeout(function(){ st2.textContent = '自动抓云端新登记·每60秒'; st2.style.color = '#64748b'; }, 4000);
-          }
-          var st3 = document.getElementById('photoStatus');
-          if (st3) st3.textContent = '📡 录屏识别已填入 ' + filled + ' 手';
-        }
-      });
-    }, 10000);
-  }
-  setTimeout(function(){ try{ startOCRPoll(); }catch(e){} }, 3000);
-
   // 合并去重：按 人名+牌路 合并两份数据，谁的数据都不丢
   function mergeGroups(a, b){
     var seen = {}; var out = [];
     (a || []).concat(b || []).forEach(function(g){
       if (!g) return;
-      // v152 去重键加入 time：同牌路但不同时间 = 不同局（当天新局不再被云端旧局顶掉）
-      var k = (g.name || '') + '|' + String(g.time || '') + '|' + JSON.stringify(g.list || []);
+      var k = (g.name || '') + '|' + JSON.stringify(g.list || []);
       if (!seen[k]) { seen[k] = 1; out.push(g); }
     });
     return out;
@@ -1618,11 +1455,6 @@ function renderAIPage(){
     var m = parseInt(p[0],10)||1, d = parseInt(p[1],10)||1, h = parseInt(p[2],10)||0, mi = parseInt(p[3],10)||0;
     return ((m*31+d)*24+h)*60+mi;
   }
-  // v152 当天精确判断（替代前缀匹配：前缀会把 10-2 当天 误算成含 10-21/10-22，是"时间错乱"根源）
-  function _isToday(g, mm, dd){
-    var t = parseTime(g && g.time);
-    return !!(t && t.m === mm && t.d === dd);
-  }
   // 拉云端全部行（分页拉全，避免超过1000条漏数据/误判缺失重复推送；按时间解析排序）
   function sbFetchAll(cb, onProg, strict){
     var all = [];
@@ -1648,8 +1480,7 @@ function renderAIPage(){
               all.sort(function(a,b){ return _tk(a.time) - _tk(b.time) || String(a.name||'').localeCompare(String(b.name||'')); });
               cb(null, all);
             } else {
-              // v150 满载(1000行)才续拉下一页：数据只有几千行时不再发满 20000 上限的空请求（打开页面少发几十个GET）
-              if (!rows || rows.length >= 1000) pull();
+              pull();
             }
           });
         })(off);
@@ -1678,8 +1509,7 @@ function renderAIPage(){
         var curO = null;
         try { var curRaw = localStorage.getItem(acctCurKey()); if (curRaw) curO = JSON.parse(curRaw); } catch(e){}
         var st = {
-          // v151 过滤性能测试残留的 玩家XX 假数据（玩家+数字，非真实记录）
-          groups: (o.groups || []).filter(function(g){ return !(g && /^玩家\d+$/.test(String(g.name||''))); }),
+          groups: o.groups || [],
           current: o.current || [],
           currentMarks: o.currentMarks || [],
           gameName: o.gameName || '路单',
@@ -1702,16 +1532,12 @@ function renderAIPage(){
   }
   function save(){
     state.updatedAt = Date.now();
-    var _js = JSON.stringify(state);
-    try { localStorage.setItem(acctKey(), _js); } catch(e){}
-    try { idbSet(acctKey(), _js); } catch(e){}
+    try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
     pushCloud();
   }
   // 本地落盘（拉云端后使用，不触发推送）
   function saveLocal(){
-    var _js = JSON.stringify(state);
-    try { localStorage.setItem(acctKey(), _js); } catch(e){}
-    try { idbSet(acctKey(), _js); } catch(e){}
+    try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
   }
   // 录手防抖落盘：连续点牌合并 300ms 写一次（手机每手全量 JSON.stringify 几百组是卡顿主因）
   var saveTimer = null;
@@ -1720,17 +1546,13 @@ function renderAIPage(){
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function(){
       saveTimer = null;
-      var _js = JSON.stringify(state);
-      try { localStorage.setItem(acctKey(), _js); } catch(e){}
-      try { idbSet(acctKey(), _js); } catch(e){}
+      try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
       pushCloud();
     }, 300);
   }
   // 当前组即时小写：每手只写当前组（几KB，手机快），刷新不丢；完整快照低频写
   function saveCur(){
-    var _cur = JSON.stringify({ current: state.current.slice(), currentMarks: state.currentMarks ? state.currentMarks.slice() : [], updatedAt: Date.now() });
-    try { localStorage.setItem(acctCurKey(), _cur); } catch(e){}
-    // v150 iOS：每手 IndexedDB 事务在 Safari 上慢且易堆积，高频小写不再进 IDB（完整快照由低频落盘兜底）
+    try { localStorage.setItem(acctCurKey(), JSON.stringify({ current: state.current.slice(), currentMarks: state.currentMarks ? state.currentMarks.slice() : [], updatedAt: Date.now() })); } catch(e){}
   }
   // 防抖推云端：连续点牌合并为一次上传
   var cloudBusy = false, cloudPending = false;
@@ -1741,73 +1563,41 @@ function renderAIPage(){
     cloudTimer = setTimeout(function(){
       if (cloudBusy){ cloudPending = true; return; }
       cloudBusy = true;
-      // v150 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
-      var pushed = {};
-      try { pushed = JSON.parse(localStorage.getItem('cloud_pushed_v1') || '{}'); } catch(e){}
-      // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
-      var cleanGroups = state.groups.filter(function(g){
-        if (!g) return false;
-        if (String(g.name || '').indexOf('@') >= 0) return false; // v150 账号前缀污染不再回传
-        if (/^玩家\d+$/.test(String(g.name || ''))) return false; // v151 性能测试假数据不再回传
-        var t = String(g.time || '');
-        if (t.indexOf('9-') === 0) return false;
-        if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
-        return true;
+      // 先读云端最新（必须完整） → 合并去重 → 只插入云端没有的（不删除、不覆盖）
+      sbFetchAllStrict(function(err, remoteRows){
+        cloudBusy = false;
+        if (err){ saveLocal(); if (cloudPending){ cloudPending = false; pushCloud(); } return; }
+        var remoteKeys = {};
+        // 推送完成后的尾部处理：解锁并处理挂起
+        function finishCloud(){ if (cloudPending){ cloudPending = false; pushCloud(); } }
+        remoteRows.forEach(function(r){ remoteKeys[_nt(r.name) + '|' + JSON.stringify(r.list || [])] = 1; });
+        // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
+        var cleanGroups = state.groups.filter(function(g){
+          if (!g) return false;
+          var t = String(g.time || '');
+          if (t.indexOf('9-') === 0) return false;
+          if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
+          return true;
+        });
+        state.groups = cleanGroups;
+        state.groupNum = cleanGroups.length + 1;
+        // 先本地按 name+list 去重（防止本地重复组被反复推送）
+        var seenLocal = {};
+        var uniqGroups = cleanGroups.filter(function(g){
+          var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
+          if (seenLocal[k]) return false; seenLocal[k] = 1; return true;
+        });
+        var missing = [];
+        uniqGroups.forEach(function(g){
+          var cn = toCloudName(g.name);
+          var k = _nt(cn) + '|' + JSON.stringify(g.list || []);
+          if (!remoteKeys[k]) missing.push({name: cn, time: String(g.time || ''), list: g.list || []});
+        });
+        if (missing.length) sbPushRows(missing, function(){});
+        saveLocal();
+        cloudBusy = false;
+        if (cloudPending){ cloudPending = false; pushCloud(); }
       });
-      state.groups = cleanGroups;
-      state.groupNum = cleanGroups.length + 1;
-      // 本地按 name+list 去重 + 只取没推过的
-      var seenLocal = {};
-      var missing = [];
-      cleanGroups.forEach(function(g){
-        var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
-        if (seenLocal[k]) return; seenLocal[k] = 1;
-        if (pushed[k]) return;
-        missing.push({name: toCloudName(g.name), time: String(g.time || ''), list: g.list || []});
-      });
-      // v150 防重复：cloud_pushed_v1 为空（旧版首次升级/换设备）时，先拉云端比对，
-      // 只推云端不存在的行，杜绝"全量重推 → 云端成倍重复"（你手机数据重复乱的根源之一）
-      function doPush(list){
-        if (Object.keys(pushed).length === 0 && list.length){
-          sbFetchAll(function(err, rows){
-            if (!err && rows){
-              var cloudKeys = {};
-              rows.forEach(function(r){
-                if (!isMyRow(r.name)) return;
-                var L = r.list;
-                if (typeof L === 'string'){ try{ L = JSON.parse(L); }catch(e){ L = []; } }
-                if (!Array.isArray(L)) L = [];
-                var _ck = _nt(toLocalName(r.name)) + '|' + JSON.stringify(L);
-                cloudKeys[_ck] = 1;
-                // v150 云端已有的行直接记为已推：下次增量不再重推（否则首次后还会全量推一次→重复）
-                pushed[_ck] = 1;
-              });
-              list = list.filter(function(m){ return !cloudKeys[_nt(toLocalName(m.name)) + '|' + JSON.stringify(m.list || [])]; });
-            }
-            finish(list);
-          });
-        } else finish(list);
-      }
-      function finish(list){
-        if (list.length){
-          sbPushRows(list, function(doneN){
-            // 只有确认推上去才记已推（推送失败下次会重推，不丢数据）
-            if (doneN && doneN >= list.length){
-              list.forEach(function(m){ pushed[_nt(toLocalName(m.name)) + '|' + JSON.stringify(m.list || [])] = 1; });
-              try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
-            }
-            saveLocal();
-            cloudBusy = false;
-            if (cloudPending){ cloudPending = false; pushCloud(); }
-          });
-        } else {
-          try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
-          saveLocal();
-          cloudBusy = false;
-          if (cloudPending){ cloudPending = false; pushCloud(); }
-        }
-      }
-      doPush(missing);
     }, 600);
   }
   // 启动拉云端：合并云端与本地，显示全量
@@ -1818,7 +1608,6 @@ function renderAIPage(){
       if (!rows || !rows.length) return;
       var remote = rows.map(function(r){
         if (!isMyRow(r.name)) return null;
-        if (/^玩家\d+$/.test(String(r.name||''))) return null; // v151 测试假数据不并入
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
@@ -1826,53 +1615,64 @@ function renderAIPage(){
       }).filter(Boolean);
       state.groups = mergeGroups(remote, state.groups);
       state.groupNum = state.groups.length + 1;
-      // v150 云端合并落盘推迟400ms（避开登录瞬间的同步全量写，iPhone不卡）
-      setTimeout(function(){ saveLocal(); }, 400);
-      // v138 云端数据到达后分批渲染：骨架立即、重活错开，不让合并瞬间卡住输入/登录
-      renderGrid();
-      setTimeout(function(){ renderNameBar(); renderTags(); }, 60);
-      setTimeout(function(){ renderLiveHint(); updateRecommend(); updateAIHint(); }, 160);
-      setTimeout(function(){ renderHistory(); }, 220);
+      saveLocal();
+      render();
     });
   }
 
   let state = load();
-  // v150：本地防脏清理/去重改为解锁后分片异步执行（idleClean）
-  // 原因：本地巨量旧数据（数万组）时，同步 filter + JSON.stringify 去重 + 全量落盘会在打开/登录瞬间把主线程堵死（iPhone Safari 登录死机感）
-  // 分片每批 3000 组、批间让出主线程，界面保持可点；只清一次，完成后秒开
-  function idleClean(){
-    var _src = state.groups;
-    var _res = [];
-    var _i = 0;
-    var _SEEN = {};
+  // 每次加载都过滤早期自动导入的老批次（不依赖一次性标记，防止浏览器缓存旧版导致清不掉）：
+  //  1) 所有标 9-29 的批次（顺顺/八方/森/发哥/danhuoli/六一/好/万利/富兄/清花酒/财库/555,888,222 等）
+  //  2) Excel 导入批次：没标时间的 12 个名字（888/123/可乐/牡丹/必胜/合兴/@/义不容辞/依依/发发朋友圈/95公分/多彩多亿）
+  //  注：新记的组都有当天时间（如 10-9），不会被误删；近期记的 555 有 time，正常保留
+  {
     var OLD_NO_TIME = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
-    function step(){
-      var _end = Math.min(_src.length, _i + 3000);
-      for (; _i < _end; _i++){
-        var g = _src[_i];
-        if (!g || !g.name) continue;
-        var _nm = String(g.name);
-        if (_nm.indexOf('@') >= 0) continue;
-        if (/^玩家\d+$/.test(_nm)) continue; // v151 性能测试假数据不保留
-        var _t = String(g.time || '');
-        if (_t.indexOf('9-') === 0) continue;
-        if (!_t && OLD_NO_TIME.indexOf(g.name) >= 0) continue;
-        var _k = _nm + '|' + String(_t) + '|' + JSON.stringify(g.list || []); // v152 同牌路不同时间都保留
-        if (_SEEN[_k]) continue;
-        _SEEN[_k] = 1;
-        _res.push(g);
-      }
-      if (_i < _src.length){ setTimeout(step, 20); }
-      else if (_res.length !== _src.length){
-        state.groups = _res;
-        state.groupNum = state.groups.length + 1;
-        window.__mkV = (window.__mkV||0) + 1;
-        saveLocal();
-        try { render(); } catch(e){}
-      }
+    var oldCount = state.groups.length;
+    state.groups = state.groups.filter(function(g){
+      if (!g) return false;
+      var t = String(g.time || '');
+      if (t.indexOf('9-') === 0) return false;      // 9月老批次
+      if (!t && OLD_NO_TIME.indexOf(g.name) >= 0) return false; // Excel老批次(无时间)
+      return true;
+    });
+    if (state.groups.length !== oldCount){
+      state.groupNum = state.groups.length + 1;
+      save();
+      render();
     }
-    step();
   }
+  // 本地去重：按 人名+牌路 去重（保留第一份），防止本地重复组越积越多（手机/电脑同步反复产生的重复）
+  {
+    var _seenL = {};
+    var _beforeL = state.groups.length;
+    state.groups = state.groups.filter(function(g){
+      if (!g) return false;
+      var k = (g.name || '') + '|' + JSON.stringify(g.list || []);
+      if (_seenL[k]) return false;
+      _seenL[k] = 1;
+      return true;
+    });
+    if (state.groups.length !== _beforeL){
+      state.groupNum = state.groups.length + 1;
+      save();
+      render();
+    }
+  }
+  // v102：一次性把主推策略设为智能自适应（只执行一次，之后可手动流转切换）
+  try {
+    if (!localStorage.getItem('road_auto_v1')) {
+      state.aiStrategy = 'auto';
+      save();
+      localStorage.setItem('road_auto_v1', '1');
+    }
+  } catch(e){}
+  // v117：推荐锁回行为结构实时变通（手动固定策略刷新后自动切回智能自适应）
+  try {
+    if (state.aiStrategy && state.aiStrategy !== 'auto' && state.aiStrategy !== 'frame' && state.aiStrategy !== 'combo'){
+      state.aiStrategy = 'auto';
+      save();
+    }
+  } catch(e){}
   // Supabase 云同步自动开启，无需配置钥匙
   pullCloud(); // 联网时拉取云端最新数据（file:// 直开时自动跳过）
   if (!state.accuracy) state.accuracy = {correct:0, total:0};
@@ -3017,10 +2817,6 @@ function renderAIPage(){
 
   function renderHistory(){
     const box = $('historyList');
-    // v150 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
-    var _hf = (activeTag||'') + '|' + (searchQuery||'') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
-    if (window.__hFp === _hf && box && box.innerHTML) return;
-    window.__hFp = _hf;
     let groups = state.groups;
     if (activeTag) groups = groups.filter(g => g.name === activeTag);
     const q = searchQuery.trim();
@@ -3029,101 +2825,59 @@ function renderAIPage(){
       box.innerHTML = '<div class="empty-tip">' + (state.groups.length ? '没找到匹配的组' : '还没有完成的组') + '</div>';
       return;
     }
-    // v154 历史分片渲染：一次性拼几百个格子是iPhone卡点，分批构建让主线程保持响应（切走即停）
-    var limitN = Math.max(1, Math.min(groups.length, q ? 100 : (window.__hMore||20)));
-    const startIdx = Math.max(0, groups.length - limitN);
-    var items = [];
-    for (let i = groups.length-1; i >= startIdx; i--){ items.push({ g: groups[i], realIdx: state.groups.indexOf(groups[i]) }); }
-    var htmls = [], pi = 0;
-    function hStep(){
-      var _pg = document.getElementById('page-history');
-      if (!_pg || !_pg.classList.contains('active')) return; // v154 已切走：停止分片，不堵主线程
-      var t0 = Date.now();
-      while (pi < items.length && Date.now() - t0 < 60){
-        const it = items[pi]; const g = it.g; const realIdx = it.realIdx;
-        let h = `<div class="history-item">
+    let html = '';
+    // 性能：无搜索时只渲染最近 60 组（历史页 DOM 太大是卡顿主因），搜索时全量渲染便于查找
+    const limitAll = !q;
+    const startIdx = limitAll ? Math.max(0, groups.length - 60) : 0;
+    for (let i = groups.length-1; i >= startIdx; i--){
+      const g = groups[i];
+      const realIdx = state.groups.indexOf(g);
+      html += `<div class="history-item">
         <div class="history-head">
           <span class="history-name">${escapeHtml(g.name)}<span class="history-count">${g.list.length}个${g.time?' · '+g.time:''}</span></span>
           <button class="history-del" data-i="${realIdx}">删除</button>
         </div>
         <div class="history-grid">`;
-        g.list.forEach((s, gi) => {
-          const gm = (g.marks || [])[gi];
-          const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}">${gm?'✓':'×'}</span>` : '';
-          h += `<div class="hcell ${s}">${SYMBOLS[s]}${gmHtml}</div>`;
-        });
-        h += `</div>`;
-        // 每组画像：四路占比条 + 特征标签
-        const prof = groupProfile(g);
-        const pct = k => prof.total ? Math.round(prof.c[k]/prof.total*100) : 0;
-        h += `<div class="dist-bar"><span class="dist-hu" style="width:${pct('hu')}%"></span><span class="dist-long" style="width:${pct('long')}%"></span><span class="dist-ru" style="width:${pct('ru')}%"></span><span class="dist-chu" style="width:${pct('chu')}%"></span></div>`;
-        h += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
-        h += `</div>`;
-        htmls.push(h);
-        pi++;
-      }
-      if (pi < items.length){ setTimeout(hStep, 0); return; }
-      var tail = '';
-      if (startIdx > 0) tail += '<div style="font-size:11px;color:#64748b;text-align:center;padding:6px;">仅显示最近 ' + limitN + ' 组（共 ' + groups.length + ' 组）</div>';
-      if (groups.length > limitN){
-        tail += '<button id="hMoreBtn" style="width:100%;margin:4px 0 8px;padding:8px;border-radius:8px;background:rgba(251,191,36,.1);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.3);cursor:pointer;">加载更多 20 组（剩余 ' + (groups.length - limitN) + ' 组）</button>';
-      }
-      box.innerHTML = htmls.join('') + tail;
-      box.querySelectorAll('.history-del').forEach(b => {
-        b.addEventListener('click', () => {
-          if (!confirm('删除这一组？')) return;
-          state.groups.splice(parseInt(b.dataset.i), 1);
-          save(); render();
-        });
+      g.list.forEach((s, gi) => {
+        const gm = (g.marks || [])[gi];
+        const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}">${gm?'✓':'×'}</span>` : '';
+        html += `<div class="hcell ${s}">${SYMBOLS[s]}${gmHtml}</div>`;
       });
-      var _hb = box.querySelector('#hMoreBtn');
-      if (_hb) _hb.addEventListener('click', function(){ window.__hMore = (window.__hMore||20) + 20; window.__hFp = ''; renderHistory(); });
+      html += `</div>`;
+      // 每组画像：四路占比条 + 特征标签
+      const prof = groupProfile(g);
+      const pct = k => prof.total ? Math.round(prof.c[k]/prof.total*100) : 0;
+      html += `<div class="dist-bar"><span class="dist-hu" style="width:${pct('hu')}%"></span><span class="dist-long" style="width:${pct('long')}%"></span><span class="dist-ru" style="width:${pct('ru')}%"></span><span class="dist-chu" style="width:${pct('chu')}%"></span></div>`;
+      html += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
+      html += `</div>`;
     }
-    hStep();
+    if (startIdx > 0) html += '<div style="font-size:11px;color:#64748b;text-align:center;padding:8px;">仅显示最近 60 组（共 '+groups.length+' 组），点搜索可查全部</div>';
+    box.innerHTML = html;
+    box.querySelectorAll('.history-del').forEach(b => {
+      b.addEventListener('click', () => {
+        if (!confirm('删除这一组？')) return;
+        state.groups.splice(parseInt(b.dataset.i), 1);
+        save(); render();
+      });
+    });
   }
 
-  // v155 输入防抖：搜索/AI 输入高频触发全量渲染是"点着卡"元凶，停手 250ms 才渲染一次
-  function debounce(fn, ms){
-    var _t = null;
-    return function(){
-      var _a = arguments, _s = this;
-      if (_t) clearTimeout(_t);
-      _t = setTimeout(function(){ fn.apply(_s, _a); }, ms);
-    };
-  }
-  // v155 名字列表缓存：搜索联想每次按键全量遍历所有组，改按数据指纹缓存
-  var __nameCache = { fk: '', names: [] };
-  function __nameList(){
-    var _fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
-    if (__nameCache.fk === _fk) return __nameCache.names;
-    var _n = [], _sn = {};
-    state.groups.forEach(function(g){ if (g && g.name && !_sn[g.name]){ _sn[g.name] = 1; _n.push(g.name); } });
-    __nameCache = { fk: _fk, names: _n };
-    return _n;
-  }
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   function renderTags(){
     const bar = $('tagBar');
-    // v150 默认最近20人（原100）+展开按钮：iPhone Safari 上标签也是渲染负担
-    var _tf = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '') + '|' + (activeTag||'') + '|' + (window.__tAll?'1':'0');
-    if (window.__tFp === _tf && bar && bar.innerHTML) return;
-    window.__tFp = _tf;
     const seen = {}; const names = [];
-    // Set去重（避免includes O(n^2)）
+    // Set去重（避免includes O(n^2)）+ 只渲染最近100个人名（几千组也秒出）
     state.groups.forEach(g => { if (g.name && !seen[g.name]){ seen[g.name] = 1; names.push(g.name); } });
     let html = '';
-    const show = window.__tAll ? names : names.slice(-20);
-    if (names.length > 20 && !window.__tAll) html += '<span class="tag" style="opacity:.55">最近20人/共' + names.length + '人·输名字搜索</span>';
+    const show = names.length > 100 ? names.slice(-100) : names;
+    if (names.length > 100) html += '<span class="tag" style="opacity:.55">最近100人/共' + names.length + '人·输名字搜索</span>';
     show.forEach(n => {
       const active = activeTag === n ? ' active' : '';
       html += `<span class="tag${active}" data-name="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
     });
-    if (names.length > 20 && !window.__tAll){
-      html += '<button id="tAllBtn" style="padding:5px 10px;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;border:1px dashed rgba(251,191,36,.35);cursor:pointer;">展开全部 ' + names.length + ' 人</button>';
-    }
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', () => {
@@ -3134,67 +2888,26 @@ function renderAIPage(){
         render();
       });
     });
-    var _tb = bar.querySelector('#tAllBtn');
-    if (_tb) _tb.addEventListener('click', function(){ window.__tAll = true; window.__tFp = ''; renderTags(); });
   }
 
-  // v137 名字索引 + 行为结构缓存：原实现 136 名字 × filter(1200组) + includes 去重 → 手机切页卡
-  var __nameIdxC = { fk: '', names: null, idx: null };
-  var __bpC = {};
-  function nameIndex(){
-    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
-    if (__nameIdxC.fk === fk && __nameIdxC.idx) return __nameIdxC;
-    var idx = {};
-    state.groups.forEach(function(g){ if (g && g.name){ (idx[g.name] = idx[g.name] || []).push(g); } });
-    __nameIdxC = { fk: fk, names: Object.keys(idx), idx: idx };
-    return __nameIdxC;
-  }
-  // v142 名字包含索引：组名支持「好运,臭弟」多名字，按逗号拆开后每个名字都能命中（输入联想/记录提示零全表扫描）
-  var __nmAllC = { fk: '', idx: null };
-  function nameContainsIndex(){
-    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
-    if (__nmAllC.fk === fk && __nmAllC.idx) return __nmAllC;
-    var idx = {};
-    state.groups.forEach(function(g){
-      if (!g || !g.name) return;
-      var ns = nmSplit(g.name);
-      for (var i=0;i<ns.length;i++){ (idx[ns[i]] = idx[ns[i]] || []).push(g); }
-    });
-    __nmAllC = { fk: fk, idx: idx };
-    return __nmAllC;
-  }
   function renderNameBar(){
     const bar = $('nameBar');
-    var _ni = nameIndex();
-    const names = _ni.names;
-    // v150 默认只渲染最近20个名字（几百个tag在iPhone Safari布局/绘制风暴=登录死机感），点「展开全部」才全量
-    var _names2 = window.__nbAll ? names : names.slice(-20);
-    if (window.__nbFp === _ni.fk + '|' + (window.__nbAll?'1':'0') && bar && bar.innerHTML) return;
-    window.__nbFp = _ni.fk + '|' + (window.__nbAll?'1':'0');
+    const names = [];
+    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
     let html = '';
-    _names2.forEach(n => {
-      var _ft = '均衡型', _nm = null, _ds = '', _rot = '';
+    names.forEach(n => {
+      var _ft = '均衡型';
       try {
-        var _grs = _ni.idx[n] || [];
+        var _grs = state.groups.filter(function(g){ return g && g.name === n; });
         var _ls = [];
-        _grs.forEach(function(g){ var L = g.list || []; for (var _k=0;_k<L.length;_k++) _ls.push(L[_k]); });
-        if (_ls.length >= 5){
-          var _bc = __bpC[n];
-          if (_bc && _bc.k === _ni.fk){ _nm = _bc.r.nm; _ds = _bc.r.ds; _rot = _bc.r.rot; _ft = _bc.r.ft; }
-          else {
-            var _bp = behaviorPartsOf(_ls);
-            _nm = _bp.nm; _ds = _bp.ds; _rot = _bp.rot || '';
-            _ft = frameTypeOf(_ls);
-            __bpC[n] = { k: _ni.fk, r: { nm: _nm, ds: _ds, rot: _rot, ft: _ft } };
-          }
-        }
+        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
+        if (_ls.length >= 5) _ft = frameTypeOf(_ls);
       } catch(e){}
-      var _fc = BCOLOR[_nm] || '#94a3b8';
-      html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml((_nm||'')+'·'+_ds+(_rot?'·'+_rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_nm || _ft}</em></span>`;
+      var _bp = {};
+      try { _bp = behaviorPartsOf(_ls); } catch(e){}
+      var _fc = BCOLOR[_bp.nm] || '#94a3b8';
+      html += `<span class="tag" data-name="${escapeHtml(n)}" title="${escapeHtml(_bp.nm+'·'+_bp.ds+(_bp.rot?'·'+_bp.rot:''))}">${escapeHtml(n)}<em style="font-style:normal;font-size:9px;margin-left:3px;color:${_fc};">${_bp.nm || _ft}</em></span>`;
     });
-    if (names.length > 20 && !window.__nbAll){
-      html += '<button id="nbAllBtn" style="width:100%;margin-top:6px;padding:7px;border-radius:8px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.35);cursor:pointer;">展开全部 ' + names.length + ' 人</button>';
-    }
     bar.innerHTML = html;
     bar.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', () => {
@@ -3205,13 +2918,12 @@ function renderAIPage(){
         updateAIHint();
       });
     });
-    var _nbB = bar.querySelector('#nbAllBtn');
-    if (_nbB) _nbB.addEventListener('click', function(){ window.__nbAll = true; window.__nbFp = ''; renderNameBar(); });
   }
 
   function renderTopTags(){
     const bar = $('topTagBar');
-    const names = nameIndex().names;
+    const names = [];
+    state.groups.forEach(g => { if (!names.includes(g.name)) names.push(g.name); });
     let html = '';
     names.forEach(n => {
       const active = activeTag === n ? ' active' : '';
@@ -3272,8 +2984,6 @@ function renderAIPage(){
     // 支持逗号/空格/顿号分隔多个名字
     return str.split(/[,，\s、]+/).map(n => n.trim()).filter(Boolean);
   }
-  // v150 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
-  var __gfC = { fk: '', r: null };
   function getFiltered(){
     const name = $('groupName').value.trim();
     if (!name) return [];
@@ -3283,8 +2993,6 @@ function renderAIPage(){
     const todayStr = (now.getMonth()+1) + '-' + pad(now.getDate());
     const yest = new Date(); yest.setDate(yest.getDate()-1);
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
-    var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '');
-    if (__gfC.fk === _fk) return __gfC.r;
     let all = state.groups.filter(g => names.indexOf(g.name) >= 0);
     // 新名字无历史 → 参考当天实时全局规律（可能是同人换游戏名）
     if (!all.length){
@@ -3292,9 +3000,8 @@ function renderAIPage(){
       all = state.groups.filter(g => g.time && g.time.startsWith(base));
       if (!all.length) all = state.groups.slice();
     }
-    if (timeFilter === 'today') all = all.filter(g => _isToday(g, now.getMonth()+1, now.getDate()));
-    else if (timeFilter === 'yesterday') all = all.filter(g => _isToday(g, yest.getMonth()+1, yest.getDate())); // v152 精确，前缀会把 10-2 误算成 10-21
-    __gfC = { fk: _fk, r: all };
+    if (timeFilter === 'today') return all.filter(g => g.time && g.time.startsWith(todayStr));
+    if (timeFilter === 'yesterday') return all.filter(g => g.time && g.time.startsWith(yestStr));
     return all;
   }
 
@@ -3360,8 +3067,6 @@ function renderAIPage(){
     return s;
   }
 
-  // v150 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
-  var __aggC = { fk: '', A: null };
   function predictTop2(curArr, filtered){
     if (!filtered.length) return []; // 只学这个人，没数据不瞎猜
     var score = {hu:0, long:0, ru:0, chu:0};
@@ -3376,9 +3081,7 @@ function renderAIPage(){
       return new Date(y,mo,da,h,mi).getTime();
     }
     function buildAgg(fg){
-      var _fk2 = fg.length + '|' + (fg.length ? fg[0].id + '|' + fg[fg.length-1].id + '|' + fg[fg.length-1].time : '');
-      if (__aggC.fk === _fk2) return __aggC.A;
-      var A = { g1:{}, g2:{}, g3:{}, g4:{}, c2:{}, c3:{}, pos:{}, gF:{hu:0,long:0,ru:0,chu:0}, pr:{hu:0,long:0,ru:0,chu:0}, prT:0, t1:{}, t2:{}};
+      var A = { g1:{}, g2:{}, g3:{}, g4:{}, c2:{}, c3:{}, pos:{}, gF:{hu:0,long:0,ru:0,chu:0}, pr:{hu:0,long:0,ru:0,chu:0}, prT:0, t1:{}, t2:{} };
       fg.forEach(function(g, gi){
         var L = g.list.length;
         for (var i=0;i<L;i++){
@@ -3411,7 +3114,6 @@ function renderAIPage(){
           }
         }
       });
-      __aggC = { fk: _fk2, A: A };
       return A;
     }
     var tk = '';
@@ -3538,32 +3240,23 @@ function renderAIPage(){
     }
     return Object.keys(score).sort(function(a,b){return score[b]-score[a];}).slice(0,3);
   }
-  // v138 框架徽章缓存：名字+数据没变只算一次（原实现每次输入/换名都全量扫所有组）
-  var __fbCache = {};
   function updateFrameBadge(){
     var el = $('curFrameBadge');
     if (!el) return;
     var inp = $('groupName');
     var nm = (inp && inp.value || '').trim().split(/[,，]/)[0];
-    var ft = null, _nm2 = null, _ds2 = '', _rot2 = '';
+    var ft = null;
     if (nm) {
       try {
-        var _bfk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '');
-        var _bc2 = __fbCache[nm];
-        if (_bc2 && _bc2.k === _bfk){ _nm2 = _bc2.nm; _ds2 = _bc2.ds; _rot2 = _bc2.rot; ft = _bc2.ft; }
-        else {
-          var _arrF = nameIndex().idx[nm]; var _grs = _arrF || [];
-          var _ls = [];
-          _grs.forEach(function(g){ var L = g.list || []; for (var _j=0;_j<L.length;_j++) _ls.push(L[_j]); });
-          if (_ls.length >= 5) ft = frameTypeOf(_ls);
-          var _bpx = behaviorPartsOf(_ls);
-          _nm2 = _bpx.nm; _ds2 = _bpx.ds; _rot2 = _bpx.rot || '';
-          __fbCache[nm] = { k: _bfk, nm: _nm2, ds: _ds2, rot: _rot2, ft: ft };
-        }
+        var _grs = state.groups.filter(function(g){ return g && g.name === nm; });
+        var _ls = [];
+        _grs.forEach(function(g){ _ls = _ls.concat(g.list || []); });
+        if (_ls.length >= 5) ft = frameTypeOf(_ls);
       } catch(e){}
     }
-    var fc = BCOLOR[_nm2] || '#64748b';
-    var _btxt = _nm2 ? _nm2 + '·' + _ds2 + (_rot2 ? '·' + _rot2 : '') : (ft ? ft : '');
+    var _bp2 = behaviorPartsOf(_ls);
+    var fc = BCOLOR[_bp2.nm] || '#64748b';
+    var _btxt = _bp2.nm ? _bp2.nm + '·' + _bp2.ds + (_bp2.rot ? '·' + _bp2.rot : '') : (ft ? ft : '');
     el.innerHTML = _btxt ? '<span style="font-size:10px;color:' + fc + ';border:1px solid ' + fc + ';border-radius:6px;padding:2px 6px;white-space:nowrap;">' + _btxt + '</span>' : '<span style="font-size:10px;color:#64748b;border:1px solid #444;border-radius:6px;padding:2px 6px;white-space:nowrap;">结构 --</span>';
   }
   function renderLiveHint(){
@@ -3571,19 +3264,6 @@ function renderAIPage(){
     const name = $('groupName').value.trim();
     if (!name){ box.innerHTML = ''; updateFrameBadge(); return; }
     updateFrameBadge();
-    // v142 输入中间状态（名字还没打完/查无此人）：零计算直接轻提示，不扫全表不跑预测
-    var _namesP = parseNames(name);
-    var _ncNow = nameContainsIndex();
-    var _hasHit = false;
-    for (var _iP=0; _iP<_namesP.length; _iP++){ if (_ncNow.idx[_namesP[_iP]]) _hasHit = true; }
-    if (!_hasHit){
-      var _noneFp = 'none|' + name;
-      if (window.__lhFp !== _noneFp){
-        box.innerHTML = '<div style="font-size:11px;color:#64748b;background:#2b2b2b;border-radius:6px;padding:7px 10px;">⌨️ 继续输入名字…（有记录的名字会直接出推荐）</div>';
-        window.__lhFp = _noneFp;
-      }
-      return;
-    }
     // 指纹：名字+筛选+数据量没变不重算（打字不卡）
     var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + state.current.length + '|' + (state.currentMarks ? state.currentMarks.length : 0) + '|' + (state.aiStrategy || '') + '|' + (state._previewStrategy || '');
     if (window.__lhFp === _fk && box.innerHTML) return;
@@ -3597,20 +3277,16 @@ function renderAIPage(){
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
 
     const names = parseNames(name);
-    let allMatches = [];
-    var _seenM = {};
-    names.forEach(function(n){
-      (_ncNow.idx[n] || []).forEach(function(g){ if (!_seenM[g.id]){ _seenM[g.id] = 1; allMatches.push(g); } });
-    });
+    let allMatches = state.groups.filter(g => names.indexOf(g.name) >= 0);
     // 时间筛选按钮
     let filtered = allMatches;
-    if (timeFilter === 'today') filtered = allMatches.filter(g => _isToday(g, now.getMonth()+1, now.getDate()));
-    else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => _isToday(g, yest.getMonth()+1, yest.getDate())); // v152 精确
+    if (timeFilter === 'today') filtered = allMatches.filter(g => g.time && g.time.startsWith(todayStr));
+    else if (timeFilter === 'yesterday') filtered = allMatches.filter(g => g.time && g.time.startsWith(yestStr));
 
     // 无个人历史 → 参考当天实时全局规律（可能是同人换名），照样出推荐
     let usedGlobal = false;
     if (!filtered.length){
-      var tgl = state.groups.filter(g => g && _isToday(g, now.getMonth()+1, now.getDate())); // v152 精确当天
+      var tgl = state.groups.filter(g => g && g.time && String(g.time).indexOf(todayStr) === 0);
       filtered = tgl.length ? tgl : state.groups;
       usedGlobal = true;
     }
@@ -3808,19 +3484,14 @@ function cell(k, rank){
     box.innerHTML = html;
     box.style.display = 'block';
     box.querySelectorAll('.suggest-item').forEach(el => {
-      function pick(){
+      el.addEventListener('click', () => {
         _lastPicked = el.dataset.n;
         $('groupName').value = el.dataset.n;
+        try { $('groupName').select(); } catch(e){}
         box.style.display = 'none';
-        box.innerHTML = '';
-        try { $('groupName').focus(); $('groupName').select(); } catch(e){}
         renderLiveHint();
         updateAIHint();
-      }
-      // v143 按下就选：手机端点联想项时输入框失焦→键盘收起→页面跳动，click 常落空；mousedown/touchstart 抢在失焦前选中
-      el.addEventListener('mousedown', function(e){ e.preventDefault(); pick(); });
-      el.addEventListener('touchstart', function(e){ e.preventDefault(); pick(); }, { passive:false });
-      el.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); pick(); });
+      });
     });
   }
 
@@ -3838,7 +3509,7 @@ function cell(k, rank){
   function calcAIForName(nm){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
-    var grps = nameContainsIndex().idx[nm] || [];
+    var grps = state.groups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
     if (!grps.length) return [];
     var s = {hu:0,long:0,ru:0,chu:0,total:0};
     var near = [];
@@ -3895,13 +3566,11 @@ function cell(k, rank){
   function _calcFocusNearNameImpl(nm, srcGroups){
     var DRN = {hu:'虎',long:'龙',ru:'入',chu:'出'};
     var drs = ['hu','long','ru','chu'];
-    var grps;
-    if (srcGroups){ grps = srcGroups.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; }); }
-    else { grps = nameContainsIndex().idx[nm] || []; }
+    var grps = (srcGroups || state.groups).filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(nm) >= 0; });
     if (!grps.length){
       // 无个人历史 → 参考当天实时全局规律（可能是同人换名）
       var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, td1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
-      var tp1 = (srcGroups || state.groups).filter(function(g){ return g && _isToday(g, nw1.getMonth()+1, nw1.getDate()); }); // v152 精确当天
+      var tp1 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td1) === 0; });
       grps = tp1.length ? tp1 : (srcGroups || state.groups);
     }
     var s = {hu:0,long:0,ru:0,chu:0,total:0};
@@ -3914,7 +3583,7 @@ function cell(k, rank){
     if (s.total < 8){
       // 个人不足8手 → 参考当天实时全局规律
       var nw2 = new Date(), pd2 = function(x){ return String(x).padStart(2,'0'); }, td2 = (nw2.getMonth()+1) + '-' + pd2(nw2.getDate());
-      var tp2 = (srcGroups || state.groups).filter(function(g){ return g && _isToday(g, nw2.getMonth()+1, nw2.getDate()); }); // v152 精确当天
+      var tp2 = (srcGroups || state.groups).filter(function(g){ return g && g.time && String(g.time).indexOf(td2) === 0; });
       grps = tp2.length ? tp2 : (srcGroups || state.groups);
       s = {hu:0,long:0,ru:0,chu:0,total:0}; near = [];
       grps.forEach(function(g){
@@ -3989,13 +3658,12 @@ function cell(k, rank){
     if (!q){
       // 组名空：显示全局概览（AI关注常显，记录时永远看得到）
       var nw0 = new Date(), pd0 = function(x){ return String(x).padStart(2,'0'); }, ts0 = (nw0.getMonth()+1) + '-' + pd0(nw0.getDate());
-      var _l0 = state.groups.length ? String(state.groups[state.groups.length-1].time||'') : '';
-      var dayKey0 = ts0 + '|' + state.groups.length + '|' + _l0; // v152 加最新组time：实时监控合并后当天统计立即刷新
+      var dayKey0 = ts0 + '|' + state.groups.length;
       var dc0 = window.__dayCache0 || (window.__dayCache0 = {});
       var gd0, gT0, pool0;
       if (dc0.k === dayKey0){ gd0 = dc0.gd; gT0 = dc0.gt; pool0 = gd0.length ? gd0 : state.groups; }
       else {
-        gd0 = state.groups.filter(function(g){ return g && _isToday(g, nw0.getMonth()+1, nw0.getDate()); });
+        gd0 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts0) === 0; });
         gT0 = {hu:0,long:0,ru:0,chu:0,all:0};
         pool0 = gd0.length ? gd0 : state.groups;
         pool0.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT0[x]!==undefined){gT0[x]++;gT0.all++;} }); });
@@ -4017,13 +3685,12 @@ function cell(k, rank){
     window.__ahFp = _fk2;
     // 当天四门平均（当天数据作基准，无当天数据才用全部）
     var nw1 = new Date(), pd1 = function(x){ return String(x).padStart(2,'0'); }, ts1 = (nw1.getMonth()+1) + '-' + pd1(nw1.getDate());
-    var _l1 = state.groups.length ? String(state.groups[state.groups.length-1].time||'') : '';
-    var dayKey = ts1 + '|' + state.groups.length + '|' + _l1; // v152 加最新组time
+    var dayKey = ts1 + '|' + state.groups.length;
     var dc = window.__dayCache || (window.__dayCache = {});
     var gd1, gT, pool1;
     if (dc.k === dayKey){ gd1 = dc.gd; gT = dc.gt; pool1 = gd1.length ? gd1 : state.groups; }
     else {
-      gd1 = state.groups.filter(function(g){ return g && _isToday(g, nw1.getMonth()+1, nw1.getDate()); });
+      gd1 = state.groups.filter(function(g){ return g && g.time && String(g.time).indexOf(ts1) === 0; });
       gT = {hu:0,long:0,ru:0,chu:0,all:0};
       pool1 = gd1.length ? gd1 : state.groups;
       pool1.forEach(function(g){ if(!g||!g.list)return; g.list.forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} }); });
@@ -4107,10 +3774,7 @@ function cell(k, rank){
     ks.sort(function(a,b){ return o[b]-o[a]; });
     return [ks[0]];
   }
-  var __csrC = { fk: '', r: null }; // v153 策略回测缓存：云端分析页"全策略对比"是秒级重算，数据没变直接复用
   function calcStrategyRates(groups){
-    var _csk = groups.length + '|' + (groups.length ? String(groups[0].time||'') + '|' + String(groups[groups.length-1].time||'') : '');
-    if (__csrC.fk === _csk) return __csrC.r;
     var S = [
       {id:'auto', name:'🧠 智能自适应', desc:'识别行为结构（连庄王/独行侠/双子星/三缺一/四平八稳），按结构用药分派'},
       {id:'hot1', name:'🎯 热门1门', desc:'学TA全部记录，押最常出的1门'},
@@ -4443,8 +4107,7 @@ function cell(k, rank){
       }
     });
     S.forEach(function(x){ x.rate = x.total ? Math.round(x.hit/x.total*100) : 0; x.rate3 = x.total3 ? Math.round(x.hit3/x.total3*100) : 0; });
-    S.sort(function(a,b){ return b.rate - a.rate || b.rate3 - a.rate3 || b.total3 - a.total3; });    __csrC = { fk: _csk, r: S };
-
+    S.sort(function(a,b){ return b.rate - a.rate || b.rate3 - a.rate3 || b.total3 - a.total3; });
     return S;
   }
   // 全局策略表 + 流转
@@ -4507,18 +4170,6 @@ function cell(k, rank){
     }
     return ft;
   }
-  // v137 冷门策略覆盖缓存：predictMain 里 mean/gap/sleep 不再每次全量扫描（组不变即复用）
-  var __sp2Cache = {};
-  function _strategyPredictCached(n, fg, sid){
-    var fk2 = n;
-    for (var _fi=0; _fi<fg.length; _fi++) fk2 += '|' + (fg[_fi].time||'') + ':' + (fg[_fi].list||[]).length;
-    fk2 += '#' + sid;
-    var cc2 = __sp2Cache[fk2];
-    if (cc2) return cc2;
-    var rr2 = _strategyPredictImpl(n, fg, sid);
-    __sp2Cache[fk2] = rr2;
-    return rr2;
-  }
   function strategyPredict(n, fg, sid){
     var fk = n;
     for (var fi=0; fi<fg.length; fi++) fk += '|' + (fg[fi].time||'') + ':' + (fg[fi].list||[]).length;
@@ -4531,19 +4182,10 @@ function cell(k, rank){
   // 走势模板→历史最优策略映射（由 1263 组真实数据留一手验证得出）
   var FRAME_BEST = {'连龙型':'order', '交替型':'order', '变盘型':'frame', '热稳型':'order', '回补型':'mean', '均衡型':'near'};
   // 🧠 行为结构觉悟：药（结构）不变，汤（门）在换。换汤不换药。
-  // v138 策略基础数据缓存：名字+数据没变只构建一次 gr/lst（原实现每个策略都全量 filter+concat → 换名卡）
-  var __baseC = { fk: '', gr: null, lst: null };
   function _strategyPredictImpl(n, fg, sid){
     var drs2 = ['hu','long','ru','chu'];
-    var gr, lst;
-    var _fk3 = n + '|' + fg.length + (fg.length ? '|' + fg[0].id + '|' + fg[fg.length-1].time : '');
-    if (__baseC.fk === _fk3){ gr = __baseC.gr; lst = __baseC.lst; }
-    else {
-      gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
-      lst = [];
-      gr.forEach(function(g){ var L = g.list || []; for (var _k3=0; _k3<L.length; _k3++) lst.push(L[_k3]); });
-      __baseC = { fk: _fk3, gr: gr, lst: lst };
-    }
+    var gr = fg.filter(function(g){ return g && g.name && nmSplit(g.name).indexOf(n) >= 0; });
+    var lst = []; gr.forEach(function(g){ lst = lst.concat(g.list||[]); });
     var hist = cntArr(lst);
     var sp = drs2.filter(function(k){ return hist[k] > 0; }).sort(function(a,b){ return hist[b]-hist[a]; });
     var probs = {};
@@ -4844,7 +4486,7 @@ function cell(k, rank){
       else if (_bpF.nm === '三缺一') fVia = 'cold';
       else if (_bpF.nm === '四平八稳') fVia = 'even';
       else fVia = FRAME_BEST[frameT] || 'order';
-      var _subF = _strategyPredictCached(n, fg, fVia);
+      var _subF = _strategyPredictImpl(n, fg, fVia);
       main = _subF.main; top3 = _subF.top3; probs = _subF.probs;
       autoBP = _bpF; autoViaS = fVia;
     } else if (sid === 'auto'){
@@ -4860,7 +4502,7 @@ function cell(k, rank){
       else if (_bpA.nm === '三缺一') autoViaS = 'cold';
       else if (_bpA.nm === '四平八稳') autoViaS = 'even';
       else autoViaS = FRAME_BEST[autoFT] || 'order';
-      var _subR = _strategyPredictCached(n, fg, autoViaS);
+      var _subR = _strategyPredictImpl(n, fg, autoViaS);
       main = _subR.main; top3 = _subR.top3; probs = _subR.probs;
     } else {
       main = rsp[0] || sp[0];
@@ -4927,7 +4569,7 @@ function cell(k, rank){
       if (typeof renderAIPage === 'function') renderAIPage();
     } catch(e){}
   };
-  function renderStrategyBoard(groups, scopeLabel){
+  function renderStrategyBoard(groups){
     var S = calcStrategyRates(groups);
     var curS = state.aiStrategy || 'auto';
     var html = '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap;">'
@@ -4935,7 +4577,7 @@ function cell(k, rank){
       + '<button id="stratConfirm" onclick="confirmStrategy()" style="display:none;padding:3px 10px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;"></button>'
       + '<span id="stratHint" style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
-    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 主推=押第1门 · 3门=前3候选门·4选3基准≈75% · ' + (scopeLabel ? scopeLabel + ' ' + groups.length + '组' : '全部' + groups.length + '组') + '）</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 主推=押第1门 · 3门=前3候选门·4选3基准≈75% · 全部'+groups.length+'组）</div>';
     html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
     S.forEach(function(x, idx){
       var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
@@ -4994,38 +4636,30 @@ function cell(k, rank){
       })();
     });
   };
-  var _cloudBusy = false; // v153 云端分析计算锁：进行中重复触发直接跳过（否则点一次拉一次全量、卡一次）
-  function _cloudVisible(){ var _p = document.getElementById('page-cloud'); return !!(_p && _p.classList && _p.classList.contains('active')); }
   function cloudAnalyze(silent){
-    if (_cloudBusy){ return; } // v153 上一轮还在拉/算：跳过本次（点云端分析不再叠加重活）
-    _cloudBusy = true;
     var box = $('cloudContent');
     // 结果缓存：展开秒开，数据变了才重算（解决云端分析点击卡）
     var cached = null;
     try { var _c = localStorage.getItem('cloud_cache_v1'); if (_c) cached = JSON.parse(_c); } catch(e){}
     if (cached && cached.html){
-      // v150 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
-      if (box.innerHTML !== cached.html) box.innerHTML = cached.html;
-      if (silent){ _cloudBusy = false; return; }   // 已展开过：直接用缓存，不重拉不重算
-      // v153 有缓存也秒开：先显示上次结果，再后台静默刷新（首次点开不再白屏等10秒）
-    } else if (!silent && !box.innerHTML){
-      box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
+      box.innerHTML = cached.html;
+      if (silent) return;   // 已展开过：直接用缓存，不重拉不重算
+    } else {
+      if (!silent) box.innerHTML = '<div style="color:#34d399;font-size:12px;padding:12px;text-align:center;">正在从云端拉取数据计算…（首次约10秒，请稍候）</div>';
     }
     sbFetchAll(function(err, rows){
-      // v153 用户已切走（云端页不可见）：放弃本轮大计算，不堵主线程；下次切回再算
-      if (!_cloudVisible()){ _cloudBusy = false; return; }
       if (err){
         if (cached && cached.html){
           box.innerHTML = cached.html + '<div style="color:#f59e0b;font-size:11px;padding:8px;text-align:center;">⚠️ 云端拉取失败，显示上次结果。点右上角「刷新」重试</div>';
-          _cloudBusy = false; return;
+          return;
         }
         var lc = state.groups.length;
         box.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px;text-align:center;">⚠️ 云端拉取失败（网络慢/超时）<br><br>点右上角「刷新」重试' + (lc > 0 ? '<br><br><button id="cloudLocalBtn" style="padding:8px 16px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;">先看本地分析（本机 '+lc+' 组）</button>' : '') + '</div>';
         var lb = document.getElementById('cloudLocalBtn');
         if (lb) lb.addEventListener('click', function(){ renderCloudFromLocal(); });
-        _cloudBusy = false; return;
+        return;
       }
-      if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; _cloudBusy = false; return; }
+      if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; return; }
       var groups = rows.map(function(r){
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
@@ -5098,21 +4732,15 @@ function cell(k, rank){
         });
         return { hit: hit, total: total, rate: total ? Math.round(hit/total*100) : 0 };
       }
-      // v153 只算热度TOP25名字：全量名字逐个"留一手验证"是几十秒级重活（点云端分析后切页卡死的元凶）
-      var hotNames = names.slice().sort(function(a,b){ return nm[b].groups - nm[a].groups || nm[b].hands - nm[a].hands; }).slice(0, 25);
+      // 分片计算，避免卡 UI
       var rates = {}, idx = 0;
       function step(){
-        if (!_cloudVisible()){ _cloudBusy = false; return; } // v153 已切走：停止分片，不堵主线程
         var t0 = Date.now();
-        while (idx < hotNames.length && Date.now() - t0 < 60){ rates[hotNames[idx]] = calcRate(hotNames[idx]); idx++; }
-        if (idx < hotNames.length){ setTimeout(step, 0); return; }
+        while (idx < names.length && Date.now() - t0 < 60){ rates[names[idx]] = calcRate(names[idx]); idx++; }
+        if (idx < names.length){ setTimeout(step, 0); return; }
         renderCloud(rates);
       }
       function renderCloud(rates){
-        if (!_cloudVisible()){ _cloudBusy = false; return; } // v153 已切走：只解锁不写DOM（切回时缓存/重算）
-        // v153 名字牌路预聚合：一次遍历取每人合并牌路（原实现在渲染时对每人全量 filter state.groups 50次 = 秒级卡）
-        var handCache = {};
-        groups.forEach(function(g){ if (!g || !g.name) return; var arr = handCache[g.name]; if (!arr) arr = handCache[g.name] = []; for (var hi=0; hi<(g.list||[]).length; hi++) arr.push(g.list[hi]); });
         var html = '';
         // 每日记录量
         var days = Object.keys(dayMap).sort();
@@ -5128,10 +4756,12 @@ function cell(k, rank){
           var rTxt = r && r.total >= 10 ? '<span style="color:' + (r.rate>=80?'#4ade80':r.rate>=70?'#fbbf24':'#f87171') + ';font-weight:700;">' + r.rate + '%</span>' : (r ? '<span style="color:#94a3b8;">' + r.rate + '%</span>' : '<span style="color:#64748b;">-</span>');
           var _mt = '均衡型';
           try {
-            var _ml = handCache[m.name] || [];
+            var _mg = state.groups.filter(function(g){ return g && g.name === m.name; });
+            var _ml = [];
+            _mg.forEach(function(g){ _ml = _ml.concat(g.list || []); });
             if (_ml.length >= 5) _mt = frameTypeOf(_ml);
           } catch(e){}
-          var _mbp = behaviorPartsOf(_ml || []);
+          var _mbp = behaviorPartsOf(_ml);
           var _mc = BCOLOR[_mbp.nm] || '#94a3b8';
           html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td><td style="color:' + (m.last7>0?'#34d399':'#64748b') + ';">' + m.last7 + '</td></tr>';
         });
@@ -5145,21 +4775,22 @@ function cell(k, rank){
             var col = x.r.rate>=80?'#4ade80':x.r.rate>=70?'#fbbf24':'#f87171';
             var _xt = '均衡型';
             try {
-              var _xl = handCache[x.name] || [];
+              var _xg = state.groups.filter(function(g){ return g && g.name === x.name; });
+              var _xl = [];
+              _xg.forEach(function(g){ _xl = _xl.concat(g.list || []); });
               if (_xl.length >= 5) _xt = frameTypeOf(_xl);
             } catch(e){}
-            var _xbp = behaviorPartsOf(_xl || []);
+            var _xbp = behaviorPartsOf(_xl);
             var _xc = BCOLOR[_xbp.nm] || '#94a3b8';
             html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(x.name) + '</td><td style="color:' + _xc + ';">' + (_xbp.nm ? _xbp.nm+'·'+_xbp.ds : _xt) + '</td><td>' + x.m.groups + '</td><td>' + x.m.hands + '</td><td style="color:' + col + ';font-weight:700;">' + x.r.rate + '% (' + x.r.hit + '/' + x.r.total + ')</td></tr>';
           });
           html += '</table>';
         }
         
-                              html += renderStrategyBoard(groups.slice(-300), '近300组'); // v154 云端全量回测是秒级重活，限近300组保切页流畅
+                              html += renderStrategyBoard(groups);
 html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
         try { localStorage.setItem('cloud_cache_v1', JSON.stringify({ fp: cloudFp, html: html })); } catch(e){}
-        _cloudBusy = false;
       }
       setTimeout(step, 0);
     });
@@ -5217,7 +4848,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
     });
     html += '</table>';
-    html += renderStrategyBoard(groups.slice(-300), '近300组'); // v154 同上
+    html += renderStrategyBoard(groups);
     html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">数据源：本机本地 ' + groups.length + ' 组 · ' + names.length + ' 人名。云端恢复后点右上角刷新可看全量</div>';
     box.innerHTML = html;
   }
@@ -5238,27 +4869,24 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   }
 
   // v123 AI盯盘·冷门习惯：按游戏名（玩家）学习每门出现间隔 → 预测冷门冒出点
-  // v137 冷门习惯·全表统计只算一次（表不变即复用）：原实现每次调用都全量拼接所有组 → 手机卡顿主因
-  var __coldCache = { fk: '', avg: null, hot: null, cold: null };
   function coldHabit(n, fg, cur){
     var out = { avg: {}, lastGap: {}, hot: null, cold: null, due: null };
     try {
-      var fk = (fg && fg.length) ? fg.length + '|' + fg[0].id + '|' + fg[fg.length-1].time : '0';
-      if (__coldCache.fk !== fk){
-        var seq = [];
-        fg.forEach(function(g){ if (g && Array.isArray(g.list)){ for (var _i=0; _i<g.list.length; _i++) seq.push(g.list[_i]); } });
-        if (seq.length < 10){ return out; }
-        var cc = cntArr(seq);
-        var avg2 = {}, hot = null, hotN = -1, cold = null, coldN = 999;
-        ['hu','long','ru','chu'].forEach(function(k){
-          var nk = cc[k] || 0;
-          avg2[k] = nk ? seq.length / nk : 99;
-          if (nk > hotN){ hotN = nk; hot = k; }
-          if (nk < coldN){ coldN = nk; cold = k; }
-        });
-        __coldCache.fk = fk; __coldCache.avg = avg2; __coldCache.hot = hot; __coldCache.cold = cold;
-      }
-      out.avg = __coldCache.avg; out.hot = __coldCache.hot; out.cold = __coldCache.cold;
+      var seq = [];
+      fg.forEach(function(g){ if (g && Array.isArray(g.list)) seq = seq.concat(g.list); });
+      if (seq.length < 10) return out;
+      var cc = cntArr(seq);
+      ['hu','long','ru','chu'].forEach(function(k){
+        var nk = cc[k] || 0;
+        out.avg[k] = nk ? seq.length / nk : 99;
+      });
+      var hot = null, hotN = -1, cold = null, coldN = 999;
+      ['hu','long','ru','chu'].forEach(function(k){
+        var nk = cc[k] || 0;
+        if (nk > hotN){ hotN = nk; hot = k; }
+        if (nk < coldN){ coldN = nk; cold = k; }
+      });
+      out.hot = hot; out.cold = cold;
       var cur2 = cur || [];
       if (cur2.length >= 3){
         ['hu','long','ru','chu'].forEach(function(k){
@@ -5298,7 +4926,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         var _coldIds2 = ['mean','gap','sleep'];
         var _coldCover2 = null;
         for (var _ci2=0; _ci2<_coldIds2.length; _ci2++){
-          var _mPr2 = _strategyPredictCached(name, filtered, _coldIds2[_ci2]);
+          var _mPr2 = _strategyPredictImpl(name, filtered, _coldIds2[_ci2]);
           if (_mPr2 && _mPr2.main && _mPr2.main !== _due0 && merged.indexOf(_mPr2.main) < 0){ _coldCover2 = _mPr2.main; break; }
         }
         if (_coldCover2){
@@ -5479,204 +5107,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       g.marks = marks;
       changed = true;
     });
-    if (changed){
-      window.__mkV = (window.__mkV||0) + 1;
-      // v150 补对错落盘用防抖：登录瞬间不全量 JSON.stringify（2000组序列化在手机上是卡源）
-      saveDebounced(); render();
-    }
-  }
-
-
-  // ===== v134 拍照录单：拍照/选图 → 自动识别 入出虎龙 → 点字填入/一键填入 =====
-  var __photoSeq = [];
-  var __photoWorkerP = null;
-  var __photoTessP = null;
-  function togglePhotoPanel(){
-    var p = document.getElementById('photoPanel');
-    if (!p) return;
-    p.style.display = (p.style.display === 'none') ? 'block' : 'none';
-  }
-  function photoCompress(dataUrl, maxEdge, cb){
-    try {
-      var im = new Image();
-      im.onload = function(){
-        try {
-          var w = im.width || 640, h = im.height || 640;
-          var scale = Math.min(1, maxEdge / Math.max(w, h));
-          var c = document.createElement('canvas');
-          c.width = Math.max(1, Math.round(w * scale));
-          c.height = Math.max(1, Math.round(h * scale));
-          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-          cb(c.toDataURL('image/jpeg', 0.82));
-        } catch(e2){ cb(dataUrl); }
-      };
-      im.onerror = function(){ cb(dataUrl); };
-      im.src = dataUrl;
-    } catch(e){ cb(dataUrl); }
-  }
-  function photoShowUrl(url){
-    var p = document.getElementById('photoPanel');
-    if (p && p.style.display === 'none'){ p.style.display = 'block'; }
-    var img = document.getElementById('photoImg');
-    if (!img) return;
-    img.src = url;
-    img.style.display = 'block';
-    var ocr = document.getElementById('photoOcr');
-    if (ocr) ocr.disabled = false;
-    var st = document.getElementById('photoStatus');
-    if (st) st.textContent = '照片已载入（仅本次对照用，不存云端）';
-    var out = document.getElementById('photoOcrOut');
-    if (out){ out.style.display = 'none'; out.innerHTML = ''; }
-    __photoSeq = [];
-  }
-  function photoFeedFile(f){
-    if (!f) return;
-    var rd = new FileReader();
-    rd.onload = function(){ photoCompress(rd.result, 1280, function(url){ photoShowUrl(url); }); };
-    rd.readAsDataURL(f);
-  }
-  function photoOnInput(ev){
-    var f = ev && ev.target && ev.target.files && ev.target.files[0];
-    if (!f) return;
-    photoFeedFile(f);
-    if (ev && ev.target) ev.target.value = '';
-  }
-  // 电脑/手机截图：Ctrl+V 直接粘贴图片载入
-  document.addEventListener('paste', function(e){
-    var items = e.clipboardData && e.clipboardData.items;
-    if (!items) return;
-    for (var i = 0; i < items.length; i++){
-      var it = items[i];
-      if (it && it.type && it.type.indexOf('image') === 0){
-        e.preventDefault();
-        var f = it.getAsFile && it.getAsFile();
-        if (f) photoFeedFile(f);
-        break;
-      }
-    }
-  });
-  // 从识别全文里猜游戏名：优先含 厅/号/桌/台/房/室/馆 的行，否则取第一行
-  function photoGuessGameName(text){
-    try {
-      var lines = String(text || '').split(/\r?\n/).map(function(x){ return x.trim(); })
-        .filter(function(x){ return x.length >= 2 && x.length <= 20; });
-      if (!lines.length) return '';
-      for (var i = 0; i < lines.length; i++){
-        if (/[厅号桌台房室馆]/.test(lines[i])) return lines[i];
-      }
-      return lines[0];
-    } catch(e){ return ''; }
-  }
-  function photoClear(){
-    var img = document.getElementById('photoImg');
-    if (img){ img.removeAttribute('src'); img.style.display = 'none'; }
-    var ocr = document.getElementById('photoOcr');
-    if (ocr) ocr.disabled = true;
-    var out = document.getElementById('photoOcrOut');
-    if (out){ out.style.display = 'none'; out.innerHTML = ''; }
-    var st = document.getElementById('photoStatus');
-    if (st) st.textContent = '';
-    __photoSeq = [];
-  }
-  function photoLoadTess(){
-    if (window.Tesseract) return Promise.resolve(window.Tesseract);
-    if (__photoTessP) return __photoTessP;
-    __photoTessP = new Promise(function(res, rej){
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-      s.onload = function(){ res(window.Tesseract); };
-      s.onerror = function(){ __photoTessP = null; rej(new Error('识别引擎加载失败（网络/CDN）')); };
-      document.head.appendChild(s);
-    });
-    return __photoTessP;
-  }
-  function photoOcr(){
-    var img = document.getElementById('photoImg');
-    var out = document.getElementById('photoOcrOut');
-    var btn = document.getElementById('photoOcr');
-    if (!img || !img.src) return;
-    if (btn) btn.disabled = true;
-    if (out){
-      out.style.display = 'block';
-      out.innerHTML = '⏳ 加载识别引擎（首次约 10-20 秒，只需一次）…';
-    }
-    photoLoadTess().then(function(T){
-      if (!__photoWorkerP){
-        __photoWorkerP = T.createWorker('chi_sim', 1, {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
-          langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/chi_sim@1/4.0.0_best_int',
-          logger: function(m){
-            if (m && m.status === 'recognizing text' && out){
-              out.innerHTML = '⏳ 识别中 ' + Math.max(0, Math.round((m.progress || 0) * 100)) + '%…';
-            }
-          }
-        });
-      }
-      return __photoWorkerP;
-    }).then(function(worker){
-      return worker.recognize(img.src);
-    }).then(function(r){
-      var cands = { '入':'ru', '出':'chu', '虎':'hu', '龙':'long' };
-      var seq = [];
-      (r && r.data && r.data.words ? r.data.words : []).forEach(function(w){
-        var t = String(w.text || '').trim();
-        if (w.confidence >= 60 && cands[t]) seq.push({ k: cands[t], t: t });
-      });
-      __photoSeq = seq;
-      var gname = photoGuessGameName(r.data.text);
-      var gnIn = document.getElementById('groupName');
-      if (gname && gnIn && String(gnIn.value || '').trim() === ''){
-        gnIn.value = gname;
-        gnIn.dataset.autoFilled = '1';
-      }
-      var gnameHtml = '';
-      if (gname){
-        gnameHtml = '<div style="margin-bottom:4px;color:#4ade80;">🎮 已自动填入游戏名：<b>' + gname + '</b>（可在上方修改）</div>';
-      }
-      var dup = {}; var uniq = [];
-      seq.forEach(function(o){ if (!dup[o.t]) { dup[o.t] = 1; uniq.push(o.t); } });
-      if (!seq.length){
-        out.innerHTML = '😅 没识别到明确的 入/出/虎/龙（图片模糊或字体特殊）。照常对照照片点下面大门按钮手动录即可。';
-        return;
-      }
-      var html = gnameHtml + '<div style="margin-bottom:4px;">识别到 ' + seq.length + ' 手：<b style="color:#38bdf8;">' + uniq.join(' ') + '</b>（按识别顺序）</div>';
-      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
-      seq.forEach(function(o, i){
-        html += '<button onclick="photoFill(' + i + ')" style="padding:6px 12px;border-radius:6px;background:rgba(56,189,248,.18);color:#e0f2fe;font-size:15px;font-weight:800;border:1px solid rgba(56,189,248,.5);cursor:pointer;font-family:inherit;">' + o.t + '</button>';
-      });
-      html += '</div>';
-      html += '<div style="margin-top:6px;"><button onclick="photoFillAll()" style="padding:5px 12px;border-radius:6px;background:rgba(52,211,153,.2);color:#34d399;font-size:12px;font-weight:700;border:1px solid rgba(52,211,153,.5);cursor:pointer;font-family:inherit;">✅ 按识别顺序全部填入（' + seq.length + '手）</button></div>';
-      html += '<div style="margin-top:4px;font-size:10px;color:#64748b;">识别可能认错/漏字：点单个字只填那一手，认错的手直接跳过别点。</div>';
-      out.innerHTML = html;
-    }).catch(function(e){
-      __photoWorkerP = null;
-      if (out){ out.innerHTML = '⚠️ ' + (e && e.message ? e.message : '识别失败') + '。仍可对照照片点下面大门按钮手动录。'; }
-    }).then(function(){
-      if (btn) btn.disabled = false;
-      var st = document.getElementById('photoStatus');
-      if (st) st.textContent = '识别完成';
-    });
-  }
-  function photoFill(i){
-    var o = __photoSeq[i];
-    if (!o) return;
-    try { pushSymbol(o.k); } catch(e){}
-  }
-  function photoFillAll(){
-    var arr = __photoSeq.slice();
-    if (!arr.length) return;
-    var room = 12;
-    try { if (state && state.current) room = Math.max(0, 12 - state.current.length); } catch(e){}
-    if (arr.length > room){
-      if (room <= 0){ alert('本组已满 12 格，先点「完成本组并开新组」'); return; }
-      if (!confirm('本组只剩 ' + room + ' 格，只填入前 ' + room + ' 手？')) return;
-      arr = arr.slice(0, room);
-    }
-    var ok = 0;
-    arr.forEach(function(o){ try { pushSymbol(o.k); ok++; } catch(e){} });
-    var st = document.getElementById('photoStatus');
-    if (st) st.textContent = '已填入 ' + ok + ' 手（填错了用「撤销」逐手退）';
+    if (changed){ save(); render(); }
   }
 
   document.querySelectorAll('.pbtn').forEach(b => {
@@ -5716,12 +5147,13 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
    $('searchBox').addEventListener('input', e => {
     searchQuery = e.target.value;
     activeTag = '';
-    __debouncedRender(); // v155 输入防抖：停手 250ms 才全量渲染（原实现每按一键全量重建记录页）
+    render();
      // 人名联想：输一个字跳出匹配人名
      var sug = $('searchSuggest');
      var q = e.target.value.trim();
      if (!q){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
-     var names = __nameList(); // v155 缓存名字列表（原实现每次按键全量遍历所有组）
+     var names = [];
+     state.groups.forEach(function(g){ if (g.name && names.indexOf(g.name) < 0) names.push(g.name); });
      var hits = names.filter(function(n){ return n.indexOf(q) >= 0; }).slice(0, 10);
      if (!hits.length){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
      sug.innerHTML = hits.map(function(n){
@@ -5757,19 +5189,17 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       if (e.isComposing) return;
       _dropOldName(this);
       clearTimeout(sgTimer);
-      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 250);
+      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 500);
     });
     $('groupName').addEventListener('compositionend', function(){
       _dropOldName(this);
       clearTimeout(sgTimer);
-      sgTimer = setTimeout(function(){ renderLiveHint(); renderSuggest(); updateAIHint(); }, 250);
+      renderLiveHint(); renderSuggest(); updateAIHint();
     });
     // 失焦时记下当前单名字：下一次输入自动替换旧名（手打A用完换B也不粘）
     $('groupName').addEventListener('blur', function(){
       var v = this.value;
       if (v && v.indexOf(',') < 0) _lastPicked = v;
-      var sb = $('nameSuggest');
-      if (sb) sb.style.display = 'none';
     });
 
   $('clearAllBtn').addEventListener('click', () => {
@@ -5860,41 +5290,20 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   });
 
   function _boot(){
-    var _t0 = Date.now();
-    // v150 登录秒点：解锁瞬间只画12格骨架（几乎零成本），其余几十毫秒后分批补齐 → 界面立即响应点击
+    // 第一步：界面骨架秒出（网格/组名栏/历史60组）
     renderGrid();
-    setTimeout(function(){ renderNameBar(); }, 50);
-    setTimeout(function(){ renderHistory(); }, 100);
-    setTimeout(function(){ renderTags(); }, 160);
-    setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 250);
-    setTimeout(function(){ backfillMarks(); }, 800);
-    // v150 防脏清理分片后台跑（本地数万组旧数据时，登录后1秒内完成，界面不卡）
-    setTimeout(function(){ try{ idleClean(); }catch(e){} }, 150);
-    window.__bootMs = Date.now() - _t0;
+    renderNameBar();
+    renderHistory();
+    // 第二步：重活分批延迟（人名标签→提示/推荐→补对错），点进入不卡
+    setTimeout(function(){ renderTags(); }, 60);
+    setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 150);
+    setTimeout(function(){ backfillMarks(); }, 250);
     // 云端分析展开（解锁后600ms才计算）
     setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
     // 自动云端去重（解锁后2.5s静默跑，重复不再积累；删除量大时后台分批进行不卡界面）
     setTimeout(function(){ try{ if (typeof window.cloudDedupe === 'function') window.cloudDedupe(true); }catch(e){} }, 2500);
   }
-  // v150 默认折叠状态（首次）：名字栏/标签20个、历史20组
-  window.__nbAll = false; window.__tAll = false; window.__hMore = 20;
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
-  // v150 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
-  _idbReady.then(function(){
-    idbGet(acctKey()).then(function(idbRaw){
-      if (!idbRaw) return;
-      try {
-        var _idbSt = JSON.parse(idbRaw);
-        if (_idbSt && (_idbSt.updatedAt || 0) > ((state && state.updatedAt) || 0)){
-          state = _idbSt;
-          try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
-          // v150 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
-          if (__locked && typeof __unlockHooks !== 'undefined'){ __unlockHooks.push(function(){ setTimeout(function(){ try{ render(); }catch(e){} }, 300); }); }
-          else { setTimeout(function(){ try { render(); } catch(e){} }, 300); }
-        }
-      } catch(e){}
-    });
-  });
 
   // 实时时钟
   function tick(){
@@ -5905,34 +5314,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   }
   tick();
   setInterval(tick, 1000);
-  // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
-  function selfDiag(){
-    var _L = [];
-    _L.push('版本: v155');
-    _L.push('本地组数: ' + (state ? state.groups.length : 0));
-    try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
-    _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
-    _L.push('解锁耗时: ' + (window.__bootMs || 0) + ' ms');
-    _L.push('长任务卡顿: ' + (window.__longTasks || 0) + ' 次');
-    var _el = document.getElementById('diagInfo');
-    if (_el){ _el.textContent = _L.join('\n'); document.getElementById('diagModal').style.display = 'flex'; }
-  }
-  window.selfDiag = selfDiag;
-  try {
-    window.__longTasks = 0;
-    if (typeof PerformanceObserver !== 'undefined' && typeof PerformanceObserver.supportedEntryTypes !== 'undefined' && PerformanceObserver.supportedEntryTypes.indexOf('longtask') >= 0){
-      new PerformanceObserver(function(_l){ window.__longTasks += _l.getEntries().filter(function(e){ return e.duration > 100; }).length; }).observe({ entryTypes: ['longtask'] });
-    }
-  } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v155 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
-<div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
-  <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
-    <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
-    <pre id="diagInfo" style="font-size:11px;line-height:1.7;color:#e5e7eb;margin:0 0 10px;white-space:pre-wrap;font-family:monospace;"></pre>
-    <button onclick="document.getElementById('diagModal').style.display='none';" style="width:100%;padding:8px;border-radius:8px;background:#fbbf24;color:#111;font-weight:700;border:0;cursor:pointer;">关闭</button>
-  </div>
-</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v85 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
