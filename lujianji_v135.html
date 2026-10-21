@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v153 · 路单记牌器</title>
+<title>v154 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v153</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v154</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -3015,46 +3015,57 @@ function renderAIPage(){
       box.innerHTML = '<div class="empty-tip">' + (state.groups.length ? '没找到匹配的组' : '还没有完成的组') + '</div>';
       return;
     }
-    let html = '';
-    // v150 默认只渲染最近20组（原60）+「加载更多」：iPhone Safari 上720个格也是死机级
+    // v154 历史分片渲染：一次性拼几百个格子是iPhone卡点，分批构建让主线程保持响应（切走即停）
     var limitN = Math.max(1, Math.min(groups.length, q ? 100 : (window.__hMore||20)));
     const startIdx = Math.max(0, groups.length - limitN);
-    for (let i = groups.length-1; i >= startIdx; i--){
-      const g = groups[i];
-      const realIdx = state.groups.indexOf(g);
-      html += `<div class="history-item">
+    var items = [];
+    for (let i = groups.length-1; i >= startIdx; i--){ items.push({ g: groups[i], realIdx: state.groups.indexOf(groups[i]) }); }
+    var htmls = [], pi = 0;
+    function hStep(){
+      var _pg = document.getElementById('page-history');
+      if (!_pg || !_pg.classList.contains('active')) return; // v154 已切走：停止分片，不堵主线程
+      var t0 = Date.now();
+      while (pi < items.length && Date.now() - t0 < 60){
+        const it = items[pi]; const g = it.g; const realIdx = it.realIdx;
+        let h = `<div class="history-item">
         <div class="history-head">
           <span class="history-name">${escapeHtml(g.name)}<span class="history-count">${g.list.length}个${g.time?' · '+g.time:''}</span></span>
           <button class="history-del" data-i="${realIdx}">删除</button>
         </div>
         <div class="history-grid">`;
-      g.list.forEach((s, gi) => {
-        const gm = (g.marks || [])[gi];
-        const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}">${gm?'✓':'×'}</span>` : '';
-        html += `<div class="hcell ${s}">${SYMBOLS[s]}${gmHtml}</div>`;
+        g.list.forEach((s, gi) => {
+          const gm = (g.marks || [])[gi];
+          const gmHtml = (gm === 1 || gm === 0) ? `<span class="hcell-mark ${gm?'ok':'bad'}">${gm?'✓':'×'}</span>` : '';
+          h += `<div class="hcell ${s}">${SYMBOLS[s]}${gmHtml}</div>`;
+        });
+        h += `</div>`;
+        // 每组画像：四路占比条 + 特征标签
+        const prof = groupProfile(g);
+        const pct = k => prof.total ? Math.round(prof.c[k]/prof.total*100) : 0;
+        h += `<div class="dist-bar"><span class="dist-hu" style="width:${pct('hu')}%"></span><span class="dist-long" style="width:${pct('long')}%"></span><span class="dist-ru" style="width:${pct('ru')}%"></span><span class="dist-chu" style="width:${pct('chu')}%"></span></div>`;
+        h += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
+        h += `</div>`;
+        htmls.push(h);
+        pi++;
+      }
+      if (pi < items.length){ setTimeout(hStep, 0); return; }
+      var tail = '';
+      if (startIdx > 0) tail += '<div style="font-size:11px;color:#64748b;text-align:center;padding:6px;">仅显示最近 ' + limitN + ' 组（共 ' + groups.length + ' 组）</div>';
+      if (groups.length > limitN){
+        tail += '<button id="hMoreBtn" style="width:100%;margin:4px 0 8px;padding:8px;border-radius:8px;background:rgba(251,191,36,.1);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.3);cursor:pointer;">加载更多 20 组（剩余 ' + (groups.length - limitN) + ' 组）</button>';
+      }
+      box.innerHTML = htmls.join('') + tail;
+      box.querySelectorAll('.history-del').forEach(b => {
+        b.addEventListener('click', () => {
+          if (!confirm('删除这一组？')) return;
+          state.groups.splice(parseInt(b.dataset.i), 1);
+          save(); render();
+        });
       });
-      html += `</div>`;
-      // 每组画像：四路占比条 + 特征标签
-      const prof = groupProfile(g);
-      const pct = k => prof.total ? Math.round(prof.c[k]/prof.total*100) : 0;
-      html += `<div class="dist-bar"><span class="dist-hu" style="width:${pct('hu')}%"></span><span class="dist-long" style="width:${pct('long')}%"></span><span class="dist-ru" style="width:${pct('ru')}%"></span><span class="dist-chu" style="width:${pct('chu')}%"></span></div>`;
-      html += `<div class="profile-tags">${prof.tags.map(t => `<span class="profile-tag">${t}</span>`).join('')}</div>`;
-      html += `</div>`;
+      var _hb = box.querySelector('#hMoreBtn');
+      if (_hb) _hb.addEventListener('click', function(){ window.__hMore = (window.__hMore||20) + 20; window.__hFp = ''; renderHistory(); });
     }
-    if (startIdx > 0) html += '<div style="font-size:11px;color:#64748b;text-align:center;padding:6px;">仅显示最近 ' + limitN + ' 组（共 ' + groups.length + ' 组）</div>';
-    if (groups.length > limitN){
-      html += '<button id="hMoreBtn" style="width:100%;margin:4px 0 8px;padding:8px;border-radius:8px;background:rgba(251,191,36,.1);color:#fbbf24;font-size:12px;font-weight:700;border:1px dashed rgba(251,191,36,.3);cursor:pointer;">加载更多 20 组（剩余 ' + (groups.length - limitN) + ' 组）</button>';
-    }
-    box.innerHTML = html;
-    box.querySelectorAll('.history-del').forEach(b => {
-      b.addEventListener('click', () => {
-        if (!confirm('删除这一组？')) return;
-        state.groups.splice(parseInt(b.dataset.i), 1);
-        save(); render();
-      });
-    });
-    var _hb = box.querySelector('#hMoreBtn');
-    if (_hb) _hb.addEventListener('click', function(){ window.__hMore = (window.__hMore||20) + 20; window.__hFp = ''; renderHistory(); });
+    hStep();
   }
 
   function escapeHtml(s){
@@ -4883,7 +4894,7 @@ function cell(k, rank){
       if (typeof renderAIPage === 'function') renderAIPage();
     } catch(e){}
   };
-  function renderStrategyBoard(groups){
+  function renderStrategyBoard(groups, scopeLabel){
     var S = calcStrategyRates(groups);
     var curS = state.aiStrategy || 'auto';
     var html = '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap;">'
@@ -4891,7 +4902,7 @@ function cell(k, rank){
       + '<button id="stratConfirm" onclick="confirmStrategy()" style="display:none;padding:3px 10px;border-radius:8px;background:rgba(52,211,153,.15);color:#34d399;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.4);cursor:pointer;"></button>'
       + '<span id="stratHint" style="font-size:9px;color:#64748b;">记录页主推跟着这个策略走</span>'
       + '</div>';
-    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 主推=押第1门 · 3门=前3候选门·4选3基准≈75% · 全部'+groups.length+'组）</div>';
+    html += '<div style="font-size:11px;color:#34d399;font-weight:700;margin:4px 0;">🎯 AI胜率预测 · 全策略对比（留一手验证 · 主推=押第1门 · 3门=前3候选门·4选3基准≈75% · ' + (scopeLabel ? scopeLabel + ' ' + groups.length + '组' : '全部' + groups.length + '组') + '）</div>';
     html += '<table class="rate-table" style="font-size:11px;"><tr><th>策略</th><th>预测逻辑</th><th>命中</th><th>胜率</th><th>3门命中</th><th>3门胜率</th></tr>';
     S.forEach(function(x, idx){
       var col = x.rate>=70?'#4ade80':x.rate>=60?'#fbbf24':'#f87171';
@@ -5111,7 +5122,7 @@ function cell(k, rank){
           html += '</table>';
         }
         
-                              html += renderStrategyBoard(groups);
+                              html += renderStrategyBoard(groups.slice(-300), '近300组'); // v154 云端全量回测是秒级重活，限近300组保切页流畅
 html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留一手验证（只学该人其他组逐手预测本组）。热度+胜率仅供参考，随机事件无确定规律。数据源：Supabase 云端 ' + groups.length + ' 组 · ' + names.length + ' 个人名</div>';
         box.innerHTML = html;
         try { localStorage.setItem('cloud_cache_v1', JSON.stringify({ fp: cloudFp, html: html })); } catch(e){}
@@ -5173,7 +5184,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
       html += '<tr><td style="color:#fef3c7;font-weight:700;">' + escapeHtml(m.name) + '</td><td style="color:' + _mc + ';">' + (_mbp.nm ? _mbp.nm+'·'+_mbp.ds : _mt) + '</td><td>' + m.groups + '</td><td>' + m.hands + '</td><td>' + rTxt + '</td></tr>';
     });
     html += '</table>';
-    html += renderStrategyBoard(groups);
+    html += renderStrategyBoard(groups.slice(-300), '近300组'); // v154 同上
     html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">数据源：本机本地 ' + groups.length + ' 组 · ' + names.length + ' 人名。云端恢复后点右上角刷新可看全量</div>';
     box.innerHTML = html;
   }
@@ -5865,7 +5876,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v153');
+    _L.push('版本: v154');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5883,7 +5894,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v153 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v154 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
