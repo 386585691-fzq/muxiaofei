@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v154 · 路单记牌器</title>
+<title>v155 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v154</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v155</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -1224,6 +1224,10 @@ function renderAIPage(){
   // 分析页：本地全量统计（四门分布/每日记录量/TOP热度）
   function renderAnalyzePage(){
     var box = $('analyzeBody');
+    // v155 指纹缓存：切页不重算（1200组全量统计一次约几十ms，来回切页叠加就卡）
+    var _af2 = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '0') + '|' + (window.__mkV||0);
+    if (window.__analyzeFp === _af2 && box && box.innerHTML) return;
+    window.__analyzeFp = _af2;
     var drs = ['hu','long','ru','chu'];
     var gT = {hu:0,long:0,ru:0,chu:0,all:0};
     var dayMap = {};
@@ -1250,7 +1254,7 @@ function renderAIPage(){
     hot.forEach(function(x){ html += '<div style="font-size:10px;color:#94a3b8;">'+x.n+'：'+x.g+'组 · '+x.h+'手</div>'; });
     box.innerHTML = html;
   }
-  $('aiNameInput').addEventListener('input', renderAIPage);
+  $('aiNameInput').addEventListener('input', debounce(renderAIPage, 300)); // v155 AI输入防抖：停手300ms才全量分析
 
   // 全局 AI 查询：所有页面顶部实时提示
   function updateGlobalAI(){
@@ -1303,6 +1307,8 @@ function renderAIPage(){
     });
   }
   bindNameSuggest('aiNameInput', 'aiNameSuggest', renderAIPage);
+  // v155 记录页搜索输入防抖（250ms 停手后渲染一次）
+  var __debouncedRender = debounce(render, 250);
 
     // 记录页刷新：重新拉云端并全量重渲染
   window.recordRefresh = function(){
@@ -1521,13 +1527,21 @@ function renderAIPage(){
     if (window.__ocrPoll) return;
     window.__ocrPoll = setInterval(function(){
       if (!CLOUD || !CLOUD_URL || __locked) return;
+      if (window.__ocrQuiet && Date.now() < window.__ocrQuiet) return; // v155 无录屏数据时退避60秒，不再每3秒空轮询
       var myAcct = (typeof curAccount === 'string' && curAccount !== 'main') ? curAccount : '15336533772';
       sbReq(CLOUD_TBL + '?select=id,name,time,list&name=like.' + encodeURIComponent('__OCR__%') + '&order=id.asc&limit=50', null, function(err, xhr){
         if (err || !xhr || xhr.status !== 200) return;
         var rows = [];
         try{ rows = JSON.parse(xhr.responseText); }catch(e){ return; }
-        if (!rows || !rows.length) return;
+        if (!rows) rows = []; // v155 空数据走退避计数，不提前 return
         var filled = 0;
+        if (!rows.length){
+          // v155 空结果退避：连续6次空（约1分钟）后停60秒再查，恢复后自动回10秒节奏
+          window.__ocrEmpty = (window.__ocrEmpty || 0) + 1;
+          if (window.__ocrEmpty >= 6){ window.__ocrQuiet = Date.now() + 60000; window.__ocrEmpty = 0; }
+        } else {
+          window.__ocrEmpty = 0; window.__ocrQuiet = 0;
+        }
         rows.forEach(function(r){
           var nm = String(r.name || '');
           if (nm.indexOf('__OCR__' + myAcct) !== 0) return;
@@ -1554,7 +1568,7 @@ function renderAIPage(){
           if (st3) st3.textContent = '📡 录屏识别已填入 ' + filled + ' 手';
         }
       });
-    }, 3000);
+    }, 10000);
   }
   setTimeout(function(){ try{ startOCRPoll(); }catch(e){} }, 3000);
 
@@ -3068,6 +3082,25 @@ function renderAIPage(){
     hStep();
   }
 
+  // v155 输入防抖：搜索/AI 输入高频触发全量渲染是"点着卡"元凶，停手 250ms 才渲染一次
+  function debounce(fn, ms){
+    var _t = null;
+    return function(){
+      var _a = arguments, _s = this;
+      if (_t) clearTimeout(_t);
+      _t = setTimeout(function(){ fn.apply(_s, _a); }, ms);
+    };
+  }
+  // v155 名字列表缓存：搜索联想每次按键全量遍历所有组，改按数据指纹缓存
+  var __nameCache = { fk: '', names: [] };
+  function __nameList(){
+    var _fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
+    if (__nameCache.fk === _fk) return __nameCache.names;
+    var _n = [], _sn = {};
+    state.groups.forEach(function(g){ if (g && g.name && !_sn[g.name]){ _sn[g.name] = 1; _n.push(g.name); } });
+    __nameCache = { fk: _fk, names: _n };
+    return _n;
+  }
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -5683,13 +5716,12 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
    $('searchBox').addEventListener('input', e => {
     searchQuery = e.target.value;
     activeTag = '';
-    render();
+    __debouncedRender(); // v155 输入防抖：停手 250ms 才全量渲染（原实现每按一键全量重建记录页）
      // 人名联想：输一个字跳出匹配人名
      var sug = $('searchSuggest');
      var q = e.target.value.trim();
      if (!q){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
-     var names = [];
-     state.groups.forEach(function(g){ if (g.name && names.indexOf(g.name) < 0) names.push(g.name); });
+     var names = __nameList(); // v155 缓存名字列表（原实现每次按键全量遍历所有组）
      var hits = names.filter(function(n){ return n.indexOf(q) >= 0; }).slice(0, 10);
      if (!hits.length){ sug.style.display = 'none'; sug.innerHTML = ''; return; }
      sug.innerHTML = hits.map(function(n){
@@ -5876,7 +5908,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v154');
+    _L.push('版本: v155');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5894,7 +5926,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v154 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v155 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
