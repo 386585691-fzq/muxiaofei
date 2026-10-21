@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v146 · 路单记牌器</title>
+<title>v147 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -271,7 +271,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v146</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v147</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -362,7 +362,7 @@
   </div>
   <div id="searchSuggest" style="display:none;position:absolute;background:#1e293b;border:1px solid rgba(251,191,36,.4);border-radius:8px;max-height:200px;overflow-y:auto;z-index:30;min-width:140px;"></div>
   <div id="tagBar" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div>
-  <!-- v146 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
+  <!-- v147 根治：导出/导入/清空按钮移出 historyList（列表渲染会整个替换 innerHTML，旧版按钮被删导致事件绑定失效 → 点不了/BUG） -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
     <button class="action-btn undo" id="exportBtn">导出备份</button>
     <button class="action-btn undo" id="importBtn">导入恢复</button>
@@ -532,7 +532,7 @@
 
   const STORE_KEY = 'road_groups_v2';
   const CUR_KEY = 'road_cur_v1';  // 录手即时小写：当前组快照（数据不丢 + 不卡）
-  // v146 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
+  // v147 IndexedDB 主存储：localStorage 只有约5MB且同步写卡，IndexedDB 容量大、异步写不阻塞（手机/电脑都流畅）
   var DB_NAME = 'lujianji', DB_STORE = 'kv', _idb = null, _idbFail = false;
   function idbOpen(){
     if (typeof indexedDB === 'undefined'){ _idbFail = true; return Promise.resolve(null); }
@@ -602,7 +602,7 @@
       renderAIPage();
       // 点AI关注即静默同步云端最新数据（5秒内不重复拉）
       var nowMs = Date.now();
-      // v146 限流放宽到60秒（原5秒：来回点AI页会反复全量拉云端合并→手机卡）
+      // v147 限流放宽到60秒（原5秒：来回点AI页会反复全量拉云端合并→手机卡）
       if (nowMs - _lastAiSync > 60000){
         _lastAiSync = nowMs;
         if (typeof fetchCloudNew === 'function') fetchCloudNew();
@@ -992,7 +992,7 @@ function renderAIPage(){
     var _pgAi = document.getElementById('page-ai');
     if (_pgAi && _pgAi.classList && !_pgAi.classList.contains('active')){ state._aiDirty = true; return; }
     state._aiDirty = false;
-    // v146 AI页切回不重算：数据/视图/时间筛选没变就复用上次结果（AI页全量分析是切页卡主因）
+    // v147 AI页切回不重算：数据/视图/时间筛选没变就复用上次结果（AI页全量分析是切页卡主因）
     var _afp = state.groups.length + '|' + (state.aiView||'sum') + '|' + aiTimeFilter + '|' + (state.aiName||'') + '|' + (window.__mkV||0);
     var _ab = $('aiFocusBody');
     if (window.__aiFp === _afp && _ab && _ab.innerHTML) return;
@@ -1720,13 +1720,13 @@ function renderAIPage(){
     cloudTimer = setTimeout(function(){
       if (cloudBusy){ cloudPending = true; return; }
       cloudBusy = true;
-      // v146 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
+      // v147 增量同步：只推本地新增（本地已推key集合），不再每次全量拉云端对比 → 后台同步不再卡
       var pushed = {};
       try { pushed = JSON.parse(localStorage.getItem('cloud_pushed_v1') || '{}'); } catch(e){}
       // 推送前强制过滤老批次（防止任何设备把 9月/Excel老批次 推上云端）
       var cleanGroups = state.groups.filter(function(g){
         if (!g) return false;
-        if (String(g.name || '').indexOf('@') >= 0) return false; // v146 账号前缀污染不再回传
+        if (String(g.name || '').indexOf('@') >= 0) return false; // v147 账号前缀污染不再回传
         var t = String(g.time || '');
         if (t.indexOf('9-') === 0) return false;
         if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
@@ -1779,7 +1779,7 @@ function renderAIPage(){
   }
 
   let state = load();
-  // v146 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
+  // v147 提前初始化（清理块删老数据后调 render() 时，名字索引缓存必须已就绪，否则手机偶发白屏/崩）
   var __nameIdxC = { fk: '', names: null, idx: null };
   var __bpC = {};
   var __nmAllC = { fk: '', idx: null };
@@ -1803,7 +1803,7 @@ function renderAIPage(){
       if (!t && OLD_NO_TIME.indexOf(g.name) >= 0) return false; // Excel老批次(无时间)
       return true;
     });
-    // v146 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
+    // v147 防脏数据：账号前缀污染（含@的名字）加载即剔除；完全重复（同名+同牌路+同时间）本地只留一份
     try {
       var _b144 = state.groups.length;
       var _seen144 = {};
@@ -3002,7 +3002,7 @@ function renderAIPage(){
 
   function renderHistory(){
     const box = $('historyList');
-    // v146 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
+    // v147 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
     var _hf = (activeTag||'') + '|' + (searchQuery||'') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
     if (window.__hFp === _hf && box && box.innerHTML) return;
     window.__hFp = _hf;
@@ -3057,7 +3057,7 @@ function renderAIPage(){
 
   function renderTags(){
     const bar = $('tagBar');
-    // v146 切页不重建：数据+选中标签没变就复用
+    // v147 切页不重建：数据+选中标签没变就复用
     var _tf = state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '') + '|' + (activeTag||'');
     if (window.__tFp === _tf && bar && bar.innerHTML) return;
     window.__tFp = _tf;
@@ -3111,7 +3111,7 @@ function renderAIPage(){
   function renderNameBar(){
     const bar = $('nameBar');
     var _ni = nameIndex();
-    // v146 切页不重建：名字集合没变就复用上次渲染（275个tag的DOM重建在手机上是切页卡主因）
+    // v147 切页不重建：名字集合没变就复用上次渲染（275个tag的DOM重建在手机上是切页卡主因）
     if (window.__nbFp === _ni.fk && bar && bar.innerHTML) return;
     window.__nbFp = _ni.fk;
     const names = _ni.names;
@@ -3211,7 +3211,7 @@ function renderAIPage(){
     // 支持逗号/空格/顿号分隔多个名字
     return str.split(/[,，\s、]+/).map(n => n.trim()).filter(Boolean);
   }
-  // v146 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
+  // v147 结果缓存：录入期间 groups/timeFilter 不变 → 命中缓存，不再每次全量过滤
   var __gfC = { fk: '', r: null };
   function getFiltered(){
     const name = $('groupName').value.trim();
@@ -3299,7 +3299,7 @@ function renderAIPage(){
     return s;
   }
 
-  // v146 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
+  // v147 聚合缓存：buildAgg 只依赖 filtered（录入不改变 groups）→ 命中缓存不重建
   var __aggC = { fk: '', A: null };
   function predictTop2(curArr, filtered){
     if (!filtered.length) return []; // 只学这个人，没数据不瞎猜
@@ -4933,7 +4933,7 @@ function cell(k, rank){
     var cached = null;
     try { var _c = localStorage.getItem('cloud_cache_v1'); if (_c) cached = JSON.parse(_c); } catch(e){}
     if (cached && cached.html){
-      // v146 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
+      // v147 内容相同不重复写DOM（大HTML每次重写也是切云页卡源之一）
       if (box.innerHTML !== cached.html) box.innerHTML = cached.html;
       if (silent) return;   // 已展开过：直接用缓存，不重拉不重算
     } else {
@@ -5404,7 +5404,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
     });
     if (changed){
       window.__mkV = (window.__mkV||0) + 1;
-      save(); render();
+      // v147 补对错落盘用防抖：登录瞬间不全量 JSON.stringify（2000组序列化在手机上是卡源）
+      saveDebounced(); render();
     }
   }
 
@@ -5783,21 +5784,20 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   });
 
   function _boot(){
-    // 第一步：界面骨架秒出（网格/组名栏/历史60组）
+    // v147 登录秒点：解锁瞬间只画12格骨架（几乎零成本），其余几十毫秒后分批补齐 → 界面立即响应点击
     renderGrid();
-    renderNameBar();
-    renderHistory();
-    // 第二步：重活分批延迟（人名标签→提示/推荐→补对错），点进入不卡
-    setTimeout(function(){ renderTags(); }, 60);
-    setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 150);
-    setTimeout(function(){ backfillMarks(); }, 250);
+    setTimeout(function(){ renderNameBar(); }, 50);
+    setTimeout(function(){ renderHistory(); }, 100);
+    setTimeout(function(){ renderTags(); }, 160);
+    setTimeout(function(){ renderLiveHint(); updateRecommend(); }, 250);
+    setTimeout(function(){ backfillMarks(); }, 350);
     // 云端分析展开（解锁后600ms才计算）
     setTimeout(function(){ try{ var cc = $('cloudContent'); if (cc && cc.style.display === 'none') showCloudPanel(); }catch(e){} }, 600);
     // 自动云端去重（解锁后2.5s静默跑，重复不再积累；删除量大时后台分批进行不卡界面）
     setTimeout(function(){ try{ if (typeof window.cloudDedupe === 'function') window.cloudDedupe(true); }catch(e){} }, 2500);
   }
   if (__locked){ __unlockHooks.push(_boot); } else { _boot(); }
-  // v146 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
+  // v147 IndexedDB 就绪后：若比 localStorage 兜底数据新则无缝替换（数据多也不卡、不丢）
   _idbReady.then(function(){
     idbGet(acctKey()).then(function(idbRaw){
       if (!idbRaw) return;
@@ -5806,9 +5806,9 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
         if (_idbSt && (_idbSt.updatedAt || 0) > ((state && state.updatedAt) || 0)){
           state = _idbSt;
           try { localStorage.setItem(acctKey(), JSON.stringify(state)); } catch(e){}
-          // v146 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
-          if (__locked && typeof __unlockHooks !== 'undefined'){ __unlockHooks.push(function(){ try{ render(); }catch(e){} }); }
-          else { try { render(); } catch(e){} }
+          // v147 渲染等解锁后再做（锁屏中 render 会碰到未就绪元素）
+          if (__locked && typeof __unlockHooks !== 'undefined'){ __unlockHooks.push(function(){ setTimeout(function(){ try{ render(); }catch(e){} }, 300); }); }
+          else { setTimeout(function(){ try { render(); } catch(e){} }, 300); }
         }
       } catch(e){}
     });
@@ -5825,6 +5825,6 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   setInterval(tick, 1000);
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v146 · 路单记牌器 · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v147 · 路单记牌器 · 修改后刷新页面即最新版</div>
 </body>
 </html>
