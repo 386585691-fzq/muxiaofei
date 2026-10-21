@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v150 · 路单记牌器</title>
+<title>v151 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v150</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v151</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -1655,7 +1655,8 @@ function renderAIPage(){
         var curO = null;
         try { var curRaw = localStorage.getItem(acctCurKey()); if (curRaw) curO = JSON.parse(curRaw); } catch(e){}
         var st = {
-          groups: o.groups || [],
+          // v151 过滤性能测试残留的 玩家XX 假数据（玩家+数字，非真实记录）
+          groups: (o.groups || []).filter(function(g){ return !(g && /^玩家\d+$/.test(String(g.name||''))); }),
           current: o.current || [],
           currentMarks: o.currentMarks || [],
           gameName: o.gameName || '路单',
@@ -1724,6 +1725,7 @@ function renderAIPage(){
       var cleanGroups = state.groups.filter(function(g){
         if (!g) return false;
         if (String(g.name || '').indexOf('@') >= 0) return false; // v150 账号前缀污染不再回传
+        if (/^玩家\d+$/.test(String(g.name || ''))) return false; // v151 性能测试假数据不再回传
         var t = String(g.time || '');
         if (t.indexOf('9-') === 0) return false;
         if (!t && ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'].indexOf(g.name) >= 0) return false;
@@ -1793,6 +1795,7 @@ function renderAIPage(){
       if (!rows || !rows.length) return;
       var remote = rows.map(function(r){
         if (!isMyRow(r.name)) return null;
+        if (/^玩家\d+$/.test(String(r.name||''))) return null; // v151 测试假数据不并入
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
@@ -1827,6 +1830,7 @@ function renderAIPage(){
         if (!g || !g.name) continue;
         var _nm = String(g.name);
         if (_nm.indexOf('@') >= 0) continue;
+        if (/^玩家\d+$/.test(_nm)) continue; // v151 性能测试假数据不保留
         var _t = String(g.time || '');
         if (_t.indexOf('9-') === 0) continue;
         if (!_t && OLD_NO_TIME.indexOf(g.name) >= 0) continue;
@@ -5836,7 +5840,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v150');
+    _L.push('版本: v151');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5854,7 +5858,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v150 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v151 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
