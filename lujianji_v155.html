@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>v155 · 路单记牌器</title>
+<title>v156 · 路单记牌器</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0f172a">
 <link rel="apple-touch-icon" href="./icon.png">
@@ -267,7 +267,7 @@
     <div id="aiHint" style="display:none;margin-top:4px;line-height:1.5;"></div>
   </div>
   <div class="namebar-head">
-    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v155</span>
+    <span>快捷选名 · 点名字直接填入组名</span><span class="nb-ver">v156</span>
     <button id="toggleNameBar">收起 ▼</button>
   </div>
   <div id="nameBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:200px;overflow-y:auto;"></div>
@@ -1232,7 +1232,7 @@ function renderAIPage(){
     var gT = {hu:0,long:0,ru:0,chu:0,all:0};
     var dayMap = {};
     var nm = {};
-    state.groups.forEach(function(g){
+    __visibleGroups().forEach(function(g){ // v156 子账号只看自己的来源
       if(!g||!g.list) return;
       (g.list||[]).forEach(function(x){ if(gT[x]!==undefined){gT[x]++;gT.all++;} });
       var d = String(g.time||'').split(' ')[0];
@@ -1409,6 +1409,14 @@ function renderAIPage(){
     state = load();
     render();
     toast('已切换账号：' + acctLabel(v));
+    // v156 账号注册：云端账号表记录 owner_id/parent_id（list=[owner,parent]，主账号=main）
+    if (CLOUD){
+      sbReq(CLOUD_TBL + '?select=id&name=eq.' + encodeURIComponent(cloudAccRow(v)) + '&limit=1', null, function(err, xhr){
+        var ex = false;
+        if (!err && xhr && xhr.status === 200){ try{ ex = (JSON.parse(xhr.responseText) || []).length > 0; }catch(e){} }
+        if (!ex) sbPushRows([{ name: cloudAccRow(v), time: '', list: ['main','main'] }], function(){});
+      });
+    }
     setTimeout(pullCloud, 400);
   }
   renderAcct();
@@ -1577,11 +1585,114 @@ function renderAIPage(){
     var seen = {}; var out = [];
     (a || []).concat(b || []).forEach(function(g){
       if (!g) return;
-      // v152 去重键加入 time：同牌路但不同时间 = 不同局（当天新局不再被云端旧局顶掉）
-      var k = (g.name || '') + '|' + String(g.time || '') + '|' + JSON.stringify(g.list || []);
-      if (!seen[k]) { seen[k] = 1; out.push(g); }
+      // v152 去重键加入 time：同牌路但不同时间 = 不同局
+      // v156 去重键优先全局指纹 _uid：同局双子账号录=同uid，云端对局表只存一条，手数不再重复相加
+      var k = g._uid || ((g.name || '') + '|' + String(g.time || '') + '|' + JSON.stringify(g.list || []));
+      if (!seen[k]) {
+        seen[k] = 1;
+        var c = { name: g.name, time: g.time, list: (g.list||[]).slice(), id: g.id, marks: (g.marks||[]).slice(), groupNum: g.groupNum||'', room: g.room||'' };
+        c._uid = g._uid || gameUID(c);
+        c._src = (g._src && g._src.length) ? g._src.slice() : ['main'];
+        out.push(c);
+      } else {
+        // 同一局多个来源：合并 _src（不重复行，手数只算一次）
+        for (var oi=0; oi<out.length; oi++){
+          if ((out[oi]._uid || (out[oi].name+'|'+String(out[oi].time||'')+'|'+JSON.stringify(out[oi].list||[]))) === k){
+            (g._src||[]).forEach(function(ac){ if (out[oi]._src.indexOf(ac) < 0) out[oi]._src.push(ac); });
+            if (g.marks && g.marks.length && (!out[oi].marks || out[oi].marks.length < g.marks.length)) out[oi].marks = g.marks.slice();
+            break;
+          }
+        }
+      }
     });
     return out;
+  }
+  // ===== v156 分来源记账：主/子账号同一局只存一条，来源挂 SRC 行 =====
+  // 云行类型：GAME|<uid>|<玩家名> 对局行（全局唯一，幂等 upsert）；SRC|<账号>|<uid> 来源行（每账号每局一行）；
+  //           ACC|<账号> 账号行（list=[owner_id,parent_id]）；无前缀=老数据（归主账号）
+  function md5(s){
+    // v156 标准 MD5（字节数组版，纯 node 验证：md5('hello')=5d41402abc4b2a76b9719d911017c592）
+    function toUTF8Array(str){
+      var out = [], p = 0, i, c;
+      for (i = 0; i < str.length; i++){
+        c = str.charCodeAt(i);
+        if (c < 128) out[p++] = c;
+        else if (c < 2048){ out[p++] = (c >> 6) | 192; out[p++] = (c & 63) | 128; }
+        else if ((c & 0xFC00) === 0xD800 && i + 1 < str.length && (str.charCodeAt(i+1) & 0xFC00) === 0xDC00){
+          c = 0x10000 + ((c & 0x3FF) << 10) + (str.charCodeAt(++i) & 0x3FF);
+          out[p++] = (c >> 18) | 240; out[p++] = ((c >> 12) & 63) | 128; out[p++] = ((c >> 6) & 63) | 128; out[p++] = (c & 63) | 128;
+        } else { out[p++] = (c >> 12) | 224; out[p++] = ((c >> 6) & 63) | 128; out[p++] = (c & 63) | 128; }
+      }
+      return out;
+    }
+    var msg = toUTF8Array(String(s));
+    var K = [0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,0xa8304613,0xfd469501,0x698098d8,0x8b44f7af,0xffff5bb1,0x895cd7be,0x6b901122,0xfd987193,0xa679438e,0x49b40821,0xf61e2562,0xc040b340,0x265e5a51,0xe9b6c7aa,0xd62f105d,0x02441453,0xd8a1e681,0xe7d3fbc8,0x21e1cde6,0xc33707d6,0xf4d50d87,0x455a14ed,0xa9e3e905,0xfcefa3f8,0x676f02d9,0x8d2a4c8a,0xfffa3942,0x8771f681,0x6d9d6122,0xfde5380c,0xa4beea44,0x4bdecfa9,0xf6bb4b60,0xbebfbc70,0x289b7ec6,0xeaa127fa,0xd4ef3085,0x04881d05,0xd9d4d039,0xe6db99e5,0x1fa27cf8,0xc4ac5665,0xf4292244,0x432aff97,0xab9423a7,0xfc93a039,0x655b59c3,0x8f0ccc92,0xffeff47d,0x85845dd1,0x6fa87e4f,0xfe2ce6e0,0xa3014314,0x4e0811a1,0xf7537e82,0xbd3af235,0x2ad7d2bb,0xeb86d391];
+    var S = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+    var len = msg.length, ml = len * 8, i;
+    msg.push(0x80);
+    while (msg.length % 64 !== 56) msg.push(0);
+    for (i = 0; i < 8; i++) msg.push((ml / Math.pow(2, 8*i)) & 0xFF);
+    var h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476;
+    function add32(x, y){ return (x + y) & 0xFFFFFFFF; }
+    function rol(x, c){ return (x << c) | (x >>> (32 - c)); }
+    for (var bi = 0; bi < msg.length; bi += 64){
+      var X = [];
+      for (var j = 0; j < 16; j++){
+        X[j] = msg[bi + j*4] | (msg[bi + j*4 + 1] << 8) | (msg[bi + j*4 + 2] << 16) | (msg[bi + j*4 + 3] << 24);
+      }
+      var A = h0, B = h1, C = h2, D = h3;
+      for (var r = 0; r < 64; r++){
+        var Fv, g;
+        if (r < 16){ Fv = (B & C) | (~B & D); g = r; }
+        else if (r < 32){ Fv = (D & B) | (~D & C); g = (5*r + 1) % 16; }
+        else if (r < 48){ Fv = B ^ C ^ D; g = (3*r + 5) % 16; }
+        else { Fv = C ^ (B | (~D)); g = (7*r) % 16; }
+        var tmp = D;
+        D = C; C = B;
+        B = add32(B, rol(add32(add32(A, Fv), add32(X[g], K[r])), S[r]));
+        A = tmp;
+      }
+      h0 = add32(h0, A); h1 = add32(h1, B); h2 = add32(h2, C); h3 = add32(h3, D);
+    }
+    function hex(x){
+      var h = '';
+      for (var i = 0; i < 4; i++){ var b = (x >>> (i*8)) & 0xFF; h += (b < 16 ? '0' : '') + b.toString(16); }
+      return h;
+    }
+    return hex(h0) + hex(h1) + hex(h2) + hex(h3);
+  }
+  // 指纹：时间+房间(组号)+玩家+结果摘要（牌路）；无平台局ID时的全局唯一键
+  function gameUID(g){
+    var t = String(g.time||'');
+    var room = String(g.groupNum||g.room||'');
+    var nm = String(g.name||'').replace(/\|/g,'');
+    var L = (Array.isArray(g.list)?g.list:[]).join(',');
+    return md5(t+'|'+room+'|'+nm+'|'+L);
+  }
+  function cloudGameRow(g){ return 'GAME|'+(g._uid||'')+'|'+String(g.name||'').replace(/\|/g,''); }
+  function parseGameRow(n){ var p=String(n||'').split('|'); return { uid:p[1]||'', name:p.slice(2).join('|')||'' }; }
+  function cloudSrcRow(acc,uid){ return 'SRC|'+acc+'|'+uid; }
+  function cloudAccRow(acc){ return 'ACC|'+acc; }
+  // 本地组补全指纹/来源标记（老数据归主账号）
+  function ensureUIDs(){
+    (state.groups||[]).forEach(function(g){
+      if (!g || !Array.isArray(g.list)) return;
+      if (!g._uid) g._uid = gameUID(g);
+      if (!g._src || !g._src.length) g._src = ['main'];
+    });
+  }
+  // 当前账号视角的可见组：主账号=全量（对局表已按uid去重）；子账号=来源表含自己的
+  function __visibleGroups(){
+    var acc = curAccount || 'main';
+    if (acc === 'main') return state.groups;
+    var vis = [];
+    (state.groups||[]).forEach(function(g){
+      if (!g) return;
+      var sc = g._src;
+      if (!sc || !sc.length) return; // 老数据无来源=主账号录的，子账号不可见
+      if (sc.indexOf(acc) >= 0) vis.push(g);
+    });
+    return vis;
   }
   function sbReq(path, opts, cb){
     var xhr = new XMLHttpRequest();
@@ -1756,14 +1867,16 @@ function renderAIPage(){
       });
       state.groups = cleanGroups;
       state.groupNum = cleanGroups.length + 1;
-      // 本地按 name+list 去重 + 只取没推过的
+      // v156 本地按全局指纹去重 + 只取没推过的（同局双账号录=同uid，只推一条对局行）
+      ensureUIDs();
       var seenLocal = {};
       var missing = [];
       cleanGroups.forEach(function(g){
-        var k = _nt(g.name) + '|' + JSON.stringify(g.list || []);
-        if (seenLocal[k]) return; seenLocal[k] = 1;
-        if (pushed[k]) return;
-        missing.push({name: toCloudName(g.name), time: String(g.time || ''), list: g.list || []});
+        var uid = g._uid || gameUID(g);
+        g._uid = uid;
+        if (seenLocal[uid]) return; seenLocal[uid] = 1;
+        if (pushed[uid]) return;
+        missing.push({ name: toCloudName(g.name), time: String(g.time || ''), list: g.list || [], _uid: uid, _g: g });
       });
       // v150 防重复：cloud_pushed_v1 为空（旧版首次升级/换设备）时，先拉云端比对，
       // 只推云端不存在的行，杜绝"全量重推 → 云端成倍重复"（你手机数据重复乱的根源之一）
@@ -1773,16 +1886,23 @@ function renderAIPage(){
             if (!err && rows){
               var cloudKeys = {};
               rows.forEach(function(r){
-                if (!isMyRow(r.name)) return;
+                var nm = String(r.name || '');
+                if (nm.indexOf('GAME|') === 0){
+                  // v156 对局行：云端已有的 uid 记为已推，不再重推
+                  var _u = parseGameRow(nm).uid;
+                  if (_u){ cloudKeys[_u] = 1; pushed[_u] = 1; }
+                  return;
+                }
+                if (!isMyRow(nm)) return;
+                if (/^玩家\d+$/.test(nm)) return;
                 var L = r.list;
                 if (typeof L === 'string'){ try{ L = JSON.parse(L); }catch(e){ L = []; } }
                 if (!Array.isArray(L)) L = [];
-                var _ck = _nt(toLocalName(r.name)) + '|' + JSON.stringify(L);
+                var _ck = _nt(toLocalName(nm)) + '|' + JSON.stringify(L);
                 cloudKeys[_ck] = 1;
-                // v150 云端已有的行直接记为已推：下次增量不再重推（否则首次后还会全量推一次→重复）
                 pushed[_ck] = 1;
               });
-              list = list.filter(function(m){ return !cloudKeys[_nt(toLocalName(m.name)) + '|' + JSON.stringify(m.list || [])]; });
+              list = list.filter(function(m){ return !cloudKeys[m._uid]; });
             }
             finish(list);
           });
@@ -1790,16 +1910,40 @@ function renderAIPage(){
       }
       function finish(list){
         if (list.length){
-          sbPushRows(list, function(doneN){
-            // 只有确认推上去才记已推（推送失败下次会重推，不丢数据）
-            if (doneN && doneN >= list.length){
-              list.forEach(function(m){ pushed[_nt(toLocalName(m.name)) + '|' + JSON.stringify(m.list || [])] = 1; });
-              try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
-            }
+          var _acc = (typeof curAccount === 'string' && curAccount !== 'main') ? curAccount : 'main';
+          var doneN = 0, leftN = list.length;
+          function afterOne(){ doneN++; if (doneN >= leftN) finishAll(); }
+          list.forEach(function(m){
+            var uid = m._uid;
+            // 1) 幂等对局行：云端无 GAME|<uid>|% 才写（同局双账号录只落一条）
+            sbReq(CLOUD_TBL + '?select=id&name=like.' + encodeURIComponent('GAME|' + uid + '|%') + '&limit=1', null, function(err, xhr){
+              var exists = false;
+              if (!err && xhr && xhr.status === 200){ try{ exists = (JSON.parse(xhr.responseText) || []).length > 0; }catch(e){} }
+              function afterGame(){
+                // 2) 幂等来源行：SRC|<account>|<uid> 不存在才写（同一账号对同一局只记一条来源）
+                sbReq(CLOUD_TBL + '?select=id&name=eq.' + encodeURIComponent(cloudSrcRow(_acc, uid)) + '&limit=1', null, function(err2, xhr2){
+                  var srcEx = false;
+                  if (!err2 && xhr2 && xhr2.status === 200){ try{ srcEx = (JSON.parse(xhr2.responseText) || []).length > 0; }catch(e){} }
+                  function afterSrc(){
+                    pushed[uid] = 1;
+                    var gm = m._g || m;
+                    if (gm._src && gm._src.indexOf(_acc) < 0) gm._src.push(_acc);
+                    afterOne();
+                  }
+                  if (srcEx) afterSrc();
+                  else sbPushRows([{ name: cloudSrcRow(_acc, uid), time: '', list: [] }], function(){ afterSrc(); });
+                });
+              }
+              if (exists) afterGame();
+              else sbPushRows([{ name: cloudGameRow(m._g || m), time: String(m.time || ''), list: m.list || [] }], function(){ afterGame(); });
+            });
+          });
+          function finishAll(){
+            try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
             saveLocal();
             cloudBusy = false;
             if (cloudPending){ cloudPending = false; pushCloud(); }
-          });
+          }
         } else {
           try { localStorage.setItem('cloud_pushed_v1', JSON.stringify(pushed)); } catch(e){}
           saveLocal();
@@ -1816,14 +1960,44 @@ function renderAIPage(){
     sbFetchAll(function(err, rows){
       if (err) return;
       if (!rows || !rows.length) return;
-      var remote = rows.map(function(r){
-        if (!isMyRow(r.name)) return null;
-        if (/^玩家\d+$/.test(String(r.name||''))) return null; // v151 测试假数据不并入
+      // v156 云端分来源记账：GAME| 对局行（唯一）+ SRC| 来源行（多挂）+ ACC| 账号行；无前缀=老数据（归主账号）
+      var srcMap = {};
+      var gameRows = [], oldRows = [];
+      rows.forEach(function(r){
+        var nm = String(r.name || '');
+        if (nm.indexOf('GAME|') === 0){ gameRows.push(r); return; }
+        if (nm.indexOf('SRC|') === 0){
+          var p = String(nm).split('|');
+          var ac = p[1] || '', u = p[2] || '';
+          if (ac && u){ (srcMap[u] = srcMap[u] || []).push(ac); }
+          return;
+        }
+        if (nm.indexOf('ACC|') === 0) return; // 账号表行不并入对局
+        if (!isMyRow(nm)) return;
+        if (/^玩家\d+$/.test(nm)) return; // v151 测试假数据不并入
+        oldRows.push(r);
+      });
+      var remote = [];
+      gameRows.forEach(function(r){
+        var parsed = parseGameRow(r.name);
+        if (!parsed.uid || !parsed.name) return;
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
-        return { name: toLocalName(r.name), list: list, time: r.time };
-      }).filter(Boolean);
+        var g = { name: parsed.name, time: r.time || '', list: list, _uid: parsed.uid };
+        g._src = (srcMap[parsed.uid] || []).slice();
+        if (!g._src.length) g._src = ['main'];
+        remote.push(g);
+      });
+      oldRows.forEach(function(r){
+        var list = r.list;
+        if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
+        if (!Array.isArray(list)) list = [];
+        var g = { name: toLocalName(r.name), time: r.time, list: list };
+        g._uid = gameUID(g);
+        g._src = ['main']; // 老数据无来源标记=主账号录的
+        remote.push(g);
+      });
       state.groups = mergeGroups(remote, state.groups);
       state.groupNum = state.groups.length + 1;
       // v150 云端合并落盘推迟400ms（避开登录瞬间的同步全量写，iPhone不卡）
@@ -3018,10 +3192,10 @@ function renderAIPage(){
   function renderHistory(){
     const box = $('historyList');
     // v150 切页不重建：数据+搜索+对错版本没变就复用上次渲染（避免每次切页重算60组画像）
-    var _hf = (activeTag||'') + '|' + (searchQuery||'') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
+    var _hf = (curAccount||'main') + '|' + (activeTag||'') + '|' + (searchQuery||'') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time + '|' + (window.__mkV||0) : '0');
     if (window.__hFp === _hf && box && box.innerHTML) return;
     window.__hFp = _hf;
-    let groups = state.groups;
+    let groups = __visibleGroups(); // v156 子账号只看自己的来源
     if (activeTag) groups = groups.filter(g => g.name === activeTag);
     const q = searchQuery.trim();
     if (q) groups = groups.filter(g => g.name.includes(q));
@@ -3112,8 +3286,8 @@ function renderAIPage(){
     if (window.__tFp === _tf && bar && bar.innerHTML) return;
     window.__tFp = _tf;
     const seen = {}; const names = [];
-    // Set去重（避免includes O(n^2)）
-    state.groups.forEach(g => { if (g.name && !seen[g.name]){ seen[g.name] = 1; names.push(g.name); } });
+    // Set去重（避免includes O(n^2)）；v156 子账号只看自己的来源
+    __visibleGroups().forEach(g => { if (g.name && !seen[g.name]){ seen[g.name] = 1; names.push(g.name); } });
     let html = '';
     const show = window.__tAll ? names : names.slice(-20);
     if (names.length > 20 && !window.__tAll) html += '<span class="tag" style="opacity:.55">最近20人/共' + names.length + '人·输名字搜索</span>';
@@ -3142,20 +3316,20 @@ function renderAIPage(){
   var __nameIdxC = { fk: '', names: null, idx: null };
   var __bpC = {};
   function nameIndex(){
-    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
+    var fk = (curAccount||'main') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
     if (__nameIdxC.fk === fk && __nameIdxC.idx) return __nameIdxC;
     var idx = {};
-    state.groups.forEach(function(g){ if (g && g.name){ (idx[g.name] = idx[g.name] || []).push(g); } });
+    __visibleGroups().forEach(function(g){ if (g && g.name){ (idx[g.name] = idx[g.name] || []).push(g); } });
     __nameIdxC = { fk: fk, names: Object.keys(idx), idx: idx };
     return __nameIdxC;
   }
   // v142 名字包含索引：组名支持「好运,臭弟」多名字，按逗号拆开后每个名字都能命中（输入联想/记录提示零全表扫描）
   var __nmAllC = { fk: '', idx: null };
   function nameContainsIndex(){
-    var fk = state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
+    var fk = (curAccount||'main') + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id : '') + '|' + (state.groups.length ? state.groups[state.groups.length-1].time : '');
     if (__nmAllC.fk === fk && __nmAllC.idx) return __nmAllC;
     var idx = {};
-    state.groups.forEach(function(g){
+    __visibleGroups().forEach(function(g){
       if (!g || !g.name) return;
       var ns = nmSplit(g.name);
       for (var i=0;i<ns.length;i++){ (idx[ns[i]] = idx[ns[i]] || []).push(g); }
@@ -3283,14 +3457,14 @@ function renderAIPage(){
     const todayStr = (now.getMonth()+1) + '-' + pad(now.getDate());
     const yest = new Date(); yest.setDate(yest.getDate()-1);
     const yestStr = (yest.getMonth()+1) + '-' + pad(yest.getDate());
-    var _fk = name + '|' + timeFilter + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '');
+    var _fk = (curAccount||'main') + '|' + name + '|' + timeFilter + '|' + state.groups.length + '|' + (state.groups.length ? state.groups[0].id + '|' + state.groups[state.groups.length-1].time : '');
     if (__gfC.fk === _fk) return __gfC.r;
-    let all = state.groups.filter(g => names.indexOf(g.name) >= 0);
+    let all = __visibleGroups().filter(g => names.indexOf(g.name) >= 0); // v156 子账号只看自己的来源
     // 新名字无历史 → 参考当天实时全局规律（可能是同人换游戏名）
     if (!all.length){
       const base = timeFilter === 'yesterday' ? yestStr : todayStr;
-      all = state.groups.filter(g => g.time && g.time.startsWith(base));
-      if (!all.length) all = state.groups.slice();
+      all = __visibleGroups().filter(g => g.time && g.time.startsWith(base));
+      if (!all.length) all = __visibleGroups().slice();
     }
     if (timeFilter === 'today') all = all.filter(g => _isToday(g, now.getMonth()+1, now.getDate()));
     else if (timeFilter === 'yesterday') all = all.filter(g => _isToday(g, yest.getMonth()+1, yest.getDate())); // v152 精确，前缀会把 10-2 误算成 10-21
@@ -5026,12 +5200,36 @@ function cell(k, rank){
         _cloudBusy = false; return;
       }
       if (!rows || !rows.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">云端暂无数据</div>'; _cloudBusy = false; return; }
+      // v156 云端分来源记账解析：GAME| 对局行取真实名；SRC|/ACC| 不进分析；无前缀=老数据（归主账号）
+      var srcMapAll = {};
+      rows.forEach(function(r){
+        var nm = String(r.name || '');
+        if (nm.indexOf('SRC|') === 0){
+          var pp = nm.split('|'); var ac2 = pp[1]||'', u2 = pp[2]||'';
+          if (ac2 && u2){ (srcMapAll[u2] = srcMapAll[u2] || []).push(ac2); }
+        }
+      });
       var groups = rows.map(function(r){
         var list = r.list;
         if (typeof list === 'string'){ try{ list = JSON.parse(list); }catch(e){ list = []; } }
         if (!Array.isArray(list)) list = [];
-        return { name: r.name || '', time: r.time || '', list: list };
-      });
+        var nm = String(r.name || '');
+        if (nm.indexOf('GAME|') === 0){
+          var parsed = parseGameRow(nm);
+          if (!parsed.uid || !parsed.name) return null;
+          var g2 = { name: parsed.name, time: r.time || '', list: list, _uid: parsed.uid };
+          g2._src = (srcMapAll[parsed.uid] || []).slice();
+          if (!g2._src.length) g2._src = ['main'];
+          return g2;
+        }
+        if (nm.indexOf('SRC|') === 0 || nm.indexOf('ACC|') === 0) return null;
+        return { name: nm, time: r.time || '', list: list, _src: ['main'] };
+      }).filter(Boolean);
+      // v156 子账号视角：只统计来源表含自己的对局（主账号=全量已去重）
+      var accNow = curAccount || 'main';
+      if (accNow !== 'main'){
+        groups = groups.filter(function(g){ var sc = g._src; return sc && sc.length && sc.indexOf(accNow) >= 0; });
+      }
       // 过滤老批次（9月旧数据 / 无时间的老名单）
       var OLD = ['888','123','95公分','@','义不容辞','依依','发发朋友圈','可乐','合兴','多彩多亿','必胜','牡丹'];
       groups = groups.filter(function(g){
@@ -5167,7 +5365,8 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // 本地降级分析（云端拉取失败时，用本机数据先看）
   function renderCloudFromLocal(){
     var box = $('cloudContent');
-    var groups = (state.groups || []).filter(function(g){ return g && g.name && (g.list||[]).length; }).map(function(g){ return { name: g.name, time: g.time || '', list: g.list }; });
+    // v156 子账号视角：只统计自己的来源
+    var groups = __visibleGroups().filter(function(g){ return g && g.name && (g.list||[]).length; }).map(function(g){ return { name: g.name, time: g.time || '', list: g.list }; });
     if (!groups.length){ box.innerHTML = '<div style="color:#64748b;font-size:12px;padding:12px;text-align:center;">本地暂无数据，先在「记录」页登记</div>'; return; }
     var dayMap = {};
     groups.forEach(function(g){ var dd = String(g.time || '').split(' ')[0]; if (dd) dayMap[dd] = (dayMap[dd] || 0) + 1; });
@@ -5908,7 +6107,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   // v150 性能自检：一键查看版本/数据量/存储/IndexedDB/解锁耗时/长任务次数（截图发我快速定位卡点）
   function selfDiag(){
     var _L = [];
-    _L.push('版本: v155');
+    _L.push('版本: v156');
     _L.push('本地组数: ' + (state ? state.groups.length : 0));
     try { var _raw = localStorage.getItem(acctKey()) || ''; _L.push('存储占用: ' + Math.round(_raw.length/1024) + ' KB'); } catch(e){ _L.push('存储: 读取失败'); }
     _L.push('IndexedDB: ' + (_idbFail ? '不可用' : '可用'));
@@ -5926,7 +6125,7 @@ html += '<div style="font-size:9px;color:#64748b;margin-top:6px;">AI胜率=留�
   } catch(e){}
 })();
 </script>
-<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v155 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
+<div style="text-align:center;font-size:10px;color:#475569;padding:8px 0 14px;">v156 · 路单记牌器 · <a id="diagLink" href="#" onclick="selfDiag();return false;" style="color:#60a5fa;text-decoration:none;">性能自检</a> · 修改后刷新页面即最新版</div>
 <div id="diagModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:999;justify-content:center;align-items:center;">
   <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:16px;width:82%;max-width:340px;">
     <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔍 性能自检</div>
