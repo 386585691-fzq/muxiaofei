@@ -432,36 +432,42 @@ window.aiSetEngine=function(i){localStorage.setItem("road_psy_engine",__AI_MODEL
 window.__aiFlowCache={};window.__aiFlowTimer=null;
 function __aiFlowRun(name){var eng=localStorage.getItem("road_psy_engine")||"doubao-seed-2-1-turbo-260628",row=Gt("aiFlowRow");if(!row||!name)return;var key=eng+"|"+name,c=window.__aiFlowCache[key];if(c&&Date.now()-c.ts<3e4){row.innerHTML=c.html;return}var slice=__aiSlice(name);if(!slice){row.innerHTML='<span style="color:#64748b;">AI胜算：该组名无数据</span>';return}row.innerHTML='<span style="color:#64748b;">⚡ AI胜算计算中…</span>';var a="undefined"!=typeof AbortController?new AbortController:null,to=setTimeout(function(){a&&a.abort()},6e4),ts=Date.now();fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:/.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:__AI_SYS+"\n\n"+slice.text}]}),signal:a?a.signal:void 0}).then(function(e){clearTimeout(to);if(!e.ok)throw new Error("HTTP "+e.status);return e.json()}).then(function(j){var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);if(!obj)throw new Error("模型未按格式返回");var N={hu:["虎","#fca5a5"],long:["龙","#93c5fd"],ru:["入","#fde047"],chu:["出","#86efac"]},top=String(obj.top||"long"),_s2=0;Object.keys(N).forEach(function(k){_s2+=obj[k]||0});_s2=_s2||1;html='⚡ AI胜算（'+((eng.indexOf(":")>=0?eng.split(":")[1]:eng))+'）：'+Object.keys(N).map(function(k){return '<span style="color:'+N[k][1]+';font-weight:700;margin-right:6px;">'+N[k][0]+" "+Math.round((obj[k]||0)*100/_s2)+'%</span>'}).join("")+'<span style="color:#fbbf24;font-weight:700;"> · 主推【'+N[top][1]+"】</span><span style='color:#64748b;font-size:9px;'> "+(Math.round((Date.now()-ts)/1000))+"s</span>";window.__aiFlowCache[key]={ts:Date.now(),html:html};if(row&&Gt("groupName").value.trim()===name)row.innerHTML=html}).catch(function(er){row.innerHTML='<span style="color:#f87171;">AI胜算暂不可用：'+String(er.message||er).slice(0,80)+"</span>"})};
 function __aiFlowDebounce(name){clearTimeout(window.__aiFlowTimer);window.__aiFlowTimer=setTimeout(function(){__aiFlowRun(name)},800)};
-window.__sim=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort=null;window.__simBusy=false;
-function __simInit(){var g=Gt("simGrid");if(!g||g.children.length)return;for(var i=0;i<12;i++){var b=document.createElement("button");b.onclick=function(j){return function(){__simCell(j)}}(i);b.style.cssText="padding:9px 0;border-radius:6px;background:rgba(255,255,255,.08);color:#e2e8f0;font-size:13px;font-weight:700;border:1px solid rgba(148,163,184,.25);cursor:pointer;font-family:inherit;";g.appendChild(b)}var sm=Gt("simModel");if(sm&&!sm.children.length){__AI_MODELS.forEach(function(m,ix){var o=document.createElement("option");o.value=String(ix);o.textContent=m[1];sm.appendChild(o)});sm.value="7"}__simDraw()}
+window.__sim=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort=[];window.__simBusy=false;
+function __simInit(){var g=Gt("simGrid");if(!g||g.children.length)return;for(var i=0;i<12;i++){var b=document.createElement("button");b.onclick=function(j){return function(){__simCell(j)}}(i);b.style.cssText="padding:9px 0;border-radius:6px;background:rgba(255,255,255,.08);color:#e2e8f0;font-size:13px;font-weight:700;border:1px solid rgba(148,163,184,.25);cursor:pointer;font-family:inherit;";g.appendChild(b)}__simDraw()}
 function __simDraw(){var g=Gt("simGrid");if(!g)return;for(var i=0;i<12;i++){var b=g.children[i];if(!b)continue;var v=window.__sim[i],bg=["rgba(255,255,255,.08)","rgba(252,165,165,.28)","rgba(147,197,253,.28)","rgba(253,224,71,.28)","rgba(134,239,172,.28)"][v];b.textContent=["·","虎","龙","入","出"][v];b.style.background=bg}}
 function __simNextIdx(){var idx=0;while(idx<12&&window.__sim[idx])idx++;return idx}
 function __simCell(i){window.__sim[i]=(window.__sim[i]+1)%5;__simDraw();__simAfterInput(i)}
 function __simPickGate(k){var idx=__simNextIdx();if(idx>=12)return void nt("12 格已满，点「清空重来」再测");window.__sim[idx]=k;__simDraw();__simAfterInput(idx)}
 function __simAfterInput(i){
-  if(i>=1&&window.__sim[i]>0&&window.__sim[i-1]>0){var r=window.__simRec[i-1];if(r){var hit=r.indexOf(window.__sim[i])>=0;window.__simStat.n++;hit&&window.__simStat.hit++;var names={1:"虎",2:"龙",3:"入",4:"出"},m=Gt("simMsg");m&&(m.innerHTML='<span style="color:'+(hit?"#34d399":"#f87171")+';font-weight:700;">'+(hit?"✅ 对":"❌ 错")+"</span> <span style='color:#e2e8f0;font-size:11px;'>第 "+i+" 格预测【"+r.map(function(x){return names[x]}).join("·")+"】vs 实际【"+names[window.__sim[i]]+"】</span>");var st=Gt("simStat");st&&(st.innerHTML="📊 已测 "+window.__simStat.n+" 手 · 命中 "+window.__simStat.hit+" · 命中率 "+Math.round(window.__simStat.hit*100/window.__simStat.n)+"%")}}
+  if(i>=1&&window.__sim[i]>0&&window.__sim[i-1]>0){var recs=window.__simRec[i-1];if(recs&&recs.length){var names={1:"虎",2:"龙",3:"入",4:"出"},msgs=[];recs.forEach(function(r){var hit=r.top3.indexOf(window.__sim[i])>=0;window.__simStat.n++;hit&&window.__simStat.hit++;msgs.push((hit?"✅":"❌")+" "+r.name)});var m=Gt("simMsg");m&&(m.innerHTML='<span style="font-size:11px;color:#e2e8f0;">第 '+i+' 格实际【'+names[window.__sim[i]]+'】：</span> '+msgs.join("　"));var st=Gt("simStat");st&&(st.innerHTML="📊 已测 "+window.__simStat.n+" 次 · 命中 "+window.__simStat.hit+" · 命中率 "+Math.round(window.__simStat.hit*100/window.__simStat.n)+"%")}}
   __simPredict()}
+function __simModels(){var raw=null;try{raw=JSON.parse(localStorage.getItem("road_psy_sel")||"[1,1,1,1,1,1,1,1,1]")}catch(e){raw=[1,1,1,1,1,1,1,1,1]}var out=[];for(var i=0;i<9;i++){if(raw[i]&&__AI_MODELS[i]&&out.length<3)out.push(i)}return out}
 function __simPredict(){
   var filled=0;while(filled<12&&window.__sim[filled])filled++;
   if(!filled){var s0=Gt("simStatus");s0&&(s0.innerHTML="");return}
   var seq=[];for(var i=0;i<filled;i++)seq.push(["虎","龙","入","出"][window.__sim[i]-1]);
-  var sm=Gt("simModel"),mIdx=sm?sm.value:"1";var eng=__AI_MODELS[+mIdx][0];
-  var st=Gt("simStatus");st&&(st.innerHTML="⚡ 推演第 "+(filled+1)+" 格…（"+(eng.indexOf(":")>=0?eng.split(":")[1]:eng)+"）");
-  window.__simAbort&&window.__simAbort.abort&&window.__simAbort.abort();
-  var a="undefined"!=typeof AbortController?new AbortController:null;window.__simAbort=a;
-  var to=setTimeout(function(){a&&a.abort()},5e4),ts=Date.now();
-  fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:|deepseek|kimi/i.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:__AI_SYS+"\n\n模拟最近"+filled+"局牌型序列（按时间新→旧）：\n"+seq.join("/")+"\n\n预测下一手，并给出四门概率。"}]}),signal:a?a.signal:void 0}).then(function(e){clearTimeout(to);if(!e.ok)return e.json().then(function(j){throw new Error(j.error||"HTTP "+e.status)});return e.json()}).then(function(j){
-    var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);if(!obj)throw new Error("模型未按格式返回 JSON");
-    var N={hu:1,long:2,ru:3,chu:4},Nm={1:"虎",2:"龙",3:"入",4:"出"},keys=["hu","long","ru","chu"],_s=0;keys.forEach(function(k){_s+=obj[k]||0});_s=_s||1;
-    var sorted=keys.slice().sort(function(x,y){return (obj[y]||0)-(obj[x]||0)});
-    var top3=sorted.slice(0,3).map(function(k){return N[k]});
-    window.__simRec[filled]=top3;
-    var sec=Math.round((Date.now()-ts)/1000);
-    var st2=Gt("simStatus");st2&&(st2.innerHTML="✅ 已推演：基于前 "+filled+" 格 → 预测第 "+(filled+1)+" 格（"+(eng.indexOf(":")>=0?eng.split(":")[1]:eng)+" · "+sec+"s）");
-    var o=Gt("simOut");if(o)o.innerHTML='<div style="font-size:10px;color:#64748b;margin-bottom:4px;">🔮 推荐 3 门（点击=填入第 '+(filled+1)+' 格并自动判定）：</div>'+sorted.slice(0,3).map(function(k){var v=Math.round((obj[k]||0)*100/_s),star=k===sorted[0]?"★主推":"";return '<button onclick="__simPickGate(&#39;+N[k]+&#39;)" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.09);color:'+(k==="hu"?"#fca5a5":k==="long"?"#93c5fd":k==="ru"?"#fde047":"#86efac")+';font-size:13px;font-weight:700;border:1px solid rgba(148,163,184,.3);cursor:pointer;font-family:inherit;margin-right:6px;">'+Nm[N[k]]+" "+v+"%"+star+'</button>'}).join("")+'<div style="font-size:9px;color:#64748b;margin-top:4px;">也可直接点上方格子手动填实际开牌</div>'}
-  ).catch(function(er){var st3=Gt("simStatus");if(!window.__simBusy&&/Failed to fetch|network error|ERR_CONNECTION|ERR_TIMED_OUT|fetch failed|TypeError|aborted/i.test(String(er.message||er))&&filled<12){window.__simBusy=true;st3&&(st3.innerHTML="⚠ 网络波动，自动重试…");setTimeout(function(){window.__simBusy=false;__simPredict()},1800)}else{st3&&(st3.innerHTML="❌ "+String(er.message||er).slice(0,90))}})}
+  var idxs=__simModels();var st=Gt("simStatus");
+  if(!idxs.length){st&&(st.innerHTML="❌ 上面没勾选模型，回跑分区勾 1-3 个");return}
+  window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];
+  window.__simRec[filled]=[];var out=Gt("simOut");out&&(out.innerHTML="");
+  var ts=Date.now();st&&(st.innerHTML="⚡ 推演第 "+(filled+1)+" 格…（"+idxs.length+" 个模型并行）");
+  idxs.forEach(function(mi){
+    var eng=__AI_MODELS[mi][0],a="undefined"!=typeof AbortController?new AbortController:null;window.__simAbort.push(a);
+    var to=setTimeout(function(){a&&a.abort()},5e4);
+    fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:|deepseek|kimi/i.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:__AI_SYS+"\n\n模拟最近"+filled+"局牌型序列（按时间新→旧）：\n"+seq.join("/")+"\n\n预测下一手，并给出四门概率。"}]}),signal:a?a.signal:void 0}).then(function(e){clearTimeout(to);if(!e.ok)return e.json().then(function(j){throw new Error(j.error||"HTTP "+e.status)});return e.json()}).then(function(j){
+      var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);if(!obj)throw new Error("模型未按格式返回 JSON");
+      var N={hu:1,long:2,ru:3,chu:4},Nm={1:"虎",2:"龙",3:"入",4:"出"},_s=0;["hu","long","ru","chu"].forEach(function(k){_s+=obj[k]||0});_s=_s||1;
+      var sorted=["hu","long","ru","chu"].slice().sort(function(x,y){return (obj[y]||0)-(obj[x]||0)});
+      var top3=sorted.slice(0,3).map(function(k){return N[k]});
+      var recs=window.__simRec[filled];recs.push({name:__AI_MODELS[mi][1],top3:top3});
+      var row='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:3px 0;font-size:11px;color:#cbd5e1;">'+__AI_MODELS[mi][1]+'：'+sorted.slice(0,3).map(function(k){var v=Math.round((obj[k]||0)*100/_s),star=k===sorted[0]?"★":"";return '<button onclick="__simPickGate(&#39;+N[k]+&#39;)" style="padding:5px 9px;border-radius:6px;background:rgba(255,255,255,.09);color:'+(k==="hu"?"#fca5a5":k==="long"?"#93c5fd":k==="ru"?"#fde047":"#86efac")+';font-size:12px;font-weight:700;border:1px solid rgba(148,163,184,.3);cursor:pointer;font-family:inherit;margin-left:2px;">'+Nm[N[k]]+" "+v+"%"+star+'</button>'}).join("")+'</div>';
+      var o2=Gt("simOut");o2&&(o2.innerHTML+=row);
+      var done=window.__simRec[filled].length;var st2=Gt("simStatus");st2&&(st2.innerHTML="✅ 已推演 "+done+"/"+idxs.length+" 个模型 → 预测第 "+(filled+1)+" 格（"+(Math.round((Date.now()-ts)/1000))+"s）")
+    }).catch(function(er){var o3=Gt("simOut");o3&&(o3.innerHTML+='<div style="margin:2px 0;color:#f87171;font-size:11px;">❌ '+__AI_MODELS[mi][1]+'：'+String(er.message||er).slice(0,60)+"</div>")})
+  })
+}
 function __simRand(){for(var i=0;i<12;i++)window.__sim[i]=1+Math.floor(Math.random()*4);window.__simRec=[];__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");window.__simStat={n:0,hit:0};__simPredict()}
-function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort&&window.__simAbort.abort&&window.__simAbort.abort();__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}function __aiReady(){if(document.getElementById("testModels")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit()}else{setTimeout(__aiReady,80)}}__aiReady();</script>
+function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}function __aiReady(){if(document.getElementById("testModels")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit()}else{setTimeout(__aiReady,80)}}__aiReady();</script>
 
 </div>
 
@@ -484,11 +490,7 @@ function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simRec=[];
     <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;">🧪 模拟记录页 · 测 AI 判对错</div>
     <div style="font-size:10px;color:#64748b;margin-bottom:8px;">点格子一个推演下一个：填一格立刻推演下一手 → 下方跳出 3 门推荐（带胜率）→ 点推荐填下一格 → 自动判定上一手对错、累计命中率。只测试、不记录、不保存。</div>
     
-    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
-      <input id="simName" type="text" placeholder="游戏名" maxlength="12" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(52,211,153,.35);background:rgba(255,255,255,.08);color:#e2e8f0;font-size:11px;width:96px;font-family:inherit;">
-      <select id="simModel" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(52,211,153,.35);background:#1e293b;color:#e2e8f0;font-size:11px;font-family:inherit;"></select>
-      <span style="font-size:9px;color:#64748b;">点格子即推演下一手</span>
-    </div>
+    
     <div id="simGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:8px;"></div>
         <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
       <button onclick="__simRand()" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,.12);color:#38bdf8;font-size:11px;font-weight:700;border:1px solid rgba(56,189,248,.3);cursor:pointer;font-family:inherit;">🎲 随机填</button>
