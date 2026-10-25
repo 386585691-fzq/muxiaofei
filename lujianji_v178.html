@@ -399,6 +399,7 @@ function __aiPickJSON(t){
   }
   return null
 }
+function __aiPickAny(t){var m=String(t||"").match(/\{[\s\S]*\}/g);if(m&&m.length){for(var i=m.length-1;i>=0;i--){try{var o=JSON.parse(m[i]);if(o&&typeof o==="object")return o}catch(e){}}}return null}
 function __aiCard(i,obj,ms,err){var bd=Gt("psycardbd-"+i),st=Gt("psycardst-"+i);if(err){st.innerHTML="❌ "+err;bd.innerHTML='<span style="color:#f87171;">'+String(err).slice(0,120)+"</span>";return}st.innerHTML="✅ "+Math.round(ms/1000)+"s · 置信"+obj.confidence+"%";var N={hu:["虎","#fca5a5","#dc2626"],long:["龙","#93c5fd","#2563eb"],ru:["入","#fde047","#16a34a"],chu:["出","#86efac","#64748b"]},top=String(obj.top||"long"),_s=0;Object.keys(N).forEach(function(k){_s+=obj[k]||0});_s=_s||1;bd.innerHTML='<div style="margin-bottom:4px;">'+Object.keys(N).map(function(k){var v=Math.round((obj[k]||0)*100/_s);return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px;"><span style="width:20px;color:'+N[k][0]+';font-weight:700;">'+N[k][1]+'</span><div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="width:'+v+'%;height:100%;background:'+N[k][1]+';"></div></div><span style="width:36px;text-align:right;color:#e2e8f0;font-weight:700;">'+v+'%</span>'+(k===top?'<span style="color:#fbbf24;font-weight:700;">★主推</span>':'')+'</div>'}).join("")+'</div><div style="font-size:11px;color:#fbbf24;font-weight:700;">🎯 主推【'+N[top][1]+'】 · 模型置信度 '+obj.confidence+'%</div>'}
 window.__prerunning=false;
 function __preratesLoad(){var p={};try{p=JSON.parse(localStorage.getItem("road_psy_prerates")||"{}")}catch(e){p={}}return p}
@@ -420,7 +421,7 @@ function __prerunStart(name){
       var sq=slice.seq||[];if(sq.length<7)return void setTimeout(next,150);
       var btSeq=sq.slice(0,30).join("/");var wins=[4,8,12,16,20,24,28],btPrompt="你是路单分析助手。玩家最近30局牌型序列（按时间新→旧）：\n"+btSeq+"\n\n做留一手验证：分别预测第4局、第8局、第12局、第16局、第20局、第24局、第28局各开什么门（每局只用该局之前的已知序列推理）。门取 虎/龙/入/出。\n只输出JSON：{\"p4\":\"门\",\"p8\":\"门\",\"p12\":\"门\",\"p16\":\"门\",\"p20\":\"门\",\"p24\":\"门\",\"p28\":\"门\"}";
       btCall({model:eng,temperature:.2,max_tokens:/^flatkey:|deepseek|kimi/i.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:btPrompt}]}).then(function(cb){
-        var bo=__aiPickJSON(cb);if(bo){var hits=0;wins.forEach(function(w,ix){var p="p"+w;if(bo[p]&&sq[w-1]&&bo[p]===sq[w-1])hits++});obj.rate=Math.round(hits*100/wins.length);obj.hands=wins.length;pn.models[mi]=obj;localStorage.setItem("road_psy_prerates",JSON.stringify(p));__aiRenderModels()}
+        var bo=__aiPickAny(cb);if(bo){var hits=0;wins.forEach(function(w,ix){var p="p"+w;if(bo[p]&&sq[w-1]&&bo[p]===sq[w-1])hits++});obj.rate=Math.round(hits*100/wins.length);obj.hands=wins.length;pn.models[mi]=obj;localStorage.setItem("road_psy_prerates",JSON.stringify(p));__aiRenderModels()}
         setTimeout(next,150)
       }).catch(function(){setTimeout(next,150)})
     }).catch(function(){setTimeout(next,150)})
@@ -484,7 +485,8 @@ function __simPredict(){
   })(mi,false)
 }
 function __simRand(){for(var i=0;i<12;i++)window.__sim[i]=1+Math.floor(Math.random()*4);window.__simRec=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");window.__simStat={n:0,hit:0};__simPredict()}
-function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
+function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();
+;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
 
 </div>
 
