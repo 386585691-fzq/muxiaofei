@@ -429,44 +429,55 @@ window.aiSetEngine=function(i){localStorage.setItem("road_psy_engine",__AI_MODEL
 window.__aiFlowCache={};window.__aiFlowTimer=null;
 function __aiFlowRun(name){var eng=localStorage.getItem("road_psy_engine")||"doubao-seed-2-1-turbo-260628",row=Gt("aiFlowRow");if(!row||!name)return;var key=eng+"|"+name,c=window.__aiFlowCache[key];if(c&&Date.now()-c.ts<3e4){row.innerHTML=c.html;return}var slice=__aiSlice(name);if(!slice){row.innerHTML='<span style="color:#64748b;">AI胜算：该组名无数据</span>';return}row.innerHTML='<span style="color:#64748b;">⚡ AI胜算计算中…</span>';var a="undefined"!=typeof AbortController?new AbortController:null,to=setTimeout(function(){a&&a.abort()},6e4),ts=Date.now();fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:/.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:__AI_SYS+"\n\n"+slice.text}]}),signal:a?a.signal:void 0}).then(function(e){clearTimeout(to);if(!e.ok)throw new Error("HTTP "+e.status);return e.json()}).then(function(j){var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);if(!obj)throw new Error("模型未按格式返回");var N={hu:["虎","#fca5a5"],long:["龙","#93c5fd"],ru:["入","#fde047"],chu:["出","#86efac"]},top=String(obj.top||"long"),_s2=0;Object.keys(N).forEach(function(k){_s2+=obj[k]||0});_s2=_s2||1;html='⚡ AI胜算（'+((eng.indexOf(":")>=0?eng.split(":")[1]:eng))+'）：'+Object.keys(N).map(function(k){return '<span style="color:'+N[k][1]+';font-weight:700;margin-right:6px;">'+N[k][0]+" "+Math.round((obj[k]||0)*100/_s2)+'%</span>'}).join("")+'<span style="color:#fbbf24;font-weight:700;"> · 主推【'+N[top][1]+"】</span><span style='color:#64748b;font-size:9px;'> "+(Math.round((Date.now()-ts)/1000))+"s</span>";window.__aiFlowCache[key]={ts:Date.now(),html:html};if(row&&Gt("groupName").value.trim()===name)row.innerHTML=html}).catch(function(er){row.innerHTML='<span style="color:#f87171;">AI胜算暂不可用：'+String(er.message||er).slice(0,80)+"</span>"})};
 function __aiFlowDebounce(name){clearTimeout(window.__aiFlowTimer);window.__aiFlowTimer=setTimeout(function(){__aiFlowRun(name)},800)};
-window.__sim=Array(12).fill(0);window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort=[];window.__simBusy=false;
+window.__sim=Array(12).fill(0);window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort=[];window.__simBusy=false;window.__simWant=0;
 function __simInit(){var g=Gt("simGrid");if(!g||g.children.length)return;for(var i=0;i<12;i++){var b=document.createElement("button");b.onclick=function(j){return function(){__simCell(j)}}(i);b.style.cssText="padding:9px 0;border-radius:6px;background:rgba(255,255,255,.08);color:#e2e8f0;font-size:13px;font-weight:700;border:1px solid rgba(148,163,184,.25);cursor:pointer;font-family:inherit;";g.appendChild(b)}__simDraw()}
 function __simDraw(){var g=Gt("simGrid");if(!g)return;for(var i=0;i<12;i++){var b=g.children[i];if(!b)continue;var v=window.__sim[i],bg=["rgba(255,255,255,.08)","rgba(252,165,165,.28)","rgba(147,197,253,.28)","rgba(253,224,71,.28)","rgba(134,239,172,.28)"][v],vd=window.__simVerdict[i];b.innerHTML=(vd>0?'<span style="color:#fff;">●</span>':vd<0?'<span style="color:#f87171;">●</span>':'')+["·","虎","龙","入","出"][v];b.style.background=bg;b.style.border="1px solid "+["rgba(248,113,113,.9)","rgba(148,163,184,.25)","rgba(255,255,255,.9)"][vd+1]}}
 function __simNextIdx(){var idx=0;while(idx<12&&window.__sim[idx])idx++;return idx}
 function __simCell(i){window.__sim[i]=(window.__sim[i]+1)%5;__simDraw();__simAfterInput(i)}
 function __simPickGate(k){var idx=__simNextIdx();if(idx>=12)return void nt("12 格已满，点「清空重来」再测");window.__sim[idx]=k;__simDraw();__simAfterInput(idx)}
+function __simJudge(i){var recs=window.__simRec[i];if(!recs||!recs.length||window.__sim[i]<=0)return;var names={1:"虎",2:"龙",3:"入",4:"出"},msgs=[],vd=0;recs.forEach(function(r){var hit=r.top3.indexOf(window.__sim[i])>=0;window.__simStat.n++;hit&&window.__simStat.hit++;__simRateTick(r.mi,hit);vd=hit?1:-1;msgs.push((hit?"✅":"❌")+" "+r.name)});window.__simVerdict[i]=vd;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="<span style=&quot;font-size:11px;color:#e2e8f0;&quot;>第 "+(i+1)+" 格实际【"+names[window.__sim[i]]+"】：</span> "+msgs.join("　"));var st=Gt("simStat");st&&(st.innerHTML="📊 已测 "+window.__simStat.n+" 次 · 命中 "+window.__simStat.hit+" · 命中率 "+Math.round(window.__simStat.hit*100/window.__simStat.n)+"%")}
 function __simAfterInput(i){
-  if(i>=1&&window.__sim[i]>0&&window.__sim[i-1]>0){var recs=window.__simRec[i];if(recs&&recs.length){var names={1:"虎",2:"龙",3:"入",4:"出"},msgs=[];var vdFinal=0;recs.forEach(function(r){var hit=r.top3.indexOf(window.__sim[i])>=0;window.__simStat.n++;hit&&window.__simStat.hit++;__simRateTick(r.mi,hit);vdFinal=hit?1:-1;msgs.push((hit?"✅":"❌")+" "+r.name)});window.__simVerdict[i]=vdFinal;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML='<span style="font-size:11px;color:#e2e8f0;">第 '+(i+1)+' 格实际【'+names[window.__sim[i]]+'】：</span> '+msgs.join("　"));var st=Gt("simStat");st&&(st.innerHTML="📊 已测 "+window.__simStat.n+" 次 · 命中 "+window.__simStat.hit+" · 命中率 "+Math.round(window.__simStat.hit*100/window.__simStat.n)+"%")}}
-  __simPredict()}
-function __simRateTick(mi,hit){if(mi==null)return;var rates={};try{rates=JSON.parse(localStorage.getItem("road_psy_rates")||"{}")}catch(e){}var r=rates[mi]||{n:0,hit:0};r.n++;hit&&r.hit++;rates[mi]=r;localStorage.setItem("road_psy_rates",JSON.stringify(rates));var b=Gt("testModelPick");if(b){var op=b.querySelector("option[value=\""+mi+"\"]");if(op){var pct=Math.round(r.hit*100/r.n);op.textContent=__AI_MODELS[mi][1]+" · 命中"+pct+"% ("+r.hit+"/"+r.n+")"}}}
+  if(i>=1&&window.__sim[i]>0&&window.__sim[i-1]>0)__simJudge(i)
+  __simPredict()}function __simRateTick(mi,hit){if(mi==null)return;var rates={};try{rates=JSON.parse(localStorage.getItem("road_psy_rates")||"{}")}catch(e){}var r=rates[mi]||{n:0,hit:0};r.n++;hit&&r.hit++;rates[mi]=r;localStorage.setItem("road_psy_rates",JSON.stringify(rates));var b=Gt("testModelPick");if(b){var op=b.querySelector("option[value=\""+mi+"\"]");if(op){var pct=Math.round(r.hit*100/r.n);op.textContent=__AI_MODELS[mi][1]+" · 命中"+pct+"% ("+r.hit+"/"+r.n+")"}}}
 function __simModels(){var pk=Gt("testModelPick");var mi=pk?+pk.value:(+(localStorage.getItem("road_psy_model")||"1")||1);if(!__AI_MODELS[mi])mi=1;return [mi]}
 function __simPredict(){
   var filled=0;while(filled<12&&window.__sim[filled])filled++;
   if(!filled){var s0=Gt("simStatus");s0&&(s0.innerHTML="");return}
+  if(window.__simBusy){window.__simWant=1;return}
   var seq=[];for(var i=0;i<filled;i++)seq.push(["虎","龙","入","出"][window.__sim[i]-1]);
-  var idxs=__simModels();var st=Gt("simStatus");
-  if(!idxs.length){st&&(st.innerHTML="❌ 上面没勾选模型，回跑分区勾 1-3 个");return}
-  window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];
+  var mi=__simModels()[0]||1,st=Gt("simStatus");
+  window.__simBusy=true;window.__simWant=0;
   window.__simRec[filled]=[];var out=Gt("simOut");out&&(out.innerHTML="");
-  var ts=Date.now();st&&(st.innerHTML="⚡ 推演第 "+(filled+1)+" 格…（"+idxs.length+" 个模型并行）");
-  idxs.forEach(function(mi){
-    var eng=__AI_MODELS[mi][0],a="undefined"!=typeof AbortController?new AbortController:null;window.__simAbort.push(a);
+  var ts=Date.now();st&&(st.innerHTML="⚡ 推演第 "+(filled+1)+" 格…（失败自动换快通道）");
+  (function attempt(engineIdx,tried){
+    var eng=__AI_MODELS[engineIdx][0],a="undefined"!=typeof AbortController?new AbortController:null;
     var to=setTimeout(function(){a&&a.abort()},7e4);
     fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:|deepseek|kimi/i.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:__AI_SYS+"\n\n模拟最近"+filled+"局牌型序列（按时间新→旧）：\n"+seq.join("/")+"\n\n预测下一手，并给出四门概率。"}]}),signal:a?a.signal:void 0}).then(function(e){clearTimeout(to);if(!e.ok)return e.json().then(function(j){throw new Error(j.error||"HTTP "+e.status)});return e.json()}).then(function(j){
       var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);if(!obj)throw new Error("模型未按格式返回 JSON");
       var N={hu:1,long:2,ru:3,chu:4},Nm={1:"虎",2:"龙",3:"入",4:"出"},_s=0;["hu","long","ru","chu"].forEach(function(k){_s+=obj[k]||0});_s=_s||1;
       var sorted=["hu","long","ru","chu"].slice().sort(function(x,y){return (obj[y]||0)-(obj[x]||0)});
       var top3=sorted.slice(0,3).map(function(k){return N[k]});
-      var recs=window.__simRec[filled];recs.push({name:__AI_MODELS[mi][1],mi:mi,top3:top3});
-      var row='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:3px 0;font-size:11px;color:#cbd5e1;">'+__AI_MODELS[mi][1]+'：'+sorted.slice(0,3).map(function(k){var v=Math.round((obj[k]||0)*100/_s),star=k===sorted[0]?"★":"";return '<button onclick="__simPickGate(&#39;+N[k]+&#39;)" style="padding:5px 9px;border-radius:6px;background:rgba(255,255,255,.09);color:'+(k==="hu"?"#fca5a5":k==="long"?"#93c5fd":k==="ru"?"#fde047":"#86efac")+';font-size:12px;font-weight:700;border:1px solid rgba(148,163,184,.3);cursor:pointer;font-family:inherit;margin-left:2px;">'+Nm[N[k]]+" "+v+"%"+star+'</button>'}).join("")+'</div>';
+      var recs=window.__simRec[filled];recs.push({name:__AI_MODELS[engineIdx][1],mi:engineIdx,top3:top3});
+      var row='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:3px 0;font-size:11px;color:#cbd5e1;">'+__AI_MODELS[engineIdx][1]+'：'+sorted.slice(0,3).map(function(k){var v=Math.round((obj[k]||0)*100/_s),star=k===sorted[0]?"★":"";return '<button onclick="__simPickGate(&#39;+N[k]+&#39;)" style="padding:5px 9px;border-radius:6px;background:rgba(255,255,255,.09);color:'+(k==="hu"?"#fca5a5":k==="long"?"#93c5fd":k==="ru"?"#fde047":"#86efac")+';font-size:12px;font-weight:700;border:1px solid rgba(148,163,184,.3);cursor:pointer;font-family:inherit;margin-left:2px;">'+Nm[N[k]]+" "+v+"%"+star+'</button>'}).join("")+'</div>';
       var o2=Gt("simOut");o2&&(o2.innerHTML+=row);
-      var done=window.__simRec[filled].length;var st2=Gt("simStatus");st2&&(st2.innerHTML="✅ 已推演 "+done+"/"+idxs.length+" 个模型 → 预测第 "+(filled+1)+" 格（"+(Math.round((Date.now()-ts)/1000))+"s）")
-    }).catch(function(er){var o3=Gt("simOut"),em=String(er.message||er||"");if(/aborted|AbortError|signal is aborted/i.test(em)){o3&&(o3.innerHTML+='<div style="margin:2px 0;color:#64748b;font-size:11px;">⏸ '+__AI_MODELS[mi][1]+'：跳过（切换/超时）</div>')}else{o3&&(o3.innerHTML+='<div style="margin:2px 0;color:#f87171;font-size:11px;">❌ '+__AI_MODELS[mi][1]+'：'+em.slice(0,60)+"</div>")}})
-  })
+      window.__simBusy=false;
+      var fi=0;while(fi<12&&window.__sim[fi])fi++;
+      for(var j=0;j<fi;j++){if(window.__sim[j]>0&&window.__simRec[j]&&window.__simRec[j].length&&window.__simVerdict[j]===0)__simJudge(j)}
+      var st2=Gt("simStatus");st2&&(st2.innerHTML="✅ 已推演 → 预测第 "+(filled+1)+" 格（"+(Math.round((Date.now()-ts)/1000))+"s）");
+      if(window.__simWant||fi<12){window.__simWant=0;setTimeout(__simPredict,120)}
+    }).catch(function(er){
+      clearTimeout(to);
+      var em=String(er.message||er||"");
+      if(/aborted|AbortError|signal is aborted/i.test(em)&&engineIdx!==7){st&&(st.innerHTML="⏸ 原模型超时，换 FK 快通道重试…");return attempt(7,true)}
+      if(!tried&&engineIdx!==7){st&&(st.innerHTML="模型异常，换 FK 快通道重试…");return attempt(7,true)}
+      window.__simBusy=false;var o3=Gt("simOut");o3&&(o3.innerHTML+='<div style="margin:2px 0;color:#f87171;font-size:11px;">❌ '+__AI_MODELS[engineIdx][1]+'：'+em.slice(0,60)+"</div>");
+      var fi=0;while(fi<12&&window.__sim[fi])fi++;
+      if(window.__simWant||fi<12){window.__simWant=0;setTimeout(__simPredict,120)}
+    })
+  })(mi,false)
 }
-function __simUndo(){var idx=__simNextIdx();if(idx<=0)return void nt("没有可撤销的格子");idx--;window.__sim[idx]=0;window.__simVerdict[idx]=0;window.__simRec=[];__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");__simPredict()}
-function __simRand(){for(var i=0;i<12;i++)window.__sim[i]=1+Math.floor(Math.random()*4);window.__simRec=[];__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");window.__simStat={n:0,hit:0};__simPredict()}
-function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
+function __simRand(){for(var i=0;i<12;i++)window.__sim[i]=1+Math.floor(Math.random()*4);window.__simRec=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");window.__simStat={n:0,hit:0};__simPredict()}
+function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
 
 </div>
 
