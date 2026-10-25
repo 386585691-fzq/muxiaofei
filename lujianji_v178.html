@@ -408,7 +408,7 @@ function __prerunStart(name){
   var slice=__aiSlice(name);if(!slice)return;
   window.__prerunning=true;
   var p=__preratesLoad();p[name]=p[name]||{ts:0,models:{}};var pn=p[name];
-  var pk0=Gt("testModelPick");var mi0=pk0?+pk0.value:1;var list=[mi0];for(var i=0;i<9;i++)if(i!==mi0)list.push(i);
+  var pk0=Gt("testModelPick");var mi0=pk0?+pk0.value:1;var fast=[7,6,8,1,2,5,3,0,4];var list=[mi0];for(var f=0;f<fast.length;f++)if(fast[f]!==mi0)list.push(fast[f]);for(var i=0;i<9;i++)if(i!==mi0&&list.indexOf(i)<0)list.push(i);
   var k=0,prompt=__AI_SYS+"\n\n"+slice.text;
   (function next(){
     if(k>=list.length){pn.ts=Date.now();localStorage.setItem("road_psy_prerates",JSON.stringify(p));window.__prerunning=false;__aiRenderModels();return}
@@ -441,6 +441,7 @@ function __simAfterInput(i){
   __simPredict()}function __simRateTick(mi,hit){if(mi==null)return;var rates={};try{rates=JSON.parse(localStorage.getItem("road_psy_rates")||"{}")}catch(e){}var r=rates[mi]||{n:0,hit:0};r.n++;hit&&r.hit++;rates[mi]=r;localStorage.setItem("road_psy_rates",JSON.stringify(rates));var b=Gt("testModelPick");if(b){var op=b.querySelector("option[value=\""+mi+"\"]");if(op){var pct=Math.round(r.hit*100/r.n);op.textContent=__AI_MODELS[mi][1]+" · 命中"+pct+"% ("+r.hit+"/"+r.n+")"}}}
 function __simModels(){var pk=Gt("testModelPick");var mi=pk?+pk.value:(+(localStorage.getItem("road_psy_model")||"1")||1);if(!__AI_MODELS[mi])mi=1;return [mi]}
 function __simPredict(){
+  var pn0=localStorage.getItem("road_psy_name");if(pn0)setTimeout(function(){__prerunCheck(pn0,false)},50);
   var filled=0;while(filled<12&&window.__sim[filled])filled++;
   if(!filled){var s0=Gt("simStatus");s0&&(s0.innerHTML="");return}
   if(window.__simBusy){window.__simWant=1;return}
@@ -477,7 +478,8 @@ function __simPredict(){
   })(mi,false)
 }
 function __simRand(){for(var i=0;i<12;i++)window.__sim[i]=1+Math.floor(Math.random()*4);window.__simRec=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");window.__simStat={n:0,hit:0};__simPredict()}
-function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
+function __simClear(){for(var i=0;i<12;i++)window.__sim[i]=0;window.__simVerdict=Array(12).fill(0);window.__simRec=[];window.__simStat={n:0,hit:0};window.__simAbort.forEach(function(a){a&&a.abort&&a.abort()});window.__simAbort=[];window.__simBusy=false;window.__simWant=0;__simDraw();var m=Gt("simMsg");m&&(m.innerHTML="");var s2=Gt("simStat");s2&&(s2.innerHTML="");var s3=Gt("simStatus");s3&&(s3.innerHTML="");var o=Gt("simOut");o&&(o.innerHTML="")}__aiRenderModels();
+;function __aiReady(){if(document.getElementById("testModelPick")){__aiRenderModels();if(document.getElementById("simGrid"))__simInit();var _n=localStorage.getItem("road_psy_name");if(_n)setTimeout(function(){__prerunCheck(_n,false)},100);setInterval(function(){var _n2=localStorage.getItem("road_psy_name");if(_n2)__prerunCheck(_n2,false)},3600e3)}else{setTimeout(__aiReady,80)}}__aiReady();</script>
 
 </div>
 
