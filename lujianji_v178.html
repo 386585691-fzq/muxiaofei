@@ -415,7 +415,7 @@ function __prerunStart(name){
     var mi=list[k++],eng=__AI_MODELS[mi][0];
     fetch((window.anG.proxy||"").replace(/\/+$/,"")+"/psy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:eng,temperature:.2,max_tokens:/^flatkey:|deepseek|kimi/i.test(eng)?1200:300,stream:!1,messages:[{role:"system",content:__AI_SYS},{role:"user",content:prompt}]})}).then(function(e){if(!e.ok)throw new Error("HTTP "+e.status);return e.json()}).then(function(j){
       var c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"",obj=__aiPickJSON(c);
-      if(obj){var _s2=0;["hu","long","ru","chu"].forEach(function(q){_s2+=obj[q]||0});_s2=_s2||1;obj.pct=Math.round((obj[obj.top]||0)*100/_s2);pn.models[mi]=obj;localStorage.setItem("road_psy_prerates",JSON.stringify(p));__aiRenderModels()}
+      if(obj){var _s2=0;["hu","long","ru","chu"].forEach(function(q){_s2+=obj[q]||0});_s2=_s2||1;obj.pct=Math.round((obj[obj.top]||0)*100/_s2);obj.confidence=obj.confidence==null?obj.pct:obj.confidence;pn.models[mi]=obj;localStorage.setItem("road_psy_prerates",JSON.stringify(p));__aiRenderModels()}
       setTimeout(next,150)
     }).catch(function(){setTimeout(next,150)})
   })();
