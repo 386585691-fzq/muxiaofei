@@ -252,6 +252,10 @@
 .cur-label{font-size:10px;color:#fbbf24;margin:2px 0 2px;font-weight:700;}
 .cur-query{margin-bottom:4px;}
 .cur-query .mini-cell{background:linear-gradient(180deg,#fef3c7,#fde68a);border-color:#d97706;}
+
+.mini-card.hit{border:1px solid rgba(34,197,94,.6);background:rgba(34,197,94,.07);box-shadow:inset 0 0 0 1px rgba(34,197,94,.12)}
+.mini-card.hit .mc-tag{background:#22c55e;color:#052e16;font-weight:900;padding:1px 5px;border-radius:8px;font-size:9px}
+.mini-cell.hit-cell{background:rgba(34,197,94,.26)!important;box-shadow:inset 0 0 0 1px #16a34a}
 </style>
 </head>
 <body>
@@ -362,18 +366,22 @@ function shapeNorm20(list){var c=cntGates20(list);var a=[c.hu,c.long,c.ru,c.chu]
 function vecSim20(a,b){if(!a||!b)return 0;var d=0;for(var i=0;i<4;i++)d+=Math.abs(a[i]-b[i]);return Math.max(0,1-d/2);}
 function mineRecords20(key){if(!key)return [];return _t().filter(function(rec){return _NmC(rec.name||"",key);});}
 
-function miniRecCard20(rec,tag){
+function miniRecCard20(rec,tag,sv,cur){
   if(!rec)return "";
   var list=Array.isArray(rec.list)?rec.list:[];
   var marks=Array.isArray(rec.marks)?rec.marks:[];
+  var hit=typeof sv==="number"&&sv>0;
+  var exact=sv>=1;
   var cells="";
   for(var i=0;i<list.length;i++){
     var k=list[i],mk=marks[i];
     var dot=mk===1?'<span style="position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:#22c55e;color:#fff;font-size:7px;display:flex;align-items:center;justify-content:center;">✓</span>'
       :(mk===0?'<span style="position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:#ef4444;color:#fff;font-size:7px;display:flex;align-items:center;justify-content:center;">×</span>':"");
-    cells+='<div class="mini-cell '+k+'">'+(D[k]||k)+dot+'</div>';
+    var hitCell=exact&&Array.isArray(cur)&&i<cur.length&&list[i]===cur[i]?" hit-cell":"";
+    cells+='<div class="mini-cell '+k+hitCell+'">'+(D[k]||k)+dot+'</div>';
   }
-  return '<div class="mini-card"><div class="mc-head"><span>'+Xt(String(rec.name||"未命名"))+' · '+Xt(String(rec.time||""))+' · '+list.length+"手</span>"+(tag?'<span class="mc-tag">'+Xt(String(tag))+"</span>":"")+"</div>"+'<div class="mini-grid">'+cells+"</div></div>";
+  var tagHtml=tag?'<span class="mc-tag">'+(hit?"✓ ":"")+Xt(String(tag))+"</span>":"";
+  return '<div class="mini-card'+(hit?" hit":"")+'"><div class="mc-head"><span>'+Xt(String(rec.name||"未命名"))+' · '+Xt(String(rec.time||""))+' · '+list.length+"手</span>"+tagHtml+"</div>"+'<div class="mini-grid">'+cells+"</div></div>";
 }
 function similarPool20(){
   var cur=Pt.current||[];
@@ -425,7 +433,7 @@ if(cur.length){
 if(tot){h+='<div class="ref-line" style="color:#94a3b8;">习惯：主走 '+D[order[0]]+'/'+D[order[1]]+'；最常舍弃 '+D[order[3]]+'。</div>';}
 var pool=similarPool20();
 if(pool.list.length){
-  pool.list.forEach(function(x){var tag=x.tag+(x.sv>0&&x.sv<1?" · "+Math.round(x.sv*100)+"%相似":"");h+=miniRecCard20(x.g,tag);});
+  pool.list.forEach(function(x){var tag=x.tag+(x.sv>0&&x.sv<1?" · "+Math.round(x.sv*100)+"%相似":"");h+=miniRecCard20(x.g,tag,x.sv,cur);});
   if(key&&pool.total>pool.list.length){h+='<div class="ref-line" style="color:#64748b;">本人历史另有相近结构，详见下方完整历史流。</div>';}
 }else if(cur.length){
   h+='<div class="ref-empty">暂未找到完全同形/结构同构历史组，下方为时间倒序全量历史。</div>';
