@@ -385,28 +385,44 @@ function similarPool20(){
   var mine=key?all.filter(function(r){return _NmC(r.name||"",key)}):[];
   function join(a){return (a||[]).join("|");}
   function sim(a,b){return vecSim20(shapeNorm20(a),shapeNorm20(b));}
+  // 当前连续门序序列在历史组中的首个连续起点；-1=未出现；0=开头，>0=中间（统一归“同序出现”）
+  function seqPos(hist){
+    if(!cur.length||!hist||hist.length<cur.length)return -1;
+    for(var i=0;i+cur.length<=hist.length;i++){var ok=true;for(var j=0;j<cur.length;j++){if(hist[i+j]!==cur[j]){ok=false;break;}}if(ok)return i;}
+    return -1;
+  }
   var out=[],seen={};
-  function push(r,sv,tag){if(!r)return;var id=(""+(r.id||"")+"#"+join(r.list)+"#"+(r.time||""));if(seen[id])return;seen[id]=1;out.push({g:r,sv:sv,tag:tag});}
+  function rid(r){return (""+(r.id||"")+"#"+join(r.list)+"#"+(r.time||""));}
+  // rk=排序权重(置顶第一档=1.0)；sv=视觉权重(>0绿框,>=1逐格亮)；sim=结构层真实相似度用于显示百分比
+  function push(r,sv,tag,simv,rk){if(!r)return;var id=rid(r);if(seen[id])return;seen[id]=1;out.push({g:r,sv:sv,tag:tag,sim:(simv==null?null:simv),rk:(rk==null?sv:rk)});}
   if(cur.length){
-    mine.forEach(function(r){if(join(r.list)===join(cur))push(r,1,"完全同形");});
-    mine.filter(function(r){return join(r.list)!==join(cur);})
-      .map(function(r){return {r:r,s:sim(cur,r.list)};})
-      .sort(function(a,b){return b.s-a.s;})
-      .forEach(function(x){if(x.s>=0.7)push(x.r,x.s,"结构同构");});
-    all.filter(function(r){return key?_NmC(r.name||"",key):true;})
-      .map(function(r){return {r:r,s:sim(cur,r.list)};})
-      .sort(function(a,b){return b.s-a.s;})
-      .forEach(function(x){if(x.s>=0.7)push(x.r,x.s,"结构同构");});
+    var seq=[],struct=[];
+    function scan(r){
+      if(join(r.list)===join(cur)){seq.push({r:r,rk:1.0,sv:1,tag:"完全同形"});return;}
+      if(seqPos(r.list)>=0){seq.push({r:r,rk:1.0,sv:0.99,tag:"同序出现"});return;}
+      var s=sim(cur,r.list);
+      if(s>=0.7)struct.push({r:r,rk:0.89,sv:Math.min(0.89,s),tag:"结构同构",sim:s});
+    }
+    mine.forEach(scan);
+    all.filter(function(r){return key?_NmC(r.name||"",key):true;}).forEach(scan);
+    // 第一档内：同序出现排在完全同形之前，再按时间新→旧
+    seq.sort(function(a,b){
+      if(b.rk!==a.rk)return b.rk-a.rk;
+      if(a.tag!==b.tag)return a.tag==="同序出现"?-1:1;
+      return String(b.r.time||"")<String(a.r.time||"")?-1:(String(b.r.time||"")>String(a.r.time||"")?1:0);
+    });
+    struct.sort(function(a,b){return b.sim-a.sim;});
+    seq.forEach(function(x){push(x.r,x.sv,x.tag,x.sim==null?null:x.sim,x.rk);});
+    struct.forEach(function(x){push(x.r,x.sv,x.tag,x.sim,x.rk);});
   }
   if(!out.length){
     mine.slice().sort(function(a,b){return String(b.time||"")<String(a.time||"")?-1:1;})
       .slice(0,9).forEach(function(r,i){push(r,0,i===0?"最新一组":"");});
   }
-  out.sort(function(a,b){return b.sv-a.sv;});
+  out.sort(function(a,b){return b.rk-a.rk;});
   var cap=key?9:4;
   return {list:out.slice(0,cap),total:out.length};
 }
-
 function histLatest20(){var box=Gt("histLatest");if(!box)return;function tk(x){var s=String(x&&x.time||"").trim();return /^\d{4}-/.test(s)?s:new Date().getFullYear()+"-"+s;}var rows=(_t()||[]).slice().sort(function(a,b){var ka=tk(a),kb=tk(b);return kb<ka?-1:(kb>ka?1:0);}).slice(0,1);var h='<div class="ref-h">最新流 · 不分人 · 最近1组（时间倒序·宫格）</div>';if(!rows.length){box.innerHTML=h+'<div class="ref-empty">暂无完成组。</div>';return;}rows.forEach(function(r){h+=miniRecCard20(r);});box.innerHTML=h;}
 function histNameIndex20(){var box=Gt("nameIndex");if(!box)return;var by={};_t().forEach(function(rec){var n=String(rec&&rec.name||"");if(!n)return;var ts=String(rec.time||"");if(!by[n]||ts>String(by[n].time||""))by[n]=rec;});var arr=Object.keys(by).map(function(n){return {n:n,g:by[n]}}).sort(function(a,b){return String(b.g.time||"")<String(a.g.time||"")?-1:1}).slice(0,30);if(Jt){var __pm=mineRecords20(Jt);if(__pm.length){var __latest=__pm.slice().sort(function(a,b){return String(b.time||"")<String(a.time||"")?-1:1})[0];var __hit=arr.some(function(x){return _NmC(x.n,Jt)});if(!__hit)arr.unshift({n:__latest.name,g:__latest});}}var h='<div class="ref-h">人名索引 · 点人名展开其全部历史（当前选中置顶 · 其余最近30）</div>';if(!arr.length){box.innerHTML=h+'<div class="ref-empty">暂无人名。</div>';return;}arr.forEach(function(it){var c=cntGates20(it.g.list||[]);var tot=c.hu+c.long+c.ru+c.chu;var top=["hu","long","ru","chu"].sort(function(x,y){return c[y]-c[x]})[0]||"hu";h+='<div class="name-card'+(Jt&&_NmC(it.n,Jt)?" active":"")+'" data-n="'+Xt(it.n)+'"><span class="nc-n">'+Xt(it.n)+'</span><span class="nc-m">'+Xt(String(it.g.time||""))+' · '+tot+'手 · 主走'+D[top]+'</span></div>'});box.innerHTML=h;box.querySelectorAll(".name-card").forEach(function(el){el.addEventListener("click",function(){var __nv=el.getAttribute("data-n");Jt=__nv;try{var __gg=Gt("groupName");if(__gg)__gg.value=__nv}catch(e){}try{r=""}catch(e){}try{var sb=Gt("searchBox");if(sb)sb.value=""}catch(e){}$e();try{refSimilar20()}catch(e){}histNameIndex20();});});}
 function refSimilar20(){var box=Gt("similarBox");if(!box)return;
@@ -416,7 +432,7 @@ var agg={hu:0,long:0,ru:0,chu:0};mine.forEach(function(r){(r.list||[]).forEach(f
 var tot=agg.hu+agg.long+agg.ru+agg.chu;
 var order=["hu","long","ru","chu"].sort(function(a,b){return agg[b]-agg[a];});
 var cur=Pt.current||[];
-var title=key?('个人走向 · '+Xt(key)+' · 历史'+mine.length+"组"+(tot?" · "+tot+"手":"")+" · 当前已录"+cur.length+"手（完全同形→结构同构，客观不荐注）"):('实时相似 · 当前已录'+cur.length+"手（先选名看本人9组；未选名取全局结构同构，客观不荐注）");
+var title=key?('个人走向 · '+Xt(key)+' · 历史'+mine.length+"组"+(tot?" · "+tot+"手":"")+" · 当前已录"+cur.length+"手（出现过相同门序优先，结构相近为辅；仅供个人对照，客观不荐注）"):('实时相似 · 当前已录'+cur.length+"手（出现过相同门序优先，其次数量比例相近；仅供个人对照，客观不荐注）");
 var h='<div class="ref-h">'+title+'</div>';
 if(cur.length){
   var cq='<div class="cur-label">当前录入 '+cur.length+'手 · 据此自动匹配：</div><div class="mini-grid cur-query">';
@@ -428,7 +444,7 @@ if(cur.length){
 if(tot){h+='<div class="ref-line" style="color:#94a3b8;">习惯：主走 '+D[order[0]]+'/'+D[order[1]]+'；最常舍弃 '+D[order[3]]+'。</div>';}
 var pool=similarPool20();
 if(pool.list.length){
-  pool.list.forEach(function(x){var tag=x.tag+(x.sv>0&&x.sv<1?" · "+Math.round(x.sv*100)+"%相似":"");h+=miniRecCard20(x.g,tag,x.sv,cur);});
+  pool.list.forEach(function(x){var tag=x.tag;if(x.sim!=null)tag+=" · "+Math.round(x.sim*100)+"%相似";h+=miniRecCard20(x.g,tag,x.sv,cur);});
   if(key&&pool.total>pool.list.length){h+='<div class="ref-line" style="color:#64748b;">本人历史另有相近结构，详见下方完整历史流。</div>';}
 }else if(cur.length){
   h+='<div class="ref-empty">暂未找到完全同形/结构同构历史组，下方为时间倒序全量历史。</div>';
