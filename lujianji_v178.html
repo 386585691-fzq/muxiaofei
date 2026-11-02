@@ -378,7 +378,37 @@ function miniRecCard20(rec,tag,sv,cur){
   var tagHtml=tag?'<span class="mc-tag">'+(hit?"✓ ":"")+Xt(String(tag))+"</span>":"";
   return '<div class="mini-card'+(hit?" hit":"")+'"><div class="mc-head"><span>'+Xt(String(rec.name||"未命名"))+' · '+Xt(String(rec.time||""))+' · '+list.length+"手</span>"+tagHtml+"</div>"+'<div class="mini-grid">'+cells+"</div></div>";
 }
-function similarPool20(){
+function oldSimilarPool20(){
+  var cur=Pt.current||[];
+  var key=Jt||(function(){var el=Gt("groupName");var n=el?ie(el.value.trim()):[];return n[0]||"";})();
+  var all=_t()||[];
+  var mine=key?all.filter(function(r){return _NmC(r.name||"",key)}):[];
+  function join(a){return (a||[]).join("|");}
+  function sim(a,b){return vecSim20(shapeNorm20(a),shapeNorm20(b));}
+  var out=[],seen={};
+  function push(r,sv,tag,simv){if(!r)return;var id=(""+(r.id||"")+"#"+join(r.list)+"#"+(r.time||""));if(seen[id])return;seen[id]=1;out.push({g:r,sv:sv,tag:tag,sim:(simv==null?null:simv)});}
+  if(cur.length){
+    mine.forEach(function(r){if(join(r.list)===join(cur))push(r,1,"完全同形",null);});
+    mine.filter(function(r){return join(r.list)!==join(cur);})
+      .map(function(r){return {r:r,s:sim(cur,r.list)};})
+      .sort(function(x,y){return y.s-x.s;})
+      .forEach(function(x){if(x.s>=0.7)push(x.r,x.s,"结构同构",x.s);});
+    all.filter(function(r){return key?_NmC(r.name||"",key):true;})
+      .map(function(r){return {r:r,s:sim(cur,r.list)};})
+      .sort(function(x,y){return y.s-x.s;})
+      .forEach(function(x){if(x.s>=0.7)push(x.r,x.s,"结构同构",x.s);});
+  }
+  if(!out.length){
+    mine.slice().sort(function(x,y){return String(y.time||"")<String(x.time||"")?-1:1;})
+      .slice(0,9).forEach(function(r,i){push(r,0,i===0?"最新一组":"",null);});
+  }
+  out.sort(function(x,y){return y.sv-x.sv;});
+  var cap=key?9:4;
+  return {list:out.slice(0,cap),total:out.length};
+}
+function similarPool20(){return l==="13828947776"?oldSimilarPool20():newSimilarPool20();}
+
+function newSimilarPool20(){
   var cur=Pt.current||[];
   var key=Jt||(function(){var el=Gt("groupName");var n=el?ie(el.value.trim()):[];return n[0]||"";})();
   var all=_t()||[];
@@ -432,7 +462,8 @@ var agg={hu:0,long:0,ru:0,chu:0};mine.forEach(function(r){(r.list||[]).forEach(f
 var tot=agg.hu+agg.long+agg.ru+agg.chu;
 var order=["hu","long","ru","chu"].sort(function(a,b){return agg[b]-agg[a];});
 var cur=Pt.current||[];
-var title=key?('个人走向 · '+Xt(key)+' · 历史'+mine.length+"组"+(tot?" · "+tot+"手":"")+" · 当前已录"+cur.length+"手（出现过相同门序优先，结构相近为辅；仅供个人对照，客观不荐注）"):('实时相似 · 当前已录'+cur.length+"手（出现过相同门序优先，其次数量比例相近；仅供个人对照，客观不荐注）");
+var oldAcct=(l==="13828947776");
+var title=key?(oldAcct?('个人走向 · '+Xt(key)+' · 历史'+mine.length+"组"+(tot?" · "+tot+"手":"")+" · 当前已录"+cur.length+"手（完全同形→结构同构，客观不荐注）"):('个人走向 · '+Xt(key)+' · 历史'+mine.length+"组"+(tot?" · "+tot+"手":"")+" · 当前已录"+cur.length+"手（出现过相同门序优先，结构相近为辅；仅供个人对照，客观不荐注）")):(oldAcct?('实时相似 · 当前已录'+cur.length+"手（先选名看本人9组；未选名取全局结构同构，客观不荐注）"):('实时相似 · 当前已录'+cur.length+"手（出现过相同门序优先，其次数量比例相近；仅供个人对照，客观不荐注）"));
 var h='<div class="ref-h">'+title+'</div>';
 if(cur.length){
   var cq='<div class="cur-label">当前录入 '+cur.length+'手 · 据此自动匹配：</div><div class="mini-grid cur-query">';
